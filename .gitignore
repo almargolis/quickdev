@@ -1,0 +1,10 @@
+baf
+.DS_Store
+__pycache__
+*.pyc
+*.bak
+*.yaml
+commercenode.venv
+examples/temp/*
+examples/cncore
+ezsphinx/_build
