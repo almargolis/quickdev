@@ -1,0 +1,219 @@
+import os
+import sys
+
+from cncore import configutils
+from cncore import textfile
+from cncore import utils
+
+#
+# These are good guides for apache on macos:
+#	https://jasonmccreary.me/articles/configure-apache-virtualhost-mac-os-x/
+#	https://getgrav.org/blog/macos-catalina-apache-multiple-php-versions
+#	https://tecadmin.net/install-apache-macos-homebrew/
+#
+# Handy apache commands:
+#	sudo apachectl -k restart
+#	sudo apachectl configtest
+#       dscacheutil -flushcache			-- this clears macos dns cache
+#
+APACHE_CONFIG_FILE = 'httpd.conf'
+SITES_AVAILABLE = 'sites-available'
+SITES_ENABLED = 'sites-enabled'
+DEFAULT_SITE_CONF_FN = 'default'
+
+MACOS_HOMEBREW = {
+    'apache_config_dir':	'/usr/local/etc/httpd',
+    'document_base_dir':	'~/Sites',
+    'apachectl':		'/usr/local/bin/apachectl',
+    'httpd':			'/usr/local/bin/httpd',
+    'service_start':		'brew services start httpd'
+}
+
+MACOS_DARWIN = {
+    # The MacOS apachectl seems to be implemented as launchctl.
+    'apache_config_dir':	'/private/etc/apache2',			# symlink to /etc/apache2
+    'document_base_dir':	'~/Sites',
+    'apachectl':		'/usr/sbin/apachectl',
+    'httpd':			'/usr/sbin/httpd',
+    'service_status':		'launchctl print system/org.apache.httpd',
+    'service_disable':		'launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist'
+}
+
+DEBIAN = {
+    'apache_config_dir':	'/etc/apache2',
+    'document_base_dir':	'/var/www'
+}
+
+#
+# ConfDirectiveDef defines an Apache *.conf file directive and tracks its
+# *.conf file parsing/editing state.
+#
+class ApacheDirective():
+    """
+    Records one apache conf file directive.
+    """
+    __slots__ = ('count_found', 'count_max', 'directive', 'directive_uc', 'value_key')
+    def __init__(self, directive, value_key, count_max=1):
+        self.count_found = 0
+        self.count_max = count_max
+        self.directive = directive
+        self.directive_uc = directive.upper()		# apache config directives are case insensitive
+        self.value_key = value_key
+
+    def apply(self, value_store):
+        self.count_found += 1
+        assert self.count_found <= self.count_max
+        return '{} "{}"'.format(self.directive, value_store[self.value_key])
+
+class ApacheConf():
+    """
+    Records an apache configuation as a list of ApacheDirective objects.
+    """
+    __slots__ = ('directives',)
+    def __init__(self):
+        self.directives = []
+
+    def add(self, directive, value):
+        """Add a directive to the list. """
+        directive_def = ApacheDirective(directive, value)
+
+    def append(self, directive):
+        self.directives.append(directive)
+        return directive
+
+    def load(self, file_name):
+        """ Read config file and build directive list. """
+        with open(file_name, "r") as f:
+            for this in f.readlines():
+                self.parse(this)
+
+    def parse(self, config_line):
+        """
+        Parse a config file line and add it to list.
+
+        Config file parsing rules are pretty simple:
+        https://httpd.apache.org/docs/current/configuring.html
+        """
+        directive_ix = utils.FindFirstNonWhiteSpace(config_line)
+        if (directive_ix < 0) or (config_line[directive_ix] == '#'):
+            # blank line or comment
+            return None
+        end_ix = utils.FindFirstWhiteSpace(config_line, StartPos=directive_ix)
+        directive_uc = config_line[directive_ix:end_ix].upper()
+        for this in self.directives:
+            print('ConfEdits.find() {} {}'.format(directive_uc, this.directive_uc))
+            if directive_uc == this.directive_uc:
+                return this
+        return None
+
+class ApacheHosting():
+    """
+    Class to manage configuration of Apache web server with virtual hosts
+    under debian style linux and macos native or homebrew.
+    """
+    # pylint: disable=too-many-instance-attributes
+    __slots__ = (
+        'apache_config_dir',
+        'conf_directives',
+        'default_page_path', 'document_base_dir',
+        'parsed_config_file', 'platform_details',
+        'sites_available_dir', 'sites_enabled_dir'
+        )
+    def __init__(self, platform):
+        # just consider this a good place to track core directories.
+        if platform == configutils.platform_darwin:
+            self.platform_details = MACOS_DARWIN
+        else:
+            raise ValueError("Unknown platform code '{}'".format(platform))
+        self.conf_directives = ApacheConf()
+        self.define_directives()
+        self.apache_config_dir = self.platform_details['apache_config_dir']
+        config_fn = os.path.join(self.apache_config_dir, APACHE_CONFIG_FILE)
+        self.sites_available_dir = os.path.join(self.apache_config_dir, SITES_AVAILABLE)
+        self.sites_enabled_dir = os.path.join(self.apache_config_dir, SITES_ENABLED)
+        self.document_base_dir = self.platform_details['document_base_dir']
+        self.document_base_dir = os.path.expanduser(self.document_base_dir)
+        self.default_page_path = os.path.join(self.document_base_dir, 'index.html')
+        self.parsed_config_file = ApacheConf()
+        self.parsed_config_file.load(config_fn)
+
+    def define_directives(self):
+        self.conf_directives.append(ApacheDirective('DocumentRoot', 'DocumentRoot'))
+
+    def create_directories(self):
+        """
+        Verify existance of apache configuration directories and create if missing.
+
+        This creates debian style directories under macos. It shouldn't do anything
+        under debian style linux installations.
+        """
+        if not os.path.isdir(self.apache_config_dir):
+            print("Apache config directory {} not found.".format(self.apache_config_dir))
+            sys.exit(-1)
+        if not os.path.isdir(self.sites_available_dir):
+            os.mkdir(self.sites_available_dir, mode=0o755)
+        if not os.path.isdir(self.sites_enabled_dir):
+            os.mkdir(self.sites_enabled_dir, mode=0o755)
+        default_site_conf_path = os.path.join(self.sites_available_dir, DEFAULT_SITE_CONF_FN)
+        if not os.path.isfile(default_site_conf_path):
+            with textfile.open(default_site_conf_path, 'w') as f:
+                f.writeln('<VirtualHost *:80>')
+                f.writeln('\tDocumentRoot "/Library/WebServer/Documents')
+                f.writeln('</VirtualHost>')
+        self.parsed_config_file.add('Include', os.path.join(self.sites_enabled_dir, '*.conf'))
+
+
+    def create_host(self, site_name):
+        pass
+        # add a line to hosts file
+        # 127.0.0.1       jasonmccreary.local
+
+    def create_virtual_host(self, site_name):
+        site_conf_path = os.path.join(self.sites_available_dir, site_name + '.conf')
+        if not os.path.isfile(site_conf_path):
+            with textfile.open(site_conf_path, 'w') as f:
+                f.writeln('<VirtualHost *:80>')
+                f.writeln('\tDocumentRoot "/Users/Jason/Documents/workspace/jasonmccreary.me/htdocs"')
+                f.writeln('\tServerName jasonmccreary.local')
+                f.writeln('\tErrorLog "/private/var/log/apache2/jasonmccreary.local-error_log"')
+                f.writeln('\tCustomLog "/private/var/log/apache2/jasonmccreary.local-access_log" common')
+                f.writeln('')
+                f.writeln('\t<Directory "/Users/Jason/Documents/workspace/jasonmccreary.me/htdocs">')
+                f.writeln('t\tAllowOverride All')
+                f.writeln('\t\tRequire all granted')
+                f.writeln('\t</Directory>')
+                f.writeln('</VirtualHost>')
+
+
+
+"""
+value_store = {}
+value_store['DocumentRoot'] = document_base_dir
+apache_httpd_conf_path = os.path.join(apache_config_dir, APACHE_CONFIG_FILE)
+
+try:
+    os.mkdir(document_base_dir)
+except FileExistsError:
+    pass						# it is already there. OK.
+
+p = html.HtmlPage()
+f = open(default_page_path, "w")
+f.write(p.render_html())
+f.close()
+
+inp = textfile.open(apache_httpd_conf_path, 'r', debug=0)
+out = inp.create_temp_output(debug=0)
+l = 0
+while l is not None:
+    l = inp.readln()
+    if l is not None:
+        #print(l)
+        directive_def = edit_defs.find(l)
+        if directive_def is None:
+            new_l = l
+        else:
+            new_l = directive_def.apply(value_store)
+        out.writeln(new_l)
+inp.safe_close()
+
+"""

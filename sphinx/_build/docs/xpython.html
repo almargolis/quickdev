@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XPython &#8212; EzDev  documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="EzDev Directories" href="ez_directories.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="ez_directories.html" title="EzDev Directories"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">XPython</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="xpython">
+<h1>XPython<a class="headerlink" href="#xpython" title="Permalink to this headline">¶</a></h1>
+<p>XPython is a pre-processor that helps maximize production code
+consistency and maximize DRY (Don’t Repeat Yourself) implementation.</p>
+<span class="target" id="module-xpython"></span><p>Xpython is a preprocessor for python that adds data modeling and
+structured programming features without interfering with normal
+python fundamentals.</p>
+<p>Xpython was developed for CommerceNode but does not use any of it’s
+modules because it needs to run regardless of its state. It’s
+simplest to keep this stand-alone.</p>
+<dl class="py class">
+<dt id="xpython.FileInfo">
+<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">FileInfo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.FileInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>FileInfo is a container for file metadata and
+processing state.</p>
+<dl class="py method">
+<dt id="xpython.FileInfo.new_path">
+<code class="sig-name descname">new_path</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ext</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.FileInfo.new_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provide the path for a derivative file named by changing
+the extension.</p>
+<p>ext should include the leading period. e.g.: “.py”</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="xpython.XPython">
+<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XPython</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">option1</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main XPython implementation class.</p>
+<dl class="py method">
+<dt id="xpython.XPython.list_files">
+<code class="sig-name descname">list_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">search_dir</span></em>, <em class="sig-param"><span class="n">ext</span></em>, <em class="sig-param"><span class="n">dir_files</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">recursive</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.list_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a list of files in a directory (or tree) that match
+the specified extension.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XPython.load_conf">
+<code class="sig-name descname">load_conf</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.load_conf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the xpython project configuration file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XPython.process_xpy_files">
+<code class="sig-name descname">process_xpy_files</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.process_xpy_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a list of <a href="#id1"><span class="problematic" id="id2">*</span></a>.xpy files and process them.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="xpython.XSource">
+<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XSource</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x_obj</span></em>, <em class="sig-param"><span class="n">file_info</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class to process one XPython source file.</p>
+<dl class="py method">
+<dt id="xpython.XSource.module_uses">
+<code class="sig-name descname">module_uses</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">module_uses_module_name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.module_uses" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the module uses table for one reference.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XSource.syntax_error">
+<code class="sig-name descname">syntax_error</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.syntax_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format and print an xpython syntax error.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XSource.xpython_p">
+<code class="sig-name descname">xpython_p</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">src_line</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.xpython_p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process one line of python source.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XSource.xpython_x">
+<code class="sig-name descname">xpython_x</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">src_line</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.xpython_x" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse and process an xpython directive line.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="xpython.abend">
+<code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">abend</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.abend" title="Permalink to this definition">¶</a></dt>
+<dd><p>Report critical error and exit xpython (abnormal end).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="xpython.input_yn">
+<code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">input_yn</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">prompt</span></em>, <em class="sig-param"><span class="n">default</span><span class="o">=</span><span class="default_value">'y'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.input_yn" title="Permalink to this definition">¶</a></dt>
+<dd><p>CLI input with validation of y/n response.</p>
+</dd></dl>
+
+</div>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="ez_directories.html"
+                        title="previous chapter">EzDev Directories</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/docs/xpython.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="ez_directories.html" title="EzDev Directories"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">XPython</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Al Margolis.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
+    </div>
+  </body>
+</html>
