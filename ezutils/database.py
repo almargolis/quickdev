@@ -3,34 +3,35 @@
 
 import sys
 
-from cncore import cli
-from cncore import configutils
-from cncore import rdbms
-from cncore import tupledict
+class DbShell():
+    __slots__ = ('commands', 'dbs')
 
-#
-# the following are host dependent globals
-#
-platform_name = sys.platform
+    def __init__(self):
+        self.commands = {}
+        self.commands['help'] = self.cmd_help
+        self.commands['listdb'] = self.cmd_listdb
+        self.dbs = {}
 
-def init_hosting():
-    pass
+    def cmd_help(self, tokens):
+        for this_cmd, this_func in self.commands.items():
+            print("CMD: {}".format(this_cmd))
+            
+    def cmd_listdb(self, tokens):
+        if len(self.dbs) == 0:
+            print("No databases configured.")
+        else:
+            for this in dbs.keys():
+                print("DB: {}".format(this))
 
-def init_site(site_name):
-    resp = cli.cli_input("Do you want to initialize or repair site '{}'?".format(site_name), "yn")
+    def run(self):
+        while True:
+            cmd = input("DB> ")
+            tokens = cmd.split(' ')
+            if tokens[0] in self.commands:
+                self.commands[tokens[0]](tokens)
+            else:
+                print("Unknown command '{}'.".format(tokens[0]))
 
 if __name__ == "__main__":
-    menu = cli.CliMenu()
-    #
-    menu.append(cli.CliMenuItem('hinit', init_hosting, None, desc="Initialize host"))
-    #
-    tdict = tupledict.TupleDictionary()
-    tdict.define_positional_parameter('site_name')
-    m = menu.append(cli.CliMenuItem('sinit', init_site, None, desc="Initialize site"))
-    m.tdict = tdict
-    #
-    env = configutils.ExecutionEnvironment(__name__)
-    if not env.check_version():
-        sys.exit(-1)
-    menu.cli_run()
-
+    shell = DbShell()
+    shell.run()

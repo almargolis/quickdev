@@ -7,7 +7,7 @@ import argparse
 import os
 
 import cli
-import xpython
+import const
 
 class CnStart():
     """Create or repair a CommerceNode site. """
@@ -49,12 +49,12 @@ class CnStart():
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        path = os.path.join(self.site_path, xpython.SITE_CONF_DIR_NAME)
+        path = os.path.join(self.site_path, const.SITE_CONF_DIR_NAME)
         return self.check_directory('Conf', path)
 
     def check_conf_db_path(self):
         """Create site db conf directory if it doesn't exist. """
-        path = os.path.join(self.site_path, xpython.SITE_CONF_DB_DIR_NAME)
+        path = os.path.join(self.site_path, const.SITE_CONF_DB_DIR_NAME)
         return self.check_directory('Conf/Db', path)
 
     def error(self, msg):
