@@ -25,8 +25,6 @@ class CnStart():
             return
         if not self.check_conf_path():
             return
-        if not self.check_conf_db_path():
-            return
 
     def check_directory(self, name, path):
         """Create a directory if it doesn't exist. """
@@ -51,11 +49,6 @@ class CnStart():
         """Create site conf directory if it doesn't exist. """
         path = os.path.join(self.site_path, const.SITE_CONF_DIR_NAME)
         return self.check_directory('Conf', path)
-
-    def check_conf_db_path(self):
-        """Create site db conf directory if it doesn't exist. """
-        path = os.path.join(self.site_path, const.SITE_CONF_DB_DIR_NAME)
-        return self.check_directory('Conf/Db', path)
 
     def error(self, msg):
         """Print an error message."""
