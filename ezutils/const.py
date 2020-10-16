@@ -4,6 +4,9 @@ SITE_CONF_FILE_NAME = 'site.conf'
 PROJECT_DB_FN = 'project_db.sql'
 PROJECT_CONF_FN = 'xpython.conf'
 
+HierarchySeparatorCharacter = '.'
+#$define SERIALIZED_FILE_PATH _serialized_file_path
+
 def list_files(self, search_dir, ext, dir_files=None, recursive=False):
     """
     Build a list of files in a directory (or tree) that match

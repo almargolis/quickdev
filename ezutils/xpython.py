@@ -4,9 +4,10 @@ Xpython is a preprocessor for python that adds data modeling and
 structured programming features without interfering with normal
 python fundamentals.
 
-Xpython was developed for CommerceNode but does not use any of it's
+Xpython was developed for CommerceNode but does not use any of its
 modules because it needs to run regardless of its state. It's
 simplest to keep this stand-alone.
+
 """
 
 import os
@@ -44,7 +45,7 @@ d.add_index('ix_defines', 'module_name', 'define_name')
 
 
 def abend(msg):
-    """Report critical error and exit xpython (abnormal end)."""
+    """Report critical error and exit xpython (abnormal end). """
     print(msg)
     print("Unable to continue")
     sys.exit(-1)

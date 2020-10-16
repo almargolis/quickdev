@@ -39,8 +39,6 @@
 import string
 from . import utils
 
-HierarchySeparatorCharacter = '.'
-SERIALIZED_FILE_PATH = ' _serialized_file_path'
 
 
 
@@ -139,7 +137,7 @@ class TupleData(object):
     """
     __slots__ = ('exeAction', 'exeController',
                  '_data', '_defaultValue', '_defaultValueAssigned',
-                          '_serialized_file_path',
+                          $'SERIALIZED_FILE_PATH$,
                           '_hierarchySeparator',
                           '_isCaseSensitive',
                           '_lastElementModified', '_name'
@@ -157,7 +155,7 @@ class TupleData(object):
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
-        self._serialized_file_path = None
+        self.$SERIALIZED_FILE_PATH$ = None
         self._hierarchySeparator = HierarchySeparator
         self._isCaseSensitive = IsCaseSensitive
         self._name = Name

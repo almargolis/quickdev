@@ -7,4 +7,4 @@ __pycache__
 commercenode.venv
 examples/temp/*
 examples/cncore
-ezsphinx/_build
+sphinx/_build

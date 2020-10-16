@@ -45,10 +45,49 @@
 <h1>XPython<a class="headerlink" href="#xpython" title="Permalink to this headline">¶</a></h1>
 <p>XPython is a pre-processor that helps maximize production code
 consistency and maximize DRY (Don’t Repeat Yourself) implementation.</p>
-<span class="target" id="module-xpython"></span><p>Xpython is a preprocessor for python that adds data modeling and
+<p>An ‘xpy’ is a source file that XPython translates into a standard
+‘py’ python file. XPython uses an simple parsing defininition
+inspired by the C preprocessor. An ‘xpy’ file contains lines of
+XPython code and python code. XPython code lines begin with ‘#$’ in the first
+two characters of the line. All other lines are Python code lines.</p>
+<div class="section" id="xpython-code">
+<h2>XPython Code<a class="headerlink" href="#xpython-code" title="Permalink to this headline">¶</a></h2>
+<p><strong>#$define name value</strong>:</p>
+<ul class="simple">
+<li><p>name is a symbolic reference name. It consists of a sequence of
+letters, numbers and underscores. Name must be unique within the
+source file and cannot be redefined or undefined.</p></li>
+<li><p>value is a substitution value. It begins with the first non-space
+characters after name and ends with the last non-space character on
+the line. If quotation characters are included, they are substituted
+just like any other character. The substition syntax provides a
+method of adding quotes at the point of insertion so the value can be
+used as either quoted or not at various points of the generated code.</p></li>
+</ul>
+</div>
+<div class="section" id="python-code">
+<h2>Python Code<a class="headerlink" href="#python-code" title="Permalink to this headline">¶</a></h2>
+<p>Python code lines are processed for character substitions.
+Substitutions can include any valid python code. The
+substitution identifier format is ‘$[quote]name$’.</p>
+<ul class="simple">
+<li><p>The entire identifier must be on one line of python code.
+The substituted characters can be multi-line.</p></li>
+<li><p>The option [quote] is the single character “’” or ‘”’
+which is used to enclose the substition.</p></li>
+<li><p>The name can be a simple reference, not containing a ‘.’
+which is defined in the current source file or a module
+reference in the format module.name.</p></li>
+<li><p>The named substition must exist or the pre-processor
+reports an error.</p></li>
+</ul>
+</div>
+<div class="section" id="module-xpython">
+<span id="xpython-py-documentation"></span><h2>XPython.py Documentation<a class="headerlink" href="#module-xpython" title="Permalink to this headline">¶</a></h2>
+<p>Xpython is a preprocessor for python that adds data modeling and
 structured programming features without interfering with normal
 python fundamentals.</p>
-<p>Xpython was developed for CommerceNode but does not use any of it’s
+<p>Xpython was developed for CommerceNode but does not use any of its
 modules because it needs to run regardless of its state. It’s
 simplest to keep this stand-alone.</p>
 <dl class="py class">
@@ -70,13 +109,6 @@ the extension.</p>
 <dt id="xpython.XPython">
 <em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XPython</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">option1</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython" title="Permalink to this definition">¶</a></dt>
 <dd><p>Main XPython implementation class.</p>
-<dl class="py method">
-<dt id="xpython.XPython.list_files">
-<code class="sig-name descname">list_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">search_dir</span></em>, <em class="sig-param"><span class="n">ext</span></em>, <em class="sig-param"><span class="n">dir_files</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">recursive</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.list_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Build a list of files in a directory (or tree) that match
-the specified extension.</p>
-</dd></dl>
-
 <dl class="py method">
 <dt id="xpython.XPython.load_conf">
 <code class="sig-name descname">load_conf</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.load_conf" title="Permalink to this definition">¶</a></dt>
@@ -134,6 +166,7 @@ the specified extension.</p>
 </dd></dl>
 
 </div>
+</div>
 
 
             <div class="clearer"></div>
@@ -142,6 +175,16 @@ the specified extension.</p>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">XPython</a><ul>
+<li><a class="reference internal" href="#xpython-code">XPython Code</a></li>
+<li><a class="reference internal" href="#python-code">Python Code</a></li>
+<li><a class="reference internal" href="#module-xpython">XPython.py Documentation</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="ez_directories.html"
                         title="previous chapter">EzDev Directories</a></p>

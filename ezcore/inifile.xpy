@@ -15,6 +15,28 @@ Functions to read and write ini files.
 # To the degree possible, these methods should also work with general Python types.
 #
 
+class EzIni():
+    __slots__ = ('_data', $SERIALIZED_FILE_PATH$)
+
+    def __init__(self):
+        self._data = {}
+        self.$SERIALIZED_FILE_PATH$ = None
+
+    def get_dict(self, key):
+        parts = key.split('.')
+        data = self._data
+        for this in parts[:-1]
+            data = data[this]
+        return data
+
+    def __getitem__(self, key):
+        data = self.get_dict(key)
+        return data[key[-1]]
+
+    def __setitem__(self, key, value):
+        data = self.get_dict(key)
+        data[key[-1]] = value
+
 def AsIniText(parmData, Level=0, ParentName=''):
   wsIni				= ''
   wsChildRecordNames		= []
