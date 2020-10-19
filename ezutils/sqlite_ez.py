@@ -105,7 +105,7 @@ class SqliteEz:
         self.db_cursor.execute(sql, tuple(flds_values))
         self.db_conn.commit()
 
-    def select(self, table, flds='*', where=None):
+    def select(self, table, flds='*', where=None, limit=0, offset=0):
         """Perform SQL select command."""
         sql = 'SELECT '
         if isinstance(flds, str):
@@ -118,6 +118,10 @@ class SqliteEz:
         else:
             where_sql, where_values = dict_to_sql_equal(where, ' AND ')
             sql += ' WHERE ' + where_sql
+        if limit > 0:
+            sql += ' LIMIT {}'.format(limit)
+        if offset > 0:
+            sql += ' OFFSET {}'.format(offset)
         sql += ';'
         if self.debug > 0:
             print("SQL {} {}".format(sql, where_values))

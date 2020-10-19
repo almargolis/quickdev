@@ -24,8 +24,9 @@ import sqlite_ez
 ezconst = None
 
 SOURCE_STATUS_READY = 0
-SOURCE_STATUS_COMPLETE = 1
-SOURCE_STATUS_ERROR = 2
+SOURCE_STATUS_PROCESSING = 1
+SOURCE_STATUS_COMPLETE = 2
+SOURCE_STATUS_ERROR = 3
 
 db_dict = pdict.DbDict()
 
@@ -74,28 +75,6 @@ def input_yn(prompt, default='y'):
                 resp = 'n'
     return resp == 'y'
 
-def list_files(search_dir, ext, dir_files=None, recursive=False):
-    """
-    Build a list of files in a directory (or tree) that match
-    the specified extension.
-    """
-    dir_all = os.listdir(search_dir)
-    dir_dir = []
-    if dir_files is None:
-        dir_files = []
-    for this in dir_all:
-        this_path = os.path.join(search_dir, this)
-        if os.path.isdir(this_path):
-            dir_dir.append(this_path)
-        else:
-            parts = os.path.splitext(this_path)
-            if parts[1] == ext:
-                dir_files.append(FileInfo(this_path))
-    if recursive:
-        for this_subdir in dir_dir:
-            list_files(this_subdir, ext, dir_files=dir_files)
-    return dir_files
-
 class FileInfo:  # pylint: disable=too-few-public-methods
     """
     FileInfo is a container for file metadata and
@@ -106,7 +85,7 @@ class FileInfo:  # pylint: disable=too-few-public-methods
 
     def __init__(self, path):
         stats_obj = os.stat(path)
-        self.path = path
+        self.path = os.path.abspath(path)
         self.dir_name, self.file_name = os.path.split(path)
         self.module_name, self.file_ext = os.path.splitext(self.file_name)
         self.modification_time = stats_obj[stat.ST_MTIME]
@@ -122,44 +101,60 @@ class FileInfo:  # pylint: disable=too-few-public-methods
 
 class XSource:
     """ Class to process one XPython source file. """
-    __slots__ = ('err_ct', 'file_info', 'py_out', 'src_line_ct', 'x_obj')
+    __slots__ = ('err_ct', 'py_out', 'sources_row', 'src_line_ct', 'x_obj')
 
-    def __init__(self, x_obj, file_info):
+    def __init__(self, x_obj, sources_row):
         self.x_obj = x_obj
-        self.file_info = file_info
-        print("Processing {}".format(file_info.module_name))
+        self.sources_row = sources_row  # row of sources table
+        print("Processing {}".format(sources_row['module_name']))
+        self.x_obj.db.update('sources',
+                     {'status': SOURCE_STATUS_PROCESSING},
+                     where={'module_name': sources_row['module_name']})
         self.py_out = []                # output python lines
         self.err_ct = 0
         self.src_line_ct = 0
-        with open(file_info.path, 'r') as f:
-            for this in f.read().splitlines():
+        x_source_file_path = sources_row['path']
+        p_output_file_path = x_source_file_path[:-3] + 'py'
+        with open(x_source_file_path, 'r') as f:
+            for this_line in f.read().splitlines():
                 self.src_line_ct += 0
-                if this[:2] == '#$':
-                    self.xpython_x(this[2:])
+                if this_line[:2] == '#$':
+                    self.xpython_x(this_line[2:])
                 else:
-                    self.xpython_p(this)
+                    self.xpython_p(this_line)
         if self.err_ct == 0:
             status = SOURCE_STATUS_COMPLETE
         else:
             status = SOURCE_STATUS_ERROR
         self.x_obj.db.update('sources',
                              {'status': status},
-                             where={'module_name': file_info.module_name})
-        with open(file_info.new_path('.py'), 'w') as f:
-            print(self.py_out)
+                             where={'module_name': sources_row['module_name']})
+
+        with open(p_output_file_path, 'w') as f:
+            #print(self.py_out)
             f.write('\n'.join(self.py_out))
 
-    def module_uses(self, module_uses_module_name):
+    def post_module_uses(self, uses_module_name):
         """Update the module uses table for one reference."""
         self.x_obj.db.update_insert('module_uses',
                         {
-                            'source_module_name': self.file_info.module_name,
-                            'module_uses_module_name': module_uses_module_name
+                            'source_module_name': self.sources_row['module_name'],
+                            'uses_module_name': uses_module_name
                         },
                         where={
-                            'source_module_name': self.file_info.module_name,
-                            'module_uses_module_name': module_uses_module_name
+                            'source_module_name': self.sources_row['module_name'],
+                            'uses_module_name': uses_module_name
                         })
+
+    def get_module(self, module_name):
+        sql_data = self.x_obj.db.select('sources', '*', where={'module_name': module_name})
+        if len(sql_data) < 1:
+            self.syntax_error("Unknown module '{}'.".format(module_name))
+            return
+        if sql_data[0]['status'] == SOURCE_STATUS_READY:
+            XSource(self.x_obj, sql_data[0])
+        elif sql_data[0]['status'] == SOURCE_STATUS_PROCESSING:
+            self.syntax_error("Recursive loop with module '{}'.".format(module_name))
 
     def xpython_p(self, src_line):
         """ Process one line of python source. """
@@ -176,7 +171,7 @@ class XSource:
                 parts = xpy_string.split('.')
                 if len(parts) == 1:
                     fld_values = {
-                        'module_name': self.file_info.module_name,
+                        'module_name': self.sources_row['module_name'],
                         'define_name': parts[0]
                     }
                 else:
@@ -184,10 +179,12 @@ class XSource:
                         'module_name': parts[0],
                         'define_name': parts[1]
                     }
-                    self.module_uses(parts[0])
+                    self.get_module(parts[0])
+                    self.post_module_uses(parts[0])
                 sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
                 if len(sql_data) != 1:
                     self.syntax_error('Unknown substituion {}'.format(xpy_string))
+                    return
                 sub_string = '{}{}{}'.format(quote, sql_data[0]['value'], quote)
                 src_line = src_line[:ix] + sub_string + src_line[ix2+1:]
         self.py_out.append(src_line)
@@ -205,7 +202,7 @@ class XSource:
             return
         if parts[0] == 'define':
             fld_values = {
-                'module_name': self.file_info.module_name,
+                'module_name': self.sources_row['module_name'],
                 'define_name': parts[1],
             }
             sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
@@ -238,7 +235,7 @@ class XPython:
             if not self.init_ezdev(args):
                 return
         self.db = sqlite_ez.SqliteEz(self.project_db_path,
-                                     db_dict=db_dict, debug=1)
+                                     db_dict=db_dict, debug=0)
         self.process_xpy_files()
 
     def init_ezdev(self, args):
@@ -268,51 +265,74 @@ class XPython:
             return False
         return True
 
+    def scan_directory(self, search_dir, ext, recursive=False):
+        """
+        Scan a direcory and update the sources database.
+        """
+        dir_all = os.listdir(search_dir)
+        dir_dir = []
+        for this_file_name in dir_all:
+            this_path = os.path.join(search_dir, this_file_name)
+            if os.path.isdir(this_path):
+                dir_dir.append(this_path)
+            else:
+                parts = os.path.splitext(this_path)
+                if parts[1] == ext:
+                    self.post_sources_table(this_path)
+        if recursive:
+            for this_subdir in dir_dir:
+                self.scan_directory(this_subdir, ext, recursive=True)
+
     def process_xpy_files(self):
-        """Build a list of *.xpy files and process them."""
-        self.xpy_files = []
-        xpy_files_changed = []
-        for this_path in self.source_dirs:
-            self.xpy_files += list_files(this_path, '.xpy')
+        """
+        Scan directories to locate source files. Update the
+        sources table and then process them.
+        """
         self.db.update('sources', {'found': 0})
-        for this in self.xpy_files:
+        for this_directory in self.source_dirs:
+            self.scan_directory(this_directory, '.xpy')
+
+        while True:
+            # We re-select for each source because XSource
+            # may process multiple sources recursively.
+            # The to-do list is not static.
             sql_data = self.db.select('sources', '*',
-                                      where={'module_name':
-                                             this.module_name})
+                                       where={'status': SOURCE_STATUS_READY},
+                                       limit=1)
             if len(sql_data) < 1:
-                self.db.insert('sources', {
-                            'module_name': this.module_name,
-                            'path': this.path,
+                break
+            XSource(self, sql_data[0])
+
+    def post_sources_table(self, path):
+        file_info = FileInfo(path)
+        sql_data = self.db.select('sources', '*',
+                                      where={'module_name':
+                                             file_info.module_name})
+        if len(sql_data) < 1:
+            self.db.insert('sources', {
+                            'module_name': file_info.module_name,
+                            'path': file_info.path,
                             'found': 1,
                             'status': SOURCE_STATUS_READY,
-                            'modification_time': this.modification_time
+                            'modification_time': file_info.modification_time
                             })
-                xpy_files_changed.append(this)
-            elif len(sql_data) == 1:
-                flds = {'found': 1}
-                if (this.modification_time != sql_data[0].modification_time) \
-                        or (this.path != sql_data[0].path):
-                    # the source has been changed or moved.
-                    # mark it for processing
-                    flds['path'] = this.path
-                    flds['modification_time'] = this.modification_time
-                    flds['status'] = SOURCE_STATUS_READY
-                    xpy_files_changed.append(this)
-                # mark source as found, possibly modified
-                self.db.update('sources', flds,
-                               where={'module_name': this.module_name})
-            else:
+            return
+        if len(sql_data) != 1:
                 abend("Duplicate module name {}".format(this.module_name))
-        for this in xpy_files_changed:
-            #
-            sql_data = self.db.select('module_uses',
-                                      where={'uses_module_name':
-                                             this.module_name})
-            for this_uses in sql_data:
-                self.db.update('sources', {'status': SOURCE_STATUS_READY},
-                               where={'module_name':
-                                      this_uses.source_module_name})
-            XSource(self, this)
+        flds = {'found': 1}
+        if (this.modification_time != sql_data[0].modification_time) \
+                        or (this.path != sql_data[0].path):
+            # the source has been changed or moved.
+            # mark it for processing
+            flds['path'] = file_info.path
+            flds['modification_time'] = file_info.modification_time
+            flds['status'] = SOURCE_STATUS_READY
+        # mark source as found, possibly modified
+        self.db.update('sources', flds,
+                               where={'module_name': file_info.module_name})
+        sql_data = self.db.delete('module_uses',
+                                      where={'source_module_name':
+                                             file_info.module_name})
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()

@@ -20,11 +20,11 @@ importing is configured by the virtual environment.
 #
 
 class EzIni():
-    __slots__ = ('_data', $'ezconst.SERIALIZED_FILE_PATH$)
+    __slots__ = ('_data', _serialized_file_path)
 
     def __init__(self):
         self._data = {}
-        self.$ezconst.SERIALIZED_FILE_PATH$ = None
+        self._serialized_file_path = None
 
     def get_dict(self, key):
         parts = key.split('.')
