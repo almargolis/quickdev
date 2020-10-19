@@ -12,23 +12,6 @@ support for error handling and convenience idioms.
 from . import textfile
 from . import tupledata
 
-def open_serialized_file(target, path=None):
-    """
-    Open a serialized text file.
-
-    Returns open textfile.TextFile() object if succesful or None if not.
-    """
-    if path is None:
-        path = getattr(target, tupledata.SERIALIZED_FILE_PATH, None)
-    if path is None:
-        return None
-    f = textfile.open(wsFilePath, 'r')
-    if f is None:
-        return None
-    f.ConfigureStripEOL()
-    if hasattr(target, tupledata.SERIALIZED_FILE_PATH):
-        setattr(target, tupledata.SERIALIZED_FILE_PATH, path)
-    return f
 
 """
 #!/usr/bin/python

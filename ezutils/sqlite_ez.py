@@ -1,8 +1,14 @@
 """
-Database methods for XPython project database.
+SqliteEz is a stand-alone pythonic wrapper around SqLite3.
+
+This is used by XPython in stand-alone mode, so it can't
+use XPython features.
 """
 
 import sqlite3
+
+SQLITE_IN_MEMORY_FN = ':memory:'
+SQLITE_TEMP_FN = ''
 
 def dict_to_sql_equal(source_dict, seperator):
     """
@@ -41,8 +47,6 @@ def dict_to_sql_flds(source_dict):
         value_str += '?'
         value_data.append(this[1])
     return flds, value_str, value_data
-
-
 
 class SqliteEz:
     """

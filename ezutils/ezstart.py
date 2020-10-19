@@ -1,19 +1,22 @@
 #!python
 """
-    Create or repair a CommerceNode site.
+    Create, repair or update the configuration of an EzDev site.
 """
 
 import argparse
 import os
 
 import cli
-import const
+import ezconst
 
-class CnStart():
-    """Create or repair a CommerceNode site. """
-    __slots__ = ('err_ct', 'quiet', 'site_path')
+class EzStart():
+    """Create or repair an EzDev site. """
+    __slots__ = ('err_ct', 'ezdev_path', 'ezutils_path', 'quiet','site_path')
 
     def __init__(self, args):
+        module_path = os.path.abspath(__file_)
+        self.ezutils_path = os.path.dirname(module_path)
+        self.ezdev_path = os.path.dirname(self.ezutils_path)
         self.err_ct = 0
         self.quiet = args.quiet
         if args.site_path is None:
@@ -47,7 +50,7 @@ class CnStart():
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        path = os.path.join(self.site_path, const.SITE_CONF_DIR_NAME)
+        path = os.path.join(self.site_path, ezconst.SITE_CONF_DIR_NAME)
         return self.check_directory('Conf', path)
 
     def error(self, msg):
@@ -67,4 +70,4 @@ if __name__ == '__main__':
                             dest='quiet',
                             help='Display as few messages as possible.')
     run_args = arg_parser.parse_args()
-    cn = CnStart(run_args)
+    ez = EzStart(run_args)

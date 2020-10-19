@@ -3,8 +3,7 @@ baf
 __pycache__
 *.pyc
 *.bak
-*.yaml
-commercenode.venv
+*.venv
 examples/temp/*
 examples/cncore
-sphinx/_build
+test*.py

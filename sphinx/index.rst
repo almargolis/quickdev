@@ -14,6 +14,7 @@ and advanced data modeling. It includes support for development and operations.
    :maxdepth: 2
 
    docs/ez_directories
+   docs/ezstart
    docs/xpython
 
 

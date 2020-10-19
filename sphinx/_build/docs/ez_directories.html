@@ -47,13 +47,13 @@
             
   <div class="section" id="ezdev-directories">
 <h1>EzDev Directories<a class="headerlink" href="#ezdev-directories" title="Permalink to this headline">¶</a></h1>
-<p>Site: A directory which is the root of execution for an application on a particular server.
+<p><strong>Site:</strong> A directory which is the root of execution for an application on a particular server.
 This will often be an Apache document root directory but that is not necessarily the case.
 The Site directory will generally have a long life (the lifetime of that application on that server)
 but it is considered a transient directory. It contains mainly symlinks to source data
 and generated data and code.
 Recreating a site directory is fast and easy.
-It does not need to be directly backed up but all its data is backed up in othere ways
+It does not need to be directly backed up but all its data is backed up in other ways
 or can be generated.</p>
 <p>CnPure: A collection of utilities needed to initialize a site for development or operations.
 The code is this directory is pure Python that is not dependent on other CommerceNode
@@ -69,6 +69,78 @@ CnFramework integrates a rich data modeling language
 and DRY (Don’t Repeat Yourself) principles.</p>
 <p>CnHosting: A set of utilities to assist in hosting of CommerceNode applications.
 CnHosting supports multi-tenant hosts and multi-server applications</p>
+<div class="section" id="site-types">
+<h2>Site Types<a class="headerlink" href="#site-types" title="Permalink to this headline">¶</a></h2>
+<p><strong>Operations:</strong> A site used to run an application in production.
+Most operations sites reference critical operational data.
+Operations sites have a minimum of development tools available.</p>
+<p><strong>Development:</strong> A site used to develop an EzDev application.
+Most dev sites reference test data.
+Development sites have access to a full set of development tools.
+EzDev automatically creates basic configuration files for primary
+development tools.</p>
+</div>
+<div class="section" id="site-directory-content">
+<h2>Site Directory Content<a class="headerlink" href="#site-directory-content" title="Permalink to this headline">¶</a></h2>
+<p>Every EzDev site directory contains a menu of content
+which varies with the site type and application
+requirements.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 10%" />
+<col style="width: 61%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Contents</p></th>
+<th class="head"><p>Site
+Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>conf/</p></td>
+<td rowspan="2"><blockquote>
+<div><p>all</p>
+</div></blockquote>
+<blockquote>
+<div><p>all</p>
+</div></blockquote>
+</td>
+<td rowspan="2"><blockquote>
+<div><p>configuration subdirectory.</p>
+</div></blockquote>
+<blockquote>
+<div><p>Ini file defining site function.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="row-odd"><td><p>conf/site.conf</p></td>
+</tr>
+<tr class="row-even"><td><p>[acronym].venv/</p></td>
+<td><p>most</p></td>
+<td><p>Python virtual environment.
+Potentially omitted for non-Python
+applications, but may be required
+for EzDev utilities.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sphinx/</p></td>
+<td><p>dev</p></td>
+<td><p>Documentation development using
+sphinx-doc.org.</p></td>
+</tr>
+<tr class="row-even"><td><p>pylintrc</p></td>
+<td><p>dev</p></td>
+<td><p>pylint configuration file.</p></td>
+</tr>
+<tr class="row-odd"><td rowspan="2"><p>.gitignore</p></td>
+<td rowspan="2"><p>dev</p></td>
+<td rowspan="2"><p>git exclusion list.</p></td>
+</tr>
+<tr class="row-even"></tr>
+</tbody>
+</table>
+</div>
 </div>
 
 
@@ -78,6 +150,15 @@ CnHosting supports multi-tenant hosts and multi-server applications</p>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">EzDev Directories</a><ul>
+<li><a class="reference internal" href="#site-types">Site Types</a></li>
+<li><a class="reference internal" href="#site-directory-content">Site Directory Content</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="../index.html"
                         title="previous chapter">Welcome to EzDev’s documentation!</a></p>

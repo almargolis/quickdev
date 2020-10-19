@@ -1,5 +1,9 @@
 """
 Functions to read and write ini files.
+
+This module is somewhat out of place in ezutils instead of
+ezcore because it is need for ezstart, potentially before Python
+importing is configured by the virtual environment.
 """
 
 #
@@ -16,11 +20,11 @@ Functions to read and write ini files.
 #
 
 class EzIni():
-    __slots__ = ('_data', $SERIALIZED_FILE_PATH$)
+    __slots__ = ('_data', $ezconst.SERIALIZED_FILE_PATH$)
 
     def __init__(self):
         self._data = {}
-        self.$SERIALIZED_FILE_PATH$ = None
+        self.$ezconst.SERIALIZED_FILE_PATH$ = None
 
     def get_dict(self, key):
         parts = key.split('.')

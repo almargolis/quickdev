@@ -4,19 +4,24 @@ Xpython is a preprocessor for python that adds data modeling and
 structured programming features without interfering with normal
 python fundamentals.
 
-Xpython was developed for CommerceNode but does not use any of its
-modules because it needs to run regardless of its state. It's
-simplest to keep this stand-alone.
+Xpython was developed for EzDev but has both a stand-alone and
+EzDev mode. In stand-alone mode it has minimal EzDev dependencies,
+it just processes the files in a directory. This means that almost all
+EzDev modules but XPython can use XPython features.
 
 """
 
+import argparse
 import os
 import stat
 import sys
 
-import const
 import pdict
 import sqlite_ez
+
+# the following are place holders for EzDev modules which
+# are imported below if this is not a stand-alone run.
+ezconst = None
 
 SOURCE_STATUS_READY = 0
 SOURCE_STATUS_COMPLETE = 1
@@ -50,7 +55,6 @@ def abend(msg):
     print("Unable to continue")
     sys.exit(-1)
 
-
 def input_yn(prompt, default='y'):
     """CLI input with validation of y/n response."""
     if default is None:
@@ -70,6 +74,27 @@ def input_yn(prompt, default='y'):
                 resp = 'n'
     return resp == 'y'
 
+def list_files(search_dir, ext, dir_files=None, recursive=False):
+    """
+    Build a list of files in a directory (or tree) that match
+    the specified extension.
+    """
+    dir_all = os.listdir(search_dir)
+    dir_dir = []
+    if dir_files is None:
+        dir_files = []
+    for this in dir_all:
+        this_path = os.path.join(search_dir, this)
+        if os.path.isdir(this_path):
+            dir_dir.append(this_path)
+        else:
+            parts = os.path.splitext(this_path)
+            if parts[1] == ext:
+                dir_files.append(FileInfo(this_path))
+    if recursive:
+        for this_subdir in dir_dir:
+            list_files(this_subdir, ext, dir_files=dir_files)
+    return dir_files
 
 class FileInfo:  # pylint: disable=too-few-public-methods
     """
@@ -143,6 +168,11 @@ class XSource:
             ix2 = src_line.find('$', ix+1)  # NOQA E226
             if ix2 >= ix:
                 xpy_string = src_line[ix+1:ix2]  # NOQA E226
+                if xpy_string[0] in ['"', "'"]:
+                    quote = xpy_string[0]
+                    xpy_string = xpy_string[1:]
+                else:
+                    quote = ''
                 parts = xpy_string.split('.')
                 if len(parts) == 1:
                     fld_values = {
@@ -158,7 +188,7 @@ class XSource:
                 sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
                 if len(sql_data) != 1:
                     self.syntax_error('Unknown substituion {}'.format(xpy_string))
-                sub_string = sql_data[0]['value']
+                sub_string = '{}{}{}'.format(quote, sql_data[0]['value'], quote)
                 src_line = src_line[:ix] + sub_string + src_line[ix2+1:]
         self.py_out.append(src_line)
 
@@ -188,37 +218,62 @@ class XSource:
 class XPython:
     """ Main XPython implementation class."""
     __slots__ = ('base_dir', 'db', 'project_conf_dir_path', 'project_conf_file_path',
-                    'project_db_path',
-                    'source_dirs', 'xpy_files', 'xpy_files_changed')
+                    'project_db_path', 'quiet',
+                    'source_dirs', 'stand_alone',
+                    'xpy_files', 'xpy_files_changed')
 
-    def __init__(self, option1):
-        self.base_dir = os.getcwd()
+    def __init__(self, args):
+        self.quiet = args.quiet
+        self.stand_alone = args.stand_alone
+        if args.site_path is None:
+            self.base_dir = os.getcwd()
+        else:
+            self.base_dir = args.site_path
+        if self.stand_alone:
+            self.project_conf_dir_path = None
+            self.project_conf_file_path = None
+            self.source_dirs = [self.base_dir]
+            self.project_db_path = sqlite_ez.SQLITE_IN_MEMORY_FN
+        else:
+            if not self.init_ezdev(args):
+                return
+        self.db = sqlite_ez.SqliteEz(self.project_db_path,
+                                     db_dict=db_dict, debug=1)
+        self.process_xpy_files()
+
+    def init_ezdev(self, args):
+        global ezconst
+        try:
+            import ezconst
+        except ImportError:
+            print('EzDev not inintialied. Run EzStart. (E1)')
+            return False
+
         self.project_conf_dir_path = os.path.join(self.base_dir,
-                                                  SITE_CONF_DIR_NAME)
+                                                  ezconst.SITE_CONF_DIR_NAME)
         self.project_conf_file_path = os.path.join(self.project_conf_dir_path,
-                                                   PROJECT_CONF_FN)
+                                                   ezconst.PROJECT_CONF_FN)
         self.project_db_path = os.path.join(self.project_conf_dir_path,
-                                            PROJECT_DB_FN)
+                                            ezconst.PROJECT_DB_FN)
         if not os.path.isdir(self.project_conf_dir_path):
-            if input_yn('Do you want to create a new Xpython project?'):
-                os.mkdir(self.project_conf_dir_path)
-        if option1 == 'reset':
+            print('EzDev not inintialied. Run EzStart. (E2)')
+            return False
+        if args.reset:
             try:
                 os.unlink(self.project_db_path)
             except FileNotFoundError:
                 pass
-        self.load_conf()
-        self.db = sqlite_ez.SqliteEz(self.project_db_path,
-                                     db_dict=db_dict, debug=1)
-        self.process_xpy_files()
+        if not self.load_conf():
+            print('XPython source files not processed.')
+            return False
+        return True
 
     def process_xpy_files(self):
         """Build a list of *.xpy files and process them."""
         self.xpy_files = []
         xpy_files_changed = []
-        for this in self.source_dirs:
-            this_path = os.path.join(self.base_dir, this)
-            self.xpy_files += const.list_files(this_path, '.xpy')
+        for this_path in self.source_dirs:
+            self.xpy_files += list_files(this_path, '.xpy')
         self.db.update('sources', {'found': 0})
         for this in self.xpy_files:
             sql_data = self.db.select('sources', '*',
@@ -259,29 +314,24 @@ class XPython:
                                       this_uses.source_module_name})
             XSource(self, this)
 
-    def load_conf(self):
-        """Load the xpython project configuration file."""
-        self.source_dirs = []
-        f = open(self.project_conf_file_path)
-        for this_line in f.readlines():
-            this_line = this_line.strip()
-            if this_line == '':
-                continue
-            if this_line[0] == '#':
-                continue
-            pos = this_line.find('=')
-            if pos > 0:
-                key = this_line[:pos].strip()
-                val = this_line[pos+1:].strip()
-                if key == 'source':
-                    self.source_dirs.append(val)
-        f.close()
-
-
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        ARG1 = sys.argv[1]
-    else:
-        ARG1 = None
-
-    xp = XPython(ARG1)
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('site_path',
+                            action='store',
+                            nargs='?',
+                            default=None,
+                            help='Path of site root directory.')
+    arg_parser.add_argument('-q',
+                            action='store_true',
+                            dest='quiet',
+                            help='Display as few messages as possible.')
+    arg_parser.add_argument('-r',
+                            action='store_true',
+                            dest='reset',
+                            help='Reset (clear) EzDev process.')
+    arg_parser.add_argument('-s',
+                            action='store_true',
+                            dest='stand_alone',
+                            help='Stand-alone operation. No conf file.')
+    run_args = arg_parser.parse_args()
+    xp = XPython(run_args)

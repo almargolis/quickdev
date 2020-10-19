@@ -1,8 +1,10 @@
 """
-table_dict is a low level dictionary for raw python
-components of CommerceNode.
+DbTableDict is a low level dictionary for raw python
+components of EzDev.
 
-Its primary usage is to create sqlite3 databases.
+This is used by XPython in stand-alone mode, so it can't
+use XPython features.
+
 """
 
 class DbDict:
@@ -32,7 +34,7 @@ class DbDict:
 
 class DbTableDict:
     """
-    table_dict is a dictionary primarily intended to define
+    DbTableDict is a dictionary primarily intended to define
     sqlite3 databases. The default table design is a
     rowid table with an alias column of id. When needed,
     alternate keys are implemented as indexes.
