@@ -6,6 +6,9 @@ ezcore because it is need for ezstart, potentially before Python
 importing is configured by the virtual environment.
 """
 
+import ezconst
+from ezcore import textfile
+
 #
 # INI File Support
 #
@@ -20,16 +23,16 @@ importing is configured by the virtual environment.
 #
 
 class EzIni():
-    __slots__ = ('_data', _serialized_file_path)
+    __slots__ = ('_data', '_serialized_file_path')
 
-    def __init__(self):
+    def __init__(self, path=None):
         self._data = {}
-        self._serialized_file_path = None
+        self._serialized_file_path = path
 
     def get_dict(self, key):
         parts = key.split('.')
         data = self._data
-        for this in parts[:-1]
+        for this in parts[:-1]:
             data = data[this]
         return data
 
@@ -40,6 +43,10 @@ class EzIni():
     def __setitem__(self, key, value):
         data = self.get_dict(key)
         data[key[-1]] = value
+
+    def write(self, path=None):
+        if path is not None:
+            pass
 
 def AsIniText(parmData, Level=0, ParentName=''):
   wsIni				= ''
@@ -64,20 +71,16 @@ INI_PARSE_STATE_NORMAL_LINE	= 1
 INI_PARSE_STATE_START_MULTI	= 2
 INI_PARSE_STATE_COLLECT_MULTI	= 3
 
-def load(target, ini_path=None, hierarchy_separator=None, exe_controller=None, debug=0):
+def read_ini_file(target, path=None, hierarchy_separator=None, exe_controller=None, debug=0):
     """
     Load an ini text file into a hierarchy of map type objects.
     Load supports fundamental types such as Python dict and CommerceNode
     types such as
     """
 
-    f = serializer.open_serialized_file(target, path=ini_path)
-    if f is None:
-        return False
-    ini_lines = f.readlines()
-    f.close()
-    del f
-    return ParseIniLines(wsIniLines, parmTarget, HierarchySeparator=HierarchySeparator, ExeController=ExeController, Debug=Debug)
+    with ezconst.serialized_file(target, path=path) as f:
+        ini_lines = f.readlines()
+    return ParseIniLines(wsIniLines, target, HierarchySeparator=HierarchySeparator, ExeController=ExeController, Debug=Debug)
 
 def ParseIniLines(parmIniLines, parmTarget, HierarchySeparator=None, ExeController=None, Debug=0):
   wsTarget			= parmTarget
@@ -154,42 +157,38 @@ def ParseIniLines(parmIniLines, parmTarget, HierarchySeparator=None, ExeControll
         ExeController.errs.AddDevCriticalMessage('Invalid parse state %s for Ini file line "%s"' % (wsState, wsThisLine))
   return True
 
-def WriteIniRecord(parmFile, parmRecord, Level=0, ParentName=''):
-  if Level > 0:
-    parmFile.write('[%s]\n' % (ParentName))
-  wsChildRecords			= []
-  for (wsKey, wsValue) in list(parmRecord.items()):
-    print("III", wsKey, wsValue.__class__.__name__, wsValue)
-    if isinstance(wsValue, bafDataStore.bafTupleObject):
-      wsChildRecords.append((wsKey, wsValue))
-    else:
-      parmFile.write('%s = %s\n' % (wsKey, wsValue))
-  # Child records need to be written after atomic fields or we wont know which record / child record each
-  # field name belongs to.
-  for (wsKey, wsValue) in wsChildRecords:
-    if ParentName == '':
-      wsParentName			= ''
-    else:
-      wsParentName			= ParentName + '.'
-    wsParentName			+= wsKey
-    WriteIniRecord(parmFile, wsValue, Level=Level+1, ParentName=wsParentName)
+def write_ini_level(f, data, section_name=''):
+    children = []
+    if section_name != '':
+        f.write('[{}]\n'.format(section_name))
+    for key, value in data.items():
+        try:
+            child_data = value.items()
+            children.append((key, value))
+        except AttributeError:
+            # We get here if value doesn't have an items method.
+            # It's a scalar.
+            f.write('{} = {}\n'.format(key, value))
+    for child_key, child_data in children:
+        f.write('\n')
+        child_section_name = child_key
+        if section_name != '':
+            child_section_name = section_name + '.'
+        write_ini_level(f, child_data, section_name=child_section_name)
 
-def WriteIniFile(parmTarget, Path=None, ExeController=None):
-  wsFilePath				= Path
-  if wsFilePath is None:
-    try:
-      wsFilePath			= parmTarget._exportFilePath
-    except:
-      pass
-  if ExeController is None:
-    ExeController			= parmTarget.exeController
-  if wsFilePath is None:
-    return False
-  wsF					= bzTextFile.OpenBzTextFile(wsFilePath, "w", Temp=True)
-  if not wsF:
-    if ExeController is not None:
-      ExeController.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
-    return False
-  WriteIniRecord(wsF, parmTarget)
-  wsF.TempClose()
-  return True
+def write_ini_file(source, path=None, exe_controller=None):
+    """ Write a hierarchy of dict-like data as an ini file. """
+    if path is None:
+        path = getattr(source, '_serialized_file_path', None)
+    if path is None:
+        raise ValueError("No path specified for output file.")
+    if exe_controller is None:
+        exe_controller = getattr(source, 'exe_controller', None)
+    f = textfile.write_with_swap_file(path, backup=True)
+    if f is None:
+        if exe_controller is not None:
+            exe_controller.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
+        return False
+    write_ini_level(f, source)
+    f.keep()
+    return True

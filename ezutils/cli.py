@@ -1,3 +1,4 @@
+import re
 import sys
 
 class CliMenuItem(object):
@@ -51,20 +52,29 @@ class CliMenu(object):
             args, kwargs = item.tdict.cli_to_function_parms(sys.argv[2:])
             return item.func(*args, **kwargs)
 
-def cli_input(prompt, fielddef):
-    if fielddef == 'yn':
-        value_prompt = '[y/n]'
-    else:
-        raise ValueError()
+def cli_input(prompt, field_def=None, regex=None, value_prompt=None, lower=False):
+    if field_def == 'yn':
+        regex = re.compile(r"[yn]", flags=re.IGNORECASE)
+        value_prompt = 'y/n'
+    if regex is None:
+        raise ValueError('No regex defined.')
+    if value_prompt is None:
+        raise ValueError('No value prompt defined.')
     while True:
-        resp = input(prompt + ' ' + value_prompt)
-        if resp in 'yn':
+        resp = input("{} [{}]: ".format(prompt, value_prompt))
+        if regex.match(resp):
             break
+    if lower:
+        resp = resp.lower()
     return resp
 
+def cli_input_symbol(prompt):
+    regex = re.compile(r"[a-z]\w", flags=re.ASCII|re.IGNORECASE)
+    return cli_input(prompt, regex=regex, value_prompt="directory name")
+
 def cli_input_yn(prompt):
-    resp = cli_input(prompt, 'yn')
-    if resp.lower() == 'y':
+    resp = cli_input(prompt, field_def='yn', lower=True)
+    if resp == 'y':
         return True
     else:
         return False

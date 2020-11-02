@@ -47,6 +47,7 @@ INVALID_FD = -1
 
 MODE_CLOSED = 'xx'
 MODE_R = 'r'			# read an existing file
+MODE_RR = 'rr'          # read an existing file and neatly replace it
 MODE_W = 'w'			# write - making new file or erasing existing
 MODE_A = 'a'			# write - making new file or appending to existing
 MODE_C = 'c'			# create - write a new file, fail if it exists - not a POSIX mode
@@ -87,26 +88,35 @@ class FileDriverException:
 
 
 class FileDriver(object):
-    __slots__ = ('debug', 'encoding', 'fd', 'open_flags', 'open_path', 'parent')
+    __slots__ = ('debug', 'encoding', 'fd', 'open_flags', 'parent', 'path')
 
     def __init__(self, Encoding='ascii', parent=None, debug=0):
         self.encoding = Encoding
         self.debug = debug
         self.fd = INVALID_FD
         self.open_flags = None
-        self.open_path = None           # FQN of opened file
+        self.path = None           # FQN of opened file
         self.parent = parent
 
+    @property
+    def is_open(self):
+        if self.fd >= STDIN_FD:
+            return True
+        else:
+            return False
+
+    @property
     def is_readable(self):
         return is_readable(self.open_flags)
 
+    @property
     def is_writeable(self):
         return is_writeable(self.open_flags)
 
     def OsClose(self):
         self.OsFsync()
         result = os.close(self.fd)
-        self.fd = INVALID_FD            # leave open_flags and open_path
+        self.fd = INVALID_FD            # leave open_flags and path
         return result
 
     def OsDup(self, parent, debug=0):
@@ -119,13 +129,13 @@ class FileDriver(object):
         else:
             wsDup.fd = INVALID_FD
         wsDup.open_flags = self.open_flags
-        wsDup.open_path = self.open_flags
+        wsDup.path = self.open_flags
         return wsDup
 
     def OsFsync(self):
         if self.fd < 0:
             return 0
-        if not self.is_writeable():
+        if not self.is_writeable:
             return 0				# not a writeable file
         if self.fd == STDOUT_FD:
             return 0				# maybe we should flush() prob prob not
@@ -139,18 +149,26 @@ class FileDriver(object):
         os.lseek(self.fd, parmOfs, whence)
 
     def OsOpen(self, parmFn, parmFlags, parmPermissions=None):
-        # Symetry must be maintained between OsOpen() and OsTemp()
+        """
+        Calls OS file open() with a wrapper to provide consistency
+        for special files and automatically remember file state.
+
+        Returns the file descriptor which is >= 0 for success or a
+        negative number for failure.
+
+        Symetry must be maintained between OsOpen() and OsTemp()
+        """
         if self.debug >= 3:
             print("FileDriver.OsOpen(%s, %d, %s)" % (
                 parmFn, parmFlags, parmPermissions))
 
         self.fd = INVALID_FD
         self.open_flags = parmFlags
-        self.open_path = parmFn
+        self.path = parmFn
         #
         # stdin, stdout and stderr are always open, don't call os.open()
         #
-        if self.open_path == STDIN:
+        if self.path == STDIN:
             if self.open_flags != FLAGS[MODE_R]:
                 if self.debug >= 1:
                     print(
@@ -159,7 +177,7 @@ class FileDriver(object):
                 return self.fd
             self.fd = STDIN_FD
             return self.fd
-        if self.open_path == STDOUT:
+        if self.path == STDOUT:
             if self.open_flags != FLAGS[MODE_W]:
                 if self.debug >= 1:
                     print(
@@ -170,38 +188,39 @@ class FileDriver(object):
             return self.fd
 
         #try:
-        self.open_path = os.path.abspath(self.open_path)
-        if parmPermissions is None:
-            self.fd = os.open(self.open_path, self.open_flags)
-        else:
-            self.fd = os.open(self.open_path, self.open_flags, parmPermissions)
-        """
-        except BaseException:
-            # python raises exceptions on some file errors, for now we
-            # just want yes/no.  In future may catch specifically in order
-            # to return specific errors.
-            # !!!! this needs to be fixed - need separate opens
-            # with and without permissions and catch only specific exceptions
+        self.path = os.path.abspath(self.path)
+        try:
+            if parmPermissions is None:
+                self.fd = os.open(self.path, self.open_flags)
+            else:
+                self.fd = os.open(self.path, self.open_flags, parmPermissions)
+        except FileNotFoundError:
             return INVALID_FD
-        """
         if self.fd >= 0:
-            #self.open_path = os.readlink('/proc/self/fd/{}'.format(self.fd))
+            #self.path = os.readlink('/proc/self/fd/{}'.format(self.fd))
             if self.debug >= 1:
                 print('FileDriver.open() fd={} flags={} permissions={} path={} ** sucessful'.format(
-                    self.fd, self.open_flags, parmPermissions, self.open_path))
+                    self.fd, self.open_flags, parmPermissions, self.path))
         else:
-            self.open_path = None
+            self.path = None
             if self.debug >= 1:
                 print("FileDriver.open(%s, %d, %s) ** failed" % (
                     parmFn, parmFlags, parmPermissions))
 
         return self.fd
 
+    def OsOpenMode(self, path, mode, permissions=None):
+        try:
+            flags = FLAGS[mode]
+        except IndexError:
+            raise Exception("open() INVALID MODE")
+        return self.OsOpen(path, flags, parmPermissions=permissions)
+
     def OsOpenTemp(self):
         # Symetry must be maintained between OsOpen() and OsTemp()
         # !!!! NOT TESTED ***********
         # This should be used for process temp files
-        (self.fd, self.open_path) = tempfile.mkstemp(suffix='.tmp', prefix='tmp_', dir=None, text=False)
+        (self.fd, self.path) = tempfile.mkstemp(suffix='.tmp', prefix='tmp_', dir=None, text=False)
         self.open_flags = os.O_WRONLY
         return self.fd
 
@@ -214,8 +233,11 @@ class FileDriver(object):
     def OsUnlock(self):
         fcntl.flock(self.fd, os.LOCK_UN)
 
-    def OsWrite(self, parmBuffer):
-        return os.write(self.fd, parmBuffer)
+    def OsWrite(self, data):
+        """ Write a byte array or string to a file descriptor. """
+        if isinstance(data, str):
+            data = data.encode()
+        return os.write(self.fd, data)
 
 
 class bzBlobFileDriver(object):

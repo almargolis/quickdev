@@ -6,4 +6,3 @@ __pycache__
 *.venv
 examples/temp/*
 examples/cncore
-test*.py

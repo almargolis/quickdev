@@ -117,7 +117,7 @@ class XSource:
         p_output_file_path = x_source_file_path[:-3] + 'py'
         with open(x_source_file_path, 'r') as f:
             for this_line in f.read().splitlines():
-                self.src_line_ct += 0
+                self.src_line_ct += 1
                 if this_line[:2] == '#$':
                     self.xpython_x(this_line[2:])
                 else:
@@ -130,9 +130,16 @@ class XSource:
                              {'status': status},
                              where={'module_name': sources_row['module_name']})
 
+        if os.path.isfile(p_output_file_path):
+            statinfo = os.stat(p_output_file_path)
+            mode = statinfo.st_mode
+            mode |= stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+            os.chmod(p_output_file_path, mode)
         with open(p_output_file_path, 'w') as f:
             #print(self.py_out)
-            f.write('\n'.join(self.py_out))
+            f.write('\n'.join(self.py_out)+'\n')
+        mode = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+        os.chmod(p_output_file_path, mode)
 
     def post_module_uses(self, uses_module_name):
         """Update the module uses table for one reference."""
@@ -156,37 +163,47 @@ class XSource:
         elif sql_data[0]['status'] == SOURCE_STATUS_PROCESSING:
             self.syntax_error("Recursive loop with module '{}'.".format(module_name))
 
+    def xpython_subst(self, src_line, ix, ix2):
+        xpy_string = src_line[ix+1:ix2]  # NOQA E226
+        if xpy_string[0] in ['"', "'"]:
+            quote = xpy_string[0]
+            xpy_string = xpy_string[1:]
+        else:
+            quote = ''
+        parts = xpy_string.split('.')
+        if len(parts) == 1:
+            fld_values = {
+                'module_name': self.sources_row['module_name'],
+                'define_name': parts[0]
+            }
+        else:
+            fld_values = {
+                'module_name': parts[0],
+                'define_name': parts[1]
+            }
+            self.get_module(parts[0])
+            self.post_module_uses(parts[0])
+        sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
+        if len(sql_data) != 1:
+            self.syntax_error('Unknown substituion {}'.format(xpy_string))
+            return ix2+1, src_line
+        sub_string = '{}{}{}'.format(quote, sql_data[0]['value'], quote)
+        new_line = src_line[:ix] + sub_string
+        ix_next = len(new_line)
+        new_line += src_line[ix2+1:]
+        return ix_next, new_line
+
     def xpython_p(self, src_line):
         """ Process one line of python source. """
-        ix = src_line.find('$')
-        if ix >= 0:
+        ix_next = 0
+        while True:
+            ix = src_line.find('$', ix_next)
+            if ix < 0:
+                break
             ix2 = src_line.find('$', ix+1)  # NOQA E226
-            if ix2 >= ix:
-                xpy_string = src_line[ix+1:ix2]  # NOQA E226
-                if xpy_string[0] in ['"', "'"]:
-                    quote = xpy_string[0]
-                    xpy_string = xpy_string[1:]
-                else:
-                    quote = ''
-                parts = xpy_string.split('.')
-                if len(parts) == 1:
-                    fld_values = {
-                        'module_name': self.sources_row['module_name'],
-                        'define_name': parts[0]
-                    }
-                else:
-                    fld_values = {
-                        'module_name': parts[0],
-                        'define_name': parts[1]
-                    }
-                    self.get_module(parts[0])
-                    self.post_module_uses(parts[0])
-                sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
-                if len(sql_data) != 1:
-                    self.syntax_error('Unknown substituion {}'.format(xpy_string))
-                    return
-                sub_string = '{}{}{}'.format(quote, sql_data[0]['value'], quote)
-                src_line = src_line[:ix] + sub_string + src_line[ix2+1:]
+            if ix2 < 0:
+                break
+            ix_next, src_line = self.xpython_subst(src_line, ix, ix2)
         self.py_out.append(src_line)
 
     def syntax_error(self, msg):
@@ -222,16 +239,17 @@ class XPython:
     def __init__(self, args):
         self.quiet = args.quiet
         self.stand_alone = args.stand_alone
-        if args.site_path is None:
-            self.base_dir = os.getcwd()
-        else:
-            self.base_dir = args.site_path
         if self.stand_alone:
+            self.base_dir = None
             self.project_conf_dir_path = None
             self.project_conf_file_path = None
-            self.source_dirs = [self.base_dir]
+            self.source_dirs = args.site_path
             self.project_db_path = sqlite_ez.SQLITE_IN_MEMORY_FN
         else:
+            if len(args.site_path) < 1:
+                self.base_dir = os.getcwd()
+            else:
+                self.base_dir = args.site_path[0]
             if not self.init_ezdev(args):
                 return
         self.db = sqlite_ez.SqliteEz(self.project_db_path,
@@ -338,7 +356,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('site_path',
                             action='store',
-                            nargs='?',
+                            nargs='*',
                             default=None,
                             help='Path of site root directory.')
     arg_parser.add_argument('-q',

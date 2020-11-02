@@ -11,23 +11,31 @@ SITE_CONF_FILE_NAME = 'site.conf'
 PROJECT_DB_FN = 'project_db.sql'
 PROJECT_CONF_FN = 'xpython.conf'
 
-HierarchySeparatorCharacter = '.'
+#$define HIERARCHY_SEPARATOR_CHARACTER .
 #$define SERIALIZED_FILE_PATH _serialized_file_path
+#$define EXE_CONTROLLER exe_controller
 
-def open_serialized_file(target, path=None):
-    """
-    Open a serialized text file.
+class serialized_file():
+    """ File object with path tracking. Supports with statement. """
+    __slots__ = ('f', 'mode', 'path', 'target')
 
-    Returns open textfile.TextFile() object if succesful or None if not.
-    """
-    if path is None:
-        path = getattr(target, $'SERIALIZED_FILE_PATH$, None)
-    if path is None:
-        return None
-    f = textfile.open(wsFilePath, 'r')
-    if f is None:
-        return None
-    f.ConfigureStripEOL()
-    if hasattr(target, $'SERIALIZED_FILE_PATH$):
-        setattr(target, $'SERIALIZED_FILE_PATH$, path)
-    return f
+    def __init__(self, target, path=None, mode='r'):
+        self.f = None
+        self.mode = mode
+        self.target = target
+        self.path = path
+        if self.path is None:
+            self.path = getattr(target, $'SERIALIZED_FILE_PATH$, None)
+        if hasattr(target, $'SERIALIZED_FILE_PATH$):
+            setattr(target, $'SERIALIZED_FILE_PATH$, self.path)
+
+    def __enter__(self):
+        self.f = textfile.open(self.path, self.mode)
+        if self.f is None:
+            return None
+        self.f.ConfigureStripEOL()
+        return self.f
+
+    def __exit__(self):
+        self.f.close()
+        self.f = None

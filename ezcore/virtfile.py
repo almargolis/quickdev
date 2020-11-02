@@ -60,6 +60,7 @@
 
 import os
 import syslog
+import time
 
 from . import filedriver
 from . import utils
@@ -88,22 +89,28 @@ def OpenBlobFile(parmBlob, debug=0):
     else: return None
 
 
-class VirtFileException:
-    def __init__(self, code, message, sysfile):
+class VirtFileException(Exception):
+    def __init__(self, code, message, virtual_file):
         self.code = code
         self.message = message
-        self.sysfile = sysfile
+        self.virtual_file = virtual_file
+        if virtual_file.driver is None:
+            self.path = ''
+        else:
+            self.path = virtual_file.driver.path
 
 
 class VirtFile(object):
     __slots__ = (
                     'buf', 'bufIx', 'bufLen', 'bufSize',
-                    'debug', 'dontClose', 'driver', 'EOF', 'EOL_bytes',
+                    'debug', 'dont_close', 'driver', 'EOF', 'eol_bytes',
                     'funcResult',
+                    'lock_file', 'lock_retries', 'lock_wait_secs',
                     'logForceDetail', 'logPriority', 'logSummary',
-                    'openMode', 'readAheadMode', 'recno',
-                    'srcLineCt', 'stripEOL',
-                    'temp_output_file', 'tFile', 'writeResult', 'writeSize'
+                    'make_backup',
+                    'readAheadMode', 'recno',
+                    'srcLineCt', 'strip_eol',
+                    'swap_output_file', 'tFile', 'writeResult', 'writeSize'
                 )
 
     def __init__(self, driver=None, debug=0):
@@ -119,14 +126,17 @@ class VirtFile(object):
         else:
             self.driver = filedriver.FileDriver(self, debug=debug)
         self.debug = debug
-        self.dontClose = False
-        self.EOL_bytes = '\n'.encode('utf-8')
+        self.dont_close = False
+        self.eol_bytes = '\n'.encode('utf-8')
+        self.lock_file = None
+        self.lock_retries = 10
+        self.lock_wait_secs=0.01
         self.logForceDetail = False
         self.logPriority = None
         self.logSummary = None
-        self.openMode = filedriver.MODE_CLOSED
+        self.make_backup = False
         self.readAheadMode = True
-        self.stripEOL			= False
+        self.strip_eol = False
         self.tFile = None
         # I/O State Properties
         self.buf = ""
@@ -137,14 +147,17 @@ class VirtFile(object):
         self.funcResult = 0
         self.recno = 0
         self.srcLineCt = 0
-        self.temp_output_file = None
+        self.swap_output_file = None
         self.writeResult = -1
         self.writeSize = 0
 
     def __del__(self):
         self.close()		# make sure self.tFile complete
 
-    def close(self, ignore_temp=False):
+    def keep(self):
+        self.close(abandon=False)
+
+    def close(self, abandon=True):
         if self.debug >= 3:
             if self.tFile:
                 try:
@@ -167,19 +180,12 @@ class VirtFile(object):
             self.tFile.close()
             self.tFile = None
 
-        if not self.dontClose:
+        if not self.dont_close:
             self.driver.OsClose()
         self.EOF = True
-        self.openMode = filedriver.MODE_CLOSED
-        if not ignore_temp:
-            # abandon associated temp file. We might get here due
-            # to an exception or because we decided to abandon the
-            # changes written to the temo file.
-            if self.temp_output_file is not None:
-                self.temp_output_file.close()
-                self.temp_output_file = None
-        # if self.funcResult != 0:
-        #  raise VirtFileException, (1, "close() Error", self)
+        self.close_swap_file(abandon=abandon)
+        if self.is_locked:
+            self.lock_clear()
 
     def dup(self, parmSrcFile=None, driver=None, fd=None):
         # dup() copies the full definition of the file's open state
@@ -200,28 +206,27 @@ class VirtFile(object):
         else:
             self.driver = parmSrcFile.driver.OsDup(self, self.debug)
         if self.driver.fd == parmSrcFile.fd:
-            self.dontClose = True
+            self.dont_close = True
         else:
-            self.dontClose = False
+            self.dont_close = False
         self.debug = parmSrcFile.debug
-        self.EOL_bytes = parmSrcFile.EOL_bytes
+        self.eol_bytes = parmSrcFile.eol_bytes
         self.logForceDetail = parmSrcFile.logForceDetail
         self.logPriority = parmSrcFile.logPriority
         self.logSummary = parmSrcFile.logSummary
-        self.openMode = parmSrcFile.openMode
         self.readAheadMode = parmSrcFile.readAheadMode
         self.tFile = parmSrcFile.tFile
 
-        self.OpenReadAhead()
+        self.initialize_readahead()
         return self.driver.fd			# default is -1
 
     @property
     def EOL(self):
-        return self.EOL_bytes.decode('utf-8')
+        return self.eol_bytes.decode('utf-8')
 
     @EOL.setter
     def EOL(self, str):
-        self.EOL_bytes = str.encode('utf-8')
+        self.eol_bytes = str.encode('utf-8')
 
     def fileno(self):
         return self.driver.fd
@@ -238,52 +243,117 @@ class VirtFile(object):
     def GetAndClearBlob(self):
         return self.driver.GetAndClearBlob()
 
-    def open(self, parmFn, parmMode="r"):
-        if self.debug >= 3:
-            print("VirtFile.open(%s, %s)" % (parmFn, parmMode))
+    @property
+    def is_locked(self):
+        if self.lock_file is None:
+            return False
+        return self.lock_file.is_open
 
-        try:
-            wsFlags = filedriver.FLAGS[parmMode]
-        except IndexError:
-            raise VirtFileException(1, "open() INVALID MODE", self)
+    def lock_clear(self):
+        """ Clear file lock. Makes sure to only clear locks set by this process. """
+        if not self.is_locked:
+            raise VirtFileException(1, "Attempt to clear non-existant lock.", self)
+        self.lock_file.OsClose()
+        os.unlink(self.lock_file.path)
+        self.lock_file = None
 
-        if self.driver.OsOpen(parmFn, wsFlags) >= 0:
-            self.openMode = parmMode
-            self.OpenReadAhead()
-            wsReturn = self
+    def lock_set(self, path, no_wait=False):
+        """Create lock file. Return True or False indicating success. """
+        try_ct = 0
+        if no_wait:
+            retries = 0
+            wait_secs = 0
         else:
-            self.EOF = True
-            self.openMode = filedriver.MODE_CLOSED
-            wsReturn = None
-        return wsReturn
+            retries = self.lock_retries
+            wait_secs = self.lock_wait_secs
+        if self.lock_file is None:
+            self.lock_file = self.driver.__class__(parent=self)
+        while try_ct <= retries:
+            if self.lock_file.OsOpenMode(path+'.lock', filedriver.MODE_C) > 0:
+                return True
+            try_ct += 1
+            time.sleep(wait_secs)
+        return False
 
-    def create_temp_output(self, debug=0):
+    def open(self, file_name, mode, dir=None,
+             backup=False, lock=False, no_wait=False, swap=False):
+        """ Open file. Return self for success or None for failure. """
+        if self.debug >= 3:
+            print("VirtFile.open(%s, %s)" % (parmFn, mode))
+        self.make_backup = backup
+        if dir is None:
+            path = file_name
+        else:
+            path = os.path.join(dir, file_name)
+        if mode == filedriver.MODE_RR:
+            mode = filedriver.MODE_R
+            swap = True
+            lock = True
+        if lock:
+            if not self.lock_set(path, no_wait=no_wait):
+                return None
+        if swap:
+            if not self.create_swap_output(path):
+                if lock:
+                    self.lock_clear()
+                return None
+            return self
+        if self.driver.OsOpenMode(path, mode) >= 0:
+            self.initialize_readahead()
+            return self
+        self.EOF = True
+        if swap:
+            self.close_swap_file(abandon=True)
+        if lock:
+            self.lock_clear()
+        return None
+
+    def create_swap_output(self, path, debug=0):
+        """
+        Open a temporary output file with the expectation that
+        this file will replace the "real" file if the process
+        is succesful.
+
+        This has two purposes:
+        *In the event of a program failure, the original target
+         file is left untouched.
+        *In a multi-tasking environment, it avoids a race condition
+         where readers get mangled data by reading a file that
+         is being rewritten in place.
+
+         open_swap_file() should only be called after the primary file
+         is succesfully opened for input and locked.
+        """
         # This creates a file with an easily predictable name. This is suitable
         # command line tools, not CGI or other public facing processes.
-        self.temp_output_file = None
-        assert self.openMode == filedriver.MODE_R
-        wsTempFileName = utils.ChangeFileNameExtension(self.driver.open_path, 'tmp')
-        wsTempFile = VirtFile(debug=debug)
-        if wsTempFile.open(wsTempFileName, filedriver.MODE_C) is None:
+        if not self.is_locked:
+            raise VirtFileException(1, "Attempt to create swap file for unlocked file.", self)
+        if self.swap_output_file is not None:
+            raise VirtFileException(1, "Attempt to create redundant swap file.", self)
+        swap_file_path = path + '.swap'
+        swap_output_file = VirtFile(debug=debug, driver=self.driver.__class__(parent=self))
+        if swap_output_file.open(swap_file_path, filedriver.MODE_C) is None:
             return None
-        self.temp_output_file = wsTempFile
-        return self.temp_output_file
+        self.swap_output_file = swap_output_file
+        return self.swap_output_file
 
-    def safe_close(self):
-        # if the client program doesn't specifically call this the origin
-        # text file is untouched.
-        self.close(ignore_temp=True)
-        if self.temp_output_file is None:
+    def close_swap_file(self, abandon=False):
+        if self.swap_output_file is None:
             # we didn't actually open a temp file. We are all done now.
             return
-        self.temp_output_file.close()
-        wsBackupFileName = utils.ChangeFileNameExtension(self.driver.open_path, 'bak')
-        if os.path.exists(self.driver.open_path):
-            if os.path.exists(wsBackupFileName):
-                os.remove(wsBackupFileName)
-            # os.link (make hard link) creates the backup without deleting the
-            # original file directory entry.
-            os.link(self.driver.open_path, wsBackupFileName)
+        self.swap_output_file.close()
+        if abandon:
+            os.unlink(self.swap_output_file.path)
+            self.swap_output_file = None
+            return
+        if self.make_backup:
+            backup_file_path = utils.ChangeFileNameExtension(self.driver.path, 'bak')
+            if os.path.exists(self.driver.path):
+                if os.path.exists(backup_file_path):
+                    os.remove(backup_file_path)
+                # os.link (make hard link) creates the backup without deleting the
+                # original file directory entry, so the original file is still readable.
+                os.link(self.driver.path, backup_file_path)
         # os.rename replaces the original file directory entry.
         # It also gets rid of the temporary file directory entry, but not
         # the file contents.
@@ -293,18 +363,18 @@ class VirtFile(object):
         # It leaves open a possible race condition if the second opener is also an
         # editor. That can be mitigated with locks or other methods if deemed
         # a practical risk.
-        os.replace(self.temp_output_file.driver.open_path, self.driver.open_path)
-        self.temp_output_file = None
+        os.replace(self.swap_output_file.driver.path, self.driver.path)
+        self.swap_output_file = None
 
-    def OpenReadAhead(self):
+    def initialize_readahead(self):
         # Called by open() and dup()
         if self.driver.fd < 0:
             self.EOF = True
             return
         if self.debug > 2:
-            print('VirtFile.OpenReadAhead fd={} flags={} readable={}'.format(
+            print('VirtFile.initialize_readahead fd={} flags={} readable={}'.format(
 				self.driver.fd, self.driver.open_flags, self.driver.is_readable()))
-        if not self.driver.is_readable():
+        if not self.driver.is_readable:
             # The file is not readable, so there is nothing to read
             self.EOF = True
             return
@@ -336,7 +406,7 @@ class VirtFile(object):
             else:
                 syslog.syslog(LogPriority,
                               utils.DumpFormat("RD: " + wsData, Unfold=True,
-                                         oStripEOL=True, oEOL=self.EOL))
+                                         ostrip_eol=True, oEOL=self.EOL))
         return wsData
 
     def ReadBlock(self):
@@ -364,6 +434,14 @@ class VirtFile(object):
         return self.driver.OsFlush()
 
     def lock(self):
+        """
+        Request OS flock() with exclusive flag.
+
+        This functionality is not well supported by EzDev.
+        Implementation is mainly up to the application.
+        Use the lock_file feature of open() for an easier to understand
+        lock at the cost of a performance hit and some crudeness.
+        """
         if self.debug >= 3:
             print("VirtFile.lock(fd:%d)" % (
                                             self.driver.fd))
@@ -404,22 +482,22 @@ class VirtFile(object):
             if self.debug >= 2:
                 print("VirtFile.readline(fd:%d) past EOF." % (self.driver.fd))
             return None
-        wsEolLen			= len(self.EOL_bytes)
+        wsEolLen			= len(self.eol_bytes)
 
         wsLine				= b""
         while True:
-            wsEOL_ix			= self.buf.find(self.EOL_bytes, self.bufIx)
+            wsEOL_ix			= self.buf.find(self.eol_bytes, self.bufIx)
             wsStartIx			= self.bufIx
             if wsEOL_ix >= 0:
                 wsEndIx			= wsEOL_ix
-                if not self.stripEOL:
+                if not self.strip_eol:
                     wsEndIx		+= wsEolLen
                 self.bufIx		= wsEOL_ix + wsEolLen
                 wsLine			+= self.buf[wsStartIx:wsEndIx]
                 break
             wsEndIx			= self.bufLen
             wsLine			+= self.buf[wsStartIx:wsEndIx]
-            if (self.buf[wsEndIx-1] == self.EOL_bytes[0]) and (wsEolLen > 1):
+            if (self.buf[wsEndIx-1] == self.eol_bytes[0]) and (wsEolLen > 1):
                 # The last character in the previous block was the first
                 # character of EOL.  Check if the first character of the
                 # next block is the final character.  This logic assumes
@@ -428,14 +506,14 @@ class VirtFile(object):
                 if self.bufIx >= self.bufLen:		# EOF
                     # At EOF we have found first char of EOL, strip it (this is
                     # a very marginal case, but anything can happen.
-                    if self.stripEOL:
+                    if self.strip_eol:
                         wsLine		= wsLine[:len(wsLine)-1]
                     break
-                if self.buf[self.bufIx] == self.EOL_bytes[1]:
-                    if self.stripEOL:
+                if self.buf[self.bufIx] == self.eol_bytes[1]:
+                    if self.strip_eol:
                         wsLine		= wsLine[:len(wsLine)-1]
                     else:
-                        wsLine		+= self.wsEOL_bytes[1]
+                        wsLine		+= self.wseol_bytes[1]
                     self.bufIx += 1				# advance pointer past EOL
                     break
                 else:
@@ -456,14 +534,14 @@ class VirtFile(object):
         if self.debug >= 4:
             print("VirtFile.readline(fd:%d) len = %d '%s'" % (
 					self.driver.fd, len(wsLine), wsLine))
-        if not self.stripEOL:
+        if not self.strip_eol:
             # This is only needed for the last line of the filei which is often missing EOL.
             # Insert an EOL if its not there, so the last line isn't
             # a special case where EOL may be missing.
             wsEolLen			= len(self.EOL)
             if wsLine:
                 if wsLine[-wsEolLen:] != self.EOLi_bytes:
-                    wsLine		+= self.EOL_bytes
+                    wsLine		+= self.eol_bytes
         return wsLine.decode('utf-8')					# return as string
 
     def reset(self):
@@ -474,13 +552,13 @@ class VirtFile(object):
         if self.debug >= 3:
             print('VirtFile.reset(fd={})'.format(self.driver.fd))
         if self.driver.fd >= 0: self.close()
-        wsEOL_bytes = self.EOL_bytes
+        wseol_bytes = self.eol_bytes
         wsLogForceDetail = self.logForceDetail
         wsLogPriority = self.logPriority
         wsLogSummary = self.logSummary
         wsReadAheadMode = self.readAheadMode
         self.__init__(driver=self.driver, debug=self.debug)
-        self.EOL_bytes = wsEOL_bytes
+        self.eol_bytes = wseol_bytes
         self.logForceDetail = wsLogForceDetail
         self.logPriority = wsLogPriority
         self.logSummary = wsLogSummary
@@ -544,7 +622,7 @@ class VirtFile(object):
             else:
                 syslog.syslog(LogPriority,
                               utils.DumpFormat("WR: " + parmData, Unfold=True,
-                                         oStripEOL=True, oEOL=self.EOL))
+                                         ostrip_eol=True, oEOL=self.EOL))
 
         self.writeResult = self.driver.OsWrite(parmData)
         if self.writeResult != len(parmData):
@@ -554,7 +632,7 @@ class VirtFile(object):
     def writeln(self, str, LogPriority=None, LogSummary=None):
         if str is None:
             str = ''
-        self.write(str.encode('utf-8') + self.EOL_bytes, LogPriority=None, LogSummary=None)
+        self.write(str.encode('utf-8') + self.eol_bytes, LogPriority=None, LogSummary=None)
 
 
 if __name__ == "__main__":

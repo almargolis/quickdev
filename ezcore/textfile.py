@@ -25,7 +25,7 @@
 #		false if there is no exiting file, even if access
 #		allows creation.  At some point, this needs to be
 #		upgraded to security safe opening.
-#  8/11/2001:  Add EOL and stripEOL option, add close().  Use EOL instead
+#  8/11/2001:  Add EOL and strip_eol option, add close().  Use EOL instead
 #		of "\n" or other hard coded line termination string -- this
 #		required re-writing readline() to do a block read
 #		because the python readline() doesn't allow control over EOL.
@@ -82,28 +82,29 @@ from . import tupledict
 from . import virtfile
 from . import utils
 
-def open(parmFn, parmMode, debug=0):
-  wsTextFile			= TextFile(debug=debug)
-  if wsTextFile.open(parmFn, parmMode):
-    return wsTextFile
-  else:
-    return None
+RANDOM_NAME_MAX_ATTEMPTS = 10
 
-def OpenTextFile(parmFn, parmMode, debug=0, Temp=False):
-  wsTextFile			= TextFile(debug=debug)
-  if parmFn == filedriver.STDOUT:
-    # This allow client to not worry about Temp if redirecting to STDOUT
-    Temp			= False
-  if Temp:
-    if wsTextFile.TempOpen(parmFn, parmMode):
-      return wsTextFile
-    else:
-      return None
-  else:
-    if wsTextFile.open(parmFn, parmMode):
-      return wsTextFile
-    else:
-      return None
+def open(path, mode, debug=0):
+    """Simple text file open, like built-in function. """
+    text_file = TextFile(debug=debug)
+    return text_file.open(path, mode)
+
+def write_with_swap_file(file_name, dir=None, backup=False,
+                         lock=True, no_wait=False, swap=True, debug=0):
+    text_file = TextFile(debug=debug)
+    return text_file.open(file_name, mode=filedriver.MODE_W, dir=dir,
+                          backup=backup, no_wait=no_wait)
+
+def open_read_and_replace(file_name, dir=None, backup=False, no_wait=False, debug=0):
+    """
+    Safe open for a multi-tasking environment where there are potentially
+    multiple readers and writers. Uses a lock file to prevent simultaneous
+    writes and a swap file to provide a consistent file to readers.
+    Optionally creates a backup of original file.
+    """
+    text_file = TextFile(debug=debug)
+    return text_file.open(file_name, mode=filedriver.MODE_RR, dir=dir,
+                          backup=backup, no_wait=no_wait)
 
 def OpenBlobTextFile(parmBlob=None, mode="r", Encoding='ascii', debug=0):
   wsDriver			= filedriver.bzBlobFileDriver(Encoding=Encoding, debug=debug)
@@ -115,15 +116,16 @@ def OpenBlobTextFile(parmBlob=None, mode="r", Encoding='ascii', debug=0):
   else:
     return None
 
-def OpenTempFile(parmDir, Ext="temp", FNLen=8, Prefix="", debug=0):
-  wsTextFile			= TextFile(debug)
-  wsTryCt			= 0
-  while wsTryCt < 5:
-    wsTryCt			+= 1
-    wsFn			= parmDir + Prefix + utils.GetRandom(FNLen) + "." + Ext
-    if wsTextFile.open(wsFn, "c"):
-      return wsTextFile
-  return None
+def create_randomly_named_file(dir='', ext='cart', name_lenght=12, prefix='', temp=True, debug=0):
+    text_file = TextFile(debug=debug)
+    attempt_ct = 0
+    while attempt_ct < RANDOM_NAME_MAX_ATTEMPTS:
+        attempt_ct += 1
+        fn = prefix + utils.GetRandom(name_length) + "." + ext
+        path = os.path.join(dir, fn)
+        if text_file.open(path, "c"):
+            return text_file
+    return None
 
 
 def ReleaseLock(parmLockFilePath):
@@ -155,7 +157,7 @@ def ReadAndLockCounter(parmCounterName, dir="", default=1):
       if wsCtlFile.EOF: wsCounter = default
       else:
         wsCounterStr = wsCtlFile.readline()
-        wsCounter = utils.Int(utils.StripEOL(wsCounterStr))
+        wsCounter = utils.Int(utils.strip_eol(wsCounterStr))
       wsCtlFile.close()
     else:
       wsCounter = default
@@ -440,7 +442,7 @@ class TextFile(virtfile.VirtFile):
         self.recCodeFlag		= False
         self.recCode			= None
         self.printSrc			= False
-        self.stripEOL			= True
+        self.strip_eol = True
 
     def __enter__(self):
         # thee self.call_xxx attributes are to support with statement
@@ -450,7 +452,7 @@ class TextFile(virtfile.VirtFile):
 
 
     def __exit__(self, type, value, traceback):
-        self.TempClose()
+        self.Close()
 
     def __iter__(self):
         return TextFileIterator(self)

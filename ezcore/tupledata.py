@@ -137,7 +137,7 @@ class TupleData(object):
     """
     __slots__ = ('exeAction', 'exeController',
                  '_data', '_defaultValue', '_defaultValueAssigned',
-                          $'ezconst.SERIALIZED_FILE_PATH$,
+                          '_serialized_file_path',
                           '_hierarchySeparator',
                           '_isCaseSensitive',
                           '_lastElementModified', '_name'
@@ -155,13 +155,13 @@ class TupleData(object):
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
-        self.$ezconst.SERIALIZED_FILE_PATH$ = None
+        self._serialized_file_path = None
         self._hierarchySeparator = HierarchySeparator
         self._isCaseSensitive = IsCaseSensitive
         self._name = Name
         if IsHierarchy:
             if self._hierarchySeparator is None:
-                self._hierarchySeparator = $'ezconst.HIERARCHY_SEPARATOR_CHARACTER$
+                self._hierarchySeparator = '.'
         self.Clear()
 
     def __cmp__(self, parmOther):
@@ -300,7 +300,7 @@ class TupleData(object):
 
     def ConfigureAsHierarchy(
             self,
-            HierarchySeperator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$):
+            HierarchySeperator='.'):
         if self._hierarchySeparator is None:
             self._hierarchySeparator = HierarchySeparator
 
