@@ -6,8 +6,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XPython &#8212; EzDev  documentation</title>
-    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
     
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
@@ -17,7 +17,7 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="prev" title="EzDev Directories" href="ez_directories.html" /> 
+    <link rel="prev" title="EzStart" href="ezstart.html" /> 
   </head><body>
     <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
@@ -29,7 +29,7 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="ez_directories.html" title="EzDev Directories"
+          <a href="ezstart.html" title="EzStart"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">XPython</a></li> 
@@ -87,9 +87,10 @@ reports an error.</p></li>
 <p>Xpython is a preprocessor for python that adds data modeling and
 structured programming features without interfering with normal
 python fundamentals.</p>
-<p>Xpython was developed for CommerceNode but does not use any of its
-modules because it needs to run regardless of its state. It’s
-simplest to keep this stand-alone.</p>
+<p>Xpython was developed for EzDev but has both a stand-alone and
+EzDev mode. In stand-alone mode it has minimal EzDev dependencies,
+it just processes the files in a directory. This means that almost all
+EzDev modules but XPython can use XPython features.</p>
 <dl class="py class">
 <dt id="xpython.FileInfo">
 <em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">FileInfo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.FileInfo" title="Permalink to this definition">¶</a></dt>
@@ -107,29 +108,30 @@ the extension.</p>
 
 <dl class="py class">
 <dt id="xpython.XPython">
-<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XPython</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">option1</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XPython</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">args</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython" title="Permalink to this definition">¶</a></dt>
 <dd><p>Main XPython implementation class.</p>
-<dl class="py method">
-<dt id="xpython.XPython.load_conf">
-<code class="sig-name descname">load_conf</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.load_conf" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load the xpython project configuration file.</p>
-</dd></dl>
-
 <dl class="py method">
 <dt id="xpython.XPython.process_xpy_files">
 <code class="sig-name descname">process_xpy_files</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.process_xpy_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Build a list of <a href="#id1"><span class="problematic" id="id2">*</span></a>.xpy files and process them.</p>
+<dd><p>Scan directories to locate source files. Update the
+sources table and then process them.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="xpython.XPython.scan_directory">
+<code class="sig-name descname">scan_directory</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">search_dir</span></em>, <em class="sig-param"><span class="n">ext</span></em>, <em class="sig-param"><span class="n">recursive</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XPython.scan_directory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scan a direcory and update the sources database.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt id="xpython.XSource">
-<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XSource</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x_obj</span></em>, <em class="sig-param"><span class="n">file_info</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">xpython.</code><code class="sig-name descname">XSource</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x_obj</span></em>, <em class="sig-param"><span class="n">sources_row</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class to process one XPython source file.</p>
 <dl class="py method">
-<dt id="xpython.XSource.module_uses">
-<code class="sig-name descname">module_uses</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">module_uses_module_name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.module_uses" title="Permalink to this definition">¶</a></dt>
+<dt id="xpython.XSource.post_module_uses">
+<code class="sig-name descname">post_module_uses</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">uses_module_name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#xpython.XSource.post_module_uses" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the module uses table for one reference.</p>
 </dd></dl>
 
@@ -186,8 +188,8 @@ the extension.</p>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="ez_directories.html"
-                        title="previous chapter">EzDev Directories</a></p>
+  <p class="topless"><a href="ezstart.html"
+                        title="previous chapter">EzStart</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -219,7 +221,7 @@ the extension.</p>
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="ez_directories.html" title="EzDev Directories"
+          <a href="ezstart.html" title="EzStart"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">XPython</a></li> 
@@ -227,7 +229,7 @@ the extension.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2020, Al Margolis.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.3.0.
     </div>
   </body>
 </html>

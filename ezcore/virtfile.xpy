@@ -291,8 +291,8 @@ class VirtFile(object):
         path = None
         if file_name is None:
             if source is not None:
-                if hasattr(source, '_serialized_file_path'):
-                    path = getattr(source, '_serialized_file_path', None)
+                if hasattr(source, $'ezconst.SERIALIZED_FILE_PATH$):
+                    path = getattr(source, $'ezconst.SERIALIZED_FILE_PATH$, None)
 
         elif dir is None:
             path = file_name
@@ -321,16 +321,16 @@ class VirtFile(object):
         if self.driver.OsOpenMode(path, mode) >= 0:
             self.initialize_readahead()
             if source is not None:
-                if hasattr(source, '_serialized_file_path'):
-                    setattr(source, '_serialized_file_path', path)
+                if hasattr(source, $'ezconst.SERIALIZED_FILE_PATH$):
+                    setattr(source, $'ezconst.SERIALIZED_FILE_PATH$, path)
             return True
         self.EOF = True
         if mode == filedriver.MODE_N:
             # driver is only used to hold path.
             # we are probably writing to a swap file.
             if source is not None:
-                if hasattr(source, '_serialized_file_path'):
-                    setattr(source, '_serialized_file_path', path)
+                if hasattr(source, $'ezconst.SERIALIZED_FILE_PATH$):
+                    setattr(source, $'ezconst.SERIALIZED_FILE_PATH$, path)
             return True
         if swap:
             self.close_swap_file(abandon=True)

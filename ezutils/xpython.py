@@ -16,8 +16,28 @@ import os
 import stat
 import sys
 
-import pdict
-import sqlite_ez
+# These paths and the ezcore import exception logic below are
+# required for when xpython is run before ezstart has
+# has configured the python virtual environment.
+
+THIS_MODULE_PATH = os.path.abspath(__file__)
+EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
+EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
+EZCORE_PATH = os.path.join(EZDEV_PATH, 'ezcore')
+
+try:
+    from ezcore import pdict
+except ModuleNotFoundError:
+    pdict = None
+
+if pdict is None:
+    sys.path.append(EZCORE_PATH)
+    import pdict
+
+try:
+    from ezcore import sqlite_ez
+except ModuleNotFoundError:
+    import sqlite_ez
 
 # the following are place holders for EzDev modules which
 # are imported below if this is not a stand-alone run.
@@ -202,6 +222,7 @@ class XSource:
                 break
             ix2 = src_line.find('$', ix+1)  # NOQA E226
             if ix2 < 0:
+                self.syntax_error('Unmatched substitution character.')
                 break
             ix_next, src_line = self.xpython_subst(src_line, ix, ix2)
         self.py_out.append(src_line)

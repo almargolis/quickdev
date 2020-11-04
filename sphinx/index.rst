@@ -15,12 +15,13 @@ EzDev attempts to provide frictionless project start-up so you can
 immediately start coding and testing application code.
 The environment configuration has defaults which "just work".
 A personal configuration file to specify your preferences so
-it works the way you like. 
+it works the way you like.
 
 
 .. toctree::
    :maxdepth: 2
 
+   docs/coding_style
    docs/ez_directories
    docs/ezstart
    docs/xpython

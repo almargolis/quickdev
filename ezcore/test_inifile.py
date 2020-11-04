@@ -1,6 +1,6 @@
 import os
 
-import inifile
+from ezcore import inifile
 
 
 def test_read_ini_file(tmpdir):
@@ -42,6 +42,5 @@ def test_write_ini_file(tmpdir):
 
     assert inifile.write_ini_file(source, path=test_path)
 
-    result = {}
-    inifile.read_ini_file(result, path=test_path)
+    result = inifile.read_ini_file(file_name=test_path)
     assert  source == result

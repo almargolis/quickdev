@@ -15,7 +15,7 @@ Every site has an acronym which is used to identify the site. The acronym must b
 with a letter and contains letters, numbers and underscores. It should be reasonably
 short.
 
-XPython.py Documentation
+EzStart.py Documentation
 ---------------------------
 
 .. automodule:: ezstart

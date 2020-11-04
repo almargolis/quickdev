@@ -45,19 +45,19 @@ INVALID_FD = -1
 
 # Modes are used with POSIX fopen() - extended a bit here
 
-MODE_CLOSED = 'xx'
 MODE_R = 'r'			# read an existing file
 MODE_RR = 'rr'          # read an existing file and neatly replace it
 MODE_W = 'w'			# write - making new file or erasing existing
 MODE_A = 'a'			# write - making new file or appending to existing
 MODE_C = 'c'			# create - write a new file, fail if it exists - not a POSIX mode
+MODE_N = 'n'            # not opened
 MODE_RW = 'r+'			# read/write an existing file
 MODE_RWA = 'a+'			# read/write an existing file
 MODE_RWM = 'w+'			# read/write - making new file or erasing existing
-MODE_T = 't'			# safely create a temporary file - not a POSIX mode
+MODE_S = 's'            # write via swap file
 
 # Flags are used by POSIX file descriptor open()
-# MODE_T is not in FLAGS because it isn't handled by OsOpen()
+# Modes which are not in FLAGS are translated by VirtFile.open()
 
 FLAGS = {}
 FLAGS[MODE_R] = os.O_RDONLY
@@ -97,6 +97,9 @@ class FileDriver(object):
         self.open_flags = None
         self.path = None           # FQN of opened file
         self.parent = parent
+
+    def __repr__(self):
+        return "[FileDriver {} '{}' {}]".format(self.fd, self.path, self.debug)
 
     @property
     def is_open(self):
@@ -210,6 +213,12 @@ class FileDriver(object):
         return self.fd
 
     def OsOpenMode(self, path, mode, permissions=None):
+        if self.debug >= 3:
+            print("OsOpenMode '{}' '{}' '{}'".format(path, mode, permissions))
+        if mode == MODE_N:
+            self.fd = INVALID_FD
+            self.path = os.path.abspath(path)
+            return INVALID_FD
         try:
             flags = FLAGS[mode]
         except IndexError:

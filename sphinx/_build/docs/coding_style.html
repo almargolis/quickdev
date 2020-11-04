@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EzStart &#8212; EzDev  documentation</title>
+    <title>EzDev Coding Style &#8212; EzDev  documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
     
@@ -17,8 +17,8 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="XPython" href="xpython.html" />
-    <link rel="prev" title="EzDev Directories" href="ez_directories.html" /> 
+    <link rel="next" title="EzDev Directories" href="ez_directories.html" />
+    <link rel="prev" title="Welcome to EzDev’s documentation!" href="../index.html" /> 
   </head><body>
     <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
@@ -30,13 +30,13 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="xpython.html" title="XPython"
+          <a href="ez_directories.html" title="EzDev Directories"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="ez_directories.html" title="EzDev Directories"
+          <a href="../index.html" title="Welcome to EzDev’s documentation!"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">EzStart</a></li> 
+        <li class="nav-item nav-item-this"><a href="">EzDev Coding Style</a></li> 
       </ul>
     </div>  
 
@@ -45,20 +45,36 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="ezstart">
-<h1>EzStart<a class="headerlink" href="#ezstart" title="Permalink to this headline">¶</a></h1>
-<p>EzStart is a command line utility used to create, repair or configure an EzDev site.</p>
-<p>If a directory is specified, EzStart will use that as the site directory.
-It will create the directory if it doesn’t exist.
-Otherwise it will use the current directory.</p>
-<p>EzStart’s goal is to exit with a functioning site. To the degree possible, it
-performs all required EzDev and system administration functions needed to
-configure the site.</p>
-<p>Every site has an acronym which is used to identify the site. The acronym must begin
-with a letter and contains letters, numbers and underscores. It should be reasonably
-short.</p>
-<div class="section" id="ezstart-py-documentation">
-<h2>EzStart.py Documentation<a class="headerlink" href="#ezstart-py-documentation" title="Permalink to this headline">¶</a></h2>
+  <div class="section" id="ezdev-coding-style">
+<h1>EzDev Coding Style<a class="headerlink" href="#ezdev-coding-style" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="general">
+<h2>General<a class="headerlink" href="#general" title="Permalink to this headline">¶</a></h2>
+<p><em>PEP-8:</em> Code formatting and naming conforms to PEP-8 to a high degree.
+This is enforced using pylint.</p>
+<p><em>PyLint:</em> Code is validated with pylint with a goal of getting a 10.0 score
+using very few overrides of the default configuration.</p>
+<p>Pylintrc and suggested in-line overrides should be docuemnted here.</p>
+<p><em>PyTest:</em>  Pytest modules should be created for every module.</p>
+</div>
+<div class="section" id="file-handling-methods">
+<h2>File Handling Methods<a class="headerlink" href="#file-handling-methods" title="Permalink to this headline">¶</a></h2>
+<p>Methods which reference files should generally have parameters of
+file_name and dir. If both are provided, they are joined with
+os.path.join(dir, file_name).</p>
+<p>The variable or attribute <em>path</em> should be a fully qualified
+path to a file, including expansion of tilde and dots using
+os.path.abspath().</p>
+<p>Applications should be able to provide file_name and dir in a manner
+that is natural to users and EzDev should just do the right thing.</p>
+</div>
+<div class="section" id="exe-controller-err-message">
+<h2>Exe_Controller / Err_Message<a class="headerlink" href="#exe-controller-err-message" title="Permalink to this headline">¶</a></h2>
+<p>EzCore modules should be usable as stand-alone utility functions
+as well as integrate into EzDev applications.</p>
+<p>Exe_Controller provides a suite of services to EzDev applications.
+Whenever possible exe_controller should be an optional parameter for
+ezcore modules. If provided, it should be used but teh module
+should be useful without it.</p>
 </div>
 </div>
 
@@ -71,22 +87,24 @@ short.</p>
         <div class="sphinxsidebarwrapper">
   <h3><a href="../index.html">Table of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">EzStart</a><ul>
-<li><a class="reference internal" href="#ezstart-py-documentation">EzStart.py Documentation</a></li>
+<li><a class="reference internal" href="#">EzDev Coding Style</a><ul>
+<li><a class="reference internal" href="#general">General</a></li>
+<li><a class="reference internal" href="#file-handling-methods">File Handling Methods</a></li>
+<li><a class="reference internal" href="#exe-controller-err-message">Exe_Controller / Err_Message</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="ez_directories.html"
-                        title="previous chapter">EzDev Directories</a></p>
+  <p class="topless"><a href="../index.html"
+                        title="previous chapter">Welcome to EzDev’s documentation!</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="xpython.html"
-                        title="next chapter">XPython</a></p>
+  <p class="topless"><a href="ez_directories.html"
+                        title="next chapter">EzDev Directories</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
-      <li><a href="../_sources/docs/ezstart.rst.txt"
+      <li><a href="../_sources/docs/coding_style.rst.txt"
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
@@ -114,13 +132,13 @@ short.</p>
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="xpython.html" title="XPython"
+          <a href="ez_directories.html" title="EzDev Directories"
              >next</a> |</li>
         <li class="right" >
-          <a href="ez_directories.html" title="EzDev Directories"
+          <a href="../index.html" title="Welcome to EzDev’s documentation!"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">EzDev  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">EzStart</a></li> 
+        <li class="nav-item nav-item-this"><a href="">EzDev Coding Style</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
