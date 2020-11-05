@@ -4,6 +4,8 @@ EzDev Coding Style
 General
 -----------
 
+*Git:* All code and documentation is maintained in a git repository.
+
 *PEP-8:* Code formatting and naming conforms to PEP-8 to a high degree.
 This is enforced using pylint.
 
@@ -14,12 +16,19 @@ Pylintrc and suggested in-line overrides should be docuemnted here.
 
 *PyTest:*  Pytest modules should be created for every module.
 
+*Sphinx:* is used for documentation. Modules use docstrings for module
+usage documentation. This is encouraged by pylint which complains about
+missing docstrings. Higher level documentation is provided in
+document files using restructured text (rst) formatting.
+
 File Handling Methods
 ------------------------
 
 Methods which reference files should generally have parameters of
 file_name and dir. If both are provided, they are joined with
-os.path.join(dir, file_name).
+os.path.join(dir, file_name). file_name can include a full or
+partial path. There is nothing to prevent dir from including a
+file name but that could be confusing.
 
 The variable or attribute *path* should be a fully qualified
 path to a file, including expansion of tilde and dots using

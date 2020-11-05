@@ -62,8 +62,8 @@ import os
 import syslog
 import time
 
-from . import filedriver
-from . import utils
+import filedriver
+import utils
 
 STDIN = "__stdin__"
 STDOUT = "__stdout__"

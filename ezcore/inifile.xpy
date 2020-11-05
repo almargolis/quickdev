@@ -6,8 +6,8 @@ ezcore because it is need for ezstart, potentially before Python
 importing is configured by the virtual environment.
 """
 
-from ezcore import ezconst
-from ezcore import textfile
+import ezconst
+import textfile
 
 #
 # INI File Support
@@ -77,7 +77,10 @@ def read_ini_file(file_name=None, dir=None, target={},
     ini_reader = IniReader(file_name=file_name, dir=dir,
                            hierarchy_separator=hierarchy_separator,
                            exe_controller=exe_controller, debug=debug)
-    return ini_reader.target
+    if ini_reader.load(file_name=file_name, dir=dir):
+        return ini_reader.target
+    else:
+        return None
 
 class IniReader:
     def __init__(self, file_name=None, dir=None, target={},
@@ -95,10 +98,15 @@ class IniReader:
             self.load(file_name=file_name, dir=dir)
 
     def load(self, file_name, dir=None):
-        with textfile.open_read(file_name=file_name, dir=dir, source=self.target) as f:
+        f = textfile.open_read(file_name=file_name, dir=dir, source=self.target)
+        if f is not None:
             ini_lines = f.readlines()
+            f.close()
             for self.current_line in ini_lines:
                 self.parse_line()
+            return True
+        else:
+            return False
 
     def err_message(self, msg):
         """ Record an error message. """
@@ -126,7 +134,7 @@ class IniReader:
 
     def add_key(self, key, value):
         if key in self.active_target:
-            self.err_messsage('Duplicate key in Ini file line "{}"'.format(self.current_line))
+            self.err_message('Duplicate key in Ini file line "{}"'.format(self.current_line))
         self.active_target[key] = value
 
     def start_multi_line(self):

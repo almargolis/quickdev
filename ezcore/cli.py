@@ -52,16 +52,18 @@ class CliMenu(object):
             args, kwargs = item.tdict.cli_to_function_parms(sys.argv[2:])
             return item.func(*args, **kwargs)
 
-def cli_input(prompt, field_def=None, regex=None, value_prompt=None, lower=False):
+def cli_input(prompt, field_def=None, regex=None, value_hint=None, lower=False):
     if field_def == 'yn':
         regex = re.compile(r"[yn]", flags=re.IGNORECASE)
-        value_prompt = 'y/n'
+        value_hint = 'y/n'
     if regex is None:
         raise ValueError('No regex defined.')
-    if value_prompt is None:
-        raise ValueError('No value prompt defined.')
+    if value_hint is None:
+        value_prompt = ''
+    else:
+        value_prompt = " [{}]".format(value_hint)
     while True:
-        resp = input("{} [{}]: ".format(prompt, value_prompt))
+        resp = input("{}{}: ".format(prompt, value_prompt))
         if regex.match(resp):
             break
     if lower:
@@ -70,7 +72,7 @@ def cli_input(prompt, field_def=None, regex=None, value_prompt=None, lower=False
 
 def cli_input_symbol(prompt):
     regex = re.compile(r"[a-z]\w", flags=re.ASCII|re.IGNORECASE)
-    return cli_input(prompt, regex=regex, value_prompt="directory name")
+    return cli_input(prompt, regex=regex)
 
 def cli_input_yn(prompt):
     resp = cli_input(prompt, field_def='yn', lower=True)

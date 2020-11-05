@@ -8,10 +8,8 @@
 #		analyzer in bzParse but I'm not particularly looking at that code.
 #
 
-from . import ertypes
-
-from . import utils
-
+import ertypes
+import utils
 
 class bzPcodes(ertypes.ErCodeDef):
     def __init__(self, parmExeAction):

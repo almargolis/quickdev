@@ -9,7 +9,7 @@
 #
 # Its also critical because bzConfigure needs it to bootstrap site initialization
 #
-from . import utils
+import utils
 
 ErCodeDefElementCode = 'Code'
 ErCodeDefElementSet = 'Set'

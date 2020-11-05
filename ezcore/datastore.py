@@ -82,12 +82,12 @@
 import string
 
 # import Er				# import locally to avoid circular reference
-from . import ertypes
-from . import tupledict
-from . import vcomputer
-from . import tupledata
+import ertypes
+import tupledict
+import vcomputer
+import tupledata
 
-from . import utils
+import utils
 
 
 def FullyQualifiedName(parmSelf):

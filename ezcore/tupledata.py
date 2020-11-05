@@ -36,11 +36,7 @@
 # the minimal number of dependencies and none outside the development
 # directory.
 #
-import string
-from . import utils
-
-
-
+import utils
 
 def MakeClassTDict_For_TupleData(ExeController=None, InstanceClassName=None):
     from . import bafErTypes
@@ -468,11 +464,11 @@ class TupleData(object):
             return False
         while not SrcFile.EOF:
             wsLine = SrcFile.readline()
-            wsEqPos = string.find(wsLine, "=")
+            wsEqPos = wsLine.find("=")
             if wsEqPos < 1:
                 continue
-            wsKey = string.strip(wsLine[:wsEqPos])
-            wsValue = string.strip(wsLine[wsEqPos + 1:])
+            wsKey = wsLine[:wsEqPos].strip()
+            wsValue = wsLine[wsEqPos + 1:].strip()
             self[wsKey] = wsValue
         if wsOpenedHere:
             SrcFile.close()
@@ -482,7 +478,7 @@ class TupleData(object):
     def WriteToFile(self, parmFileName, SelectStartsWith="", DstFile=None):
         from . import bzTextFile
         if not self._isCaseSensitive:
-            SelectStartsWith = string.upper(SelectStartsWith)
+            SelectStartsWith = SelectStartsWith.upper()
         wsSelectLen = len(SelectStartsWith)
         if not DstFile:
             DstFile = bzTextFile.open(parmFileName, "w")

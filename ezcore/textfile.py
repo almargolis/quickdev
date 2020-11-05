@@ -76,12 +76,12 @@ import sys
 import time
 from contextlib import contextmanager
 
-from . import commastr
-from . import filedriver
-from . import datastore
-from . import tupledict
-from . import virtfile
-from . import utils
+import commastr
+import filedriver
+import datastore
+import tupledict
+import virtfile
+import utils
 
 RANDOM_NAME_MAX_ATTEMPTS = 10
 
@@ -90,19 +90,13 @@ def open(path, mode, debug=0):
     text_file = TextFile(debug=debug)
     return text_file.open(path, mode)
 
-@contextmanager
 def open_read(file_name=None, dir=None, source=None, debug=0):
     text_file = TextFile(debug=debug)
-    if not text_file.open(file_name=file_name,
+    if text_file.open(file_name=file_name,
                                    mode=filedriver.MODE_R, dir=dir,
                                    source=source):
-        raise Exception('Open error')
-    try:
-        yield text_file
-    except:
-        text_file.close()
-        raise
-    text_file.close()
+        return text_file
+    return None
 
 def open_write_with_swap_file(file_name=None, dir=None,
                          source=None, backup=False,
