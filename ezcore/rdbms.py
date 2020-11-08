@@ -228,470 +228,512 @@ class Reference(object):
     return wsExpression
 
 class RdbmsTable(datastore.DataStoreObject):
-  __slots__ = ('cursor', 'db', '_lastRequest', 'modelTDict', 'tableName')
-  def __init__(self, TableName=None, Db=None, ExeController=None, ModelTDict=None, Debug=None):
-    # Db is a RdbmsConnector
-    wsExeController					= ExeController
-    if (wsExeController is None) and (Db is not None):
-      wsExeController					= Db.exeController
-    if (Debug is None) and (Db is not None):
-      Debug						= Db.debug
-    datastore.DataStoreObject.__init__(self, ExeController=wsExeController, IsTDictDynamic=False, Debug=Debug)
-    self.db						= Db
-    self.cursor						= None
-    if (self.db is not None) and (self.db.db is not None):
-      self.cursor					= self.db.db.cursor()
-    self._lastQuery					= ""
-    self.modelTDict					= ModelTDict
-    self.tableName					= TableName
-    self.rdbmsTDict					= None
-    if (self.tableName is not None) and (self.tableName != ""):
-      self.rdbmsTDict					= self.BuildTDictForTable()
+    __slots__ = ('cursor', 'db', '_lastRequest', 'modelTDict', 'tableName')
+    def __init__(self, TableName=None, Db=None, ExeController=None, ModelTDict=None, Debug=None):
+      # Db is a RdbmsConnector
+      wsExeController					= ExeController
+      if (wsExeController is None) and (Db is not None):
+        wsExeController					= Db.exeController
+      if (Debug is None) and (Db is not None):
+        Debug						= Db.debug
+      datastore.DataStoreObject.__init__(self, ExeController=wsExeController, IsTDictDynamic=False, Debug=Debug)
+      self.db						= Db
+      self.cursor						= None
+      if (self.db is not None) and (self.db.db is not None):
+        self.cursor					= self.db.db.cursor()
+      self._lastQuery					= ""
+      self.modelTDict					= ModelTDict
+      self.tableName					= TableName
+      self.rdbmsTDict					= None
+      if (self.tableName is not None) and (self.tableName != ""):
+        self.rdbmsTDict					= self.BuildTDictForTable()
 
-  #
-  # BuildTDictForQueryResult()
-  #
-  # self.cursor.description returns an array of tuples corresponding
-  # to each field in the result. The tuple elements are:
-  #	[0] Field Name
-  #	[1] Field Type numeric code
-  #		3 = int
-  #		255 ? varchar
-  #	[2]
-  #	[3] max field lenght
-  #	[4] max field length (seems to be a duplicate)
-  #	[5]
-  #	[6] 0 = Primary Key, 1 = Not
-  #
-  def BuildTDictForQueryResult(self):
-    self._tdict						= tupledict.TupleDict(ExeController=self.exeController)
-    for wsFld in self.cursor.description:
-      #print "XYZ", `self.cursor.description`
-      wsMySqlFieldName					= wsFld[0]
-      wsMySqlMaxLength					= wsFld[3]
-      wsElementPhysicalType				= None
-      wsElementPhysicalType				= self.db.TranslateFieldType(Fld=wsFld, Table=self)
-      wsElement						= self._tdict.AddScalarElement(wsMySqlFieldName,
+    #
+    # BuildTDictForQueryResult()
+    #
+    # self.cursor.description returns an array of tuples corresponding
+    # to each field in the result. The tuple elements are:
+    #	[0] Field Name
+    #	[1] Field Type numeric code
+    #		3 = int
+    #		255 ? varchar
+    #	[2]
+    #	[3] max field lenght
+    #	[4] max field length (seems to be a duplicate)
+    #	[5]
+    #	[6] 0 = Primary Key, 1 = Not
+    #
+    def BuildTDictForQueryResult(self):
+      self._tdict						= tupledict.TupleDict(ExeController=self.exeController)
+      for wsFld in self.cursor.description:
+        #print "XYZ", `self.cursor.description`
+        wsMySqlFieldName					= wsFld[0]
+        wsMySqlMaxLength					= wsFld[3]
+        wsElementPhysicalType				= None
+        wsElementPhysicalType				= self.db.TranslateFieldType(Fld=wsFld, Table=self)
+        wsElement						= self._tdict.AddScalarElement(wsMySqlFieldName,
 								PhysicalType=wsElementPhysicalType,
 								MaxLength=wsMySqlMaxLength)
-      if wsFld[6] == 0:
-        wsElement.ConfigureAsUnique()
+        if wsFld[6] == 0:
+          wsElement.ConfigureAsUnique()
 
-  def QueryRecordsFound(self):
-    if len(self) > 0:
-      return True
-    else:
-      return False
+    def QueryRecordsFound(self):
+      if len(self) > 0:
+        return True
+      else:
+        return False
 
-  #
-  # RunQuery() Executes a query
-  #		It calls ClearData() even if no return dat is expected in order
-  #			to avoid confusion regarding data left from prior RunDataQuery()
-  #		Returns True if query executes. That just means that the database
-  #			considered it valid SQl, not that it did what you want.
-  #			False means it could not be exeucted.
-  #
-  def RunQuery(self, parmQuery, parmParms=()):
-      if parmQuery[-1] != ";":
-          parmQuery					+= ";"
-      if self._debug > 0:
-          print("Query: " + parmQuery)
-      self.ClearData(Query=parmQuery)
-      if self.cursor is None:
-          self._lastErrorMsg = "RDBMS table cursor closed."
-          return False
-      try:
-          #print "QQQ", parmQuery
-          #print "ZZZ", parmParms
-          if parmParms is None:
-              # SqLite raises an exception is parms are None or ()
-              self.cursor.execute(parmQuery)
-          else:
-              self.cursor.execute(parmQuery, parmParms)
-          if self._debug > 0:
-              print("Query successful")
-          self._lastRequest				= parmQuery
-          self._lastQuery				= self.db.GetLastQuery(Table=self, Query=parmQuery)
-      except:
-          if self._debug > 0:
-              PrintError("Query")
-          self._lastErrorMsg = "RDBMS query failed:"
-          if self.exeController is not None:
-              self.exeController.errs.AddDevCriticalMessage("RunQuery() exception for '%s' (%s)." % (parmQuery, repr(parmParms)))
-              self.exeController.errs.AddTraceback()
-              return False
-          else:
-              raise
-      self.db.db.commit()
-      return True
+    #
+    # RunQuery() Executes a query
+    #		It calls ClearData() even if no return dat is expected in order
+    #			to avoid confusion regarding data left from prior RunDataQuery()
+    #		Returns True if query executes. That just means that the database
+    #			considered it valid SQl, not that it did what you want.
+    #			False means it could not be exeucted.
+    #
+    def RunQuery(self, parmQuery, parmParms=()):
+        if parmQuery[-1] != ";":
+            parmQuery					+= ";"
+        if self._debug > 0:
+            print("Query: " + parmQuery)
+        self.ClearData(Query=parmQuery)
+        if self.cursor is None:
+            self._lastErrorMsg = "RDBMS table cursor closed."
+            return False
+        try:
+            #print "QQQ", parmQuery
+            #print "ZZZ", parmParms
+            if parmParms is None:
+                # SqLite raises an exception is parms are None or ()
+                self.cursor.execute(parmQuery)
+            else:
+                self.cursor.execute(parmQuery, parmParms)
+            if self._debug > 0:
+                print("Query successful")
+            self._lastRequest				= parmQuery
+            self._lastQuery				= self.db.GetLastQuery(Table=self, Query=parmQuery)
+        except:
+            if self._debug > 0:
+                PrintError("Query")
+            self._lastErrorMsg = "RDBMS query failed:"
+            if self.exeController is not None:
+                self.exeController.errs.AddDevCriticalMessage("RunQuery() exception for '%s' (%s)." % (parmQuery, repr(parmParms)))
+                self.exeController.errs.AddTraceback()
+                return False
+            else:
+                raise
+        self.db.db.commit()
+        return True
 
-  #
-  # RunDataQuery() Executes a query that returns data.
-  #			It is execute() and fetchall into _tuples.
-  # 		Returns None is the query causes an exception. It returns
-  #		_tuples in the case of successful execution. That will be
-  #		zero length if the query doesn't find data.
-  #
-  def RunDataQuery(self, parmQuery, parmParms=None):
-    if not self.RunQuery(parmQuery, parmParms=parmParms):
-      return None							# self._lastErrorMsg set by RunQuery()
-    self.BuildTDictForQueryResult()
-    wsQueryResult				= self.cursor.fetchall()
-    if len(wsQueryResult) >= 1:
-      for wsThisRow in wsQueryResult:
-        self.AppendData(wsThisRow)
-    return self._tuples
+    #
+    # RunDataQuery() Executes a query that returns data.
+    #			It is execute() and fetchall into _tuples.
+    # 		Returns None is the query causes an exception. It returns
+    #		_tuples in the case of successful execution. That will be
+    #		zero length if the query doesn't find data.
+    #
+    def RunDataQuery(self, parmQuery, parmParms=None):
+      if not self.RunQuery(parmQuery, parmParms=parmParms):
+        return None							# self._lastErrorMsg set by RunQuery()
+      self.BuildTDictForQueryResult()
+      wsQueryResult				= self.cursor.fetchall()
+      if len(wsQueryResult) >= 1:
+        for wsThisRow in wsQueryResult:
+          self.AppendData(wsThisRow)
+      return self._tuples
 
-  def PrintList(self):
-    wsQuery					= "SELECT * FROM " + self.tableName
-    wsAnswer					= self.RunDataQuery(wsQuery)
-    if wsAnswer:
-      for wsRec in wsAnswer:
-        print("--> " + repr(wsRec) + " <--")
-    else:
-      print("Query " + repr(wsQuery) + " failed")
+    def PrintList(self):
+      wsQuery					= "SELECT * FROM " + self.tableName
+      wsAnswer					= self.RunDataQuery(wsQuery)
+      if wsAnswer:
+        for wsRec in wsAnswer:
+          print("--> " + repr(wsRec) + " <--")
+      else:
+        print("Query " + repr(wsQuery) + " failed")
 
-  def QueryResultCt(self):
-    return len(self.data)
+    def QueryResultCt(self):
+      return len(self.data)
 
-  # RdbmsTable
-  def BuildTDictForTable(self):
-    wsTDict					= self.db.BuildTDictForTable(Table=self)
-    self.ClearData()							# clear fields from record buffer
-    return wsTDict
+    # RdbmsTable
+    def BuildTDictForTable(self):
+        wsTDict					= self.db.BuildTDictForTable(Table=self)
+        self.ClearData()							# clear fields from record buffer
+        return wsTDict
 
-  def AutoId(self):
-    #return self.cursor.insert_id()
-    return self.cursor.lastrowid
+    def AutoId(self):
+        #return self.cursor.insert_id()
+        return self.cursor.lastrowid
 
+    def create_database(self, database_name, if_not_exists=False,
+                        character_set='utf8',
+                        collation_name='utf8_general_ci'):
+        """
+        Create a datbase. This is specifically for MySql/MariaDb.
+        Sqlite datbases are created instrinsically when a
+        connection is established. It has a different mechanism
+        to set default character sets and colation orders.
 
-  #
-  # Utf8: Sqlite stores all text as UTF8. MySql has many options. I support ASCII for transitional
-  # convenience. In the long run, everything should be stored as UTF8. I might want to use an
-  # allowed characters editing parameter, but maybe its best to enforce any character restrictions
-  # indirectly through dictionaries and code lists.
-  #
-  # Mysql UTF8 is not a complete implemention. Three bytes/code point max. UTF8MB4 added in 5.5.3
-  # adds 4 byte support.
-  #
-  #
-  # Case Sensitivity: Sqlite NOCASE only considers English letters (ASCII letters) which is good enough
-  # for me know, but could be confusing if internationalization ever matters.
-  #
-  def CreateTableFromTDict(self, parmTDict, TableName=None):
-    self.tableName				= TableName
-    if self.tableName is None:
-      self.tableName				= parmTDict._name
-    if self.tableName is None:
-      # Class names are typically hungarian notation with an app prefix.
-      # If not specified, use the module name for the table name
-      wsClassName				= parmTDict.__class__.__name__
-      wsIx					= utils.FindFirstUpperCaseLetter(wsClassName)
-      if wsIx >= 0:
-        self.tableName				= wsClassName[wsIx:]
-    wsFieldCt					= 0
-    wsQuery					= "CREATE TABLE " + self.tableName + " ("
-    for wsThisTDictElement in parmTDict.Elements():
-      if wsThisTDictElement.roleType in ertypes.Core_VirtualRoleCodes:
-        continue
-      if wsThisTDictElement.roleType == ertypes.Core_PrimaryParticipantRoleCode:
-        continue
-      if wsThisTDictElement.roleType == ertypes.Core_SecondaryParticipantRoleCode:
-        continue
-      wsFieldCt					+= 1
-      wsFieldSpec				= self.db.MakeColumnDefFromTDictElement(wsThisTDictElement)
-      if wsFieldCt > 1:
-        wsQuery					+= ', '
-      wsQuery					+= wsFieldSpec
-    wsQuery					+= ')'
-    if self.RunQuery(wsQuery):
-      self.rdbmsTDict				= self.BuildTDictForTable()
-      return self
-    else:
-      self.rdbmsTDict				= None
+        MySql/MariaDb support "show character set;" and
+
+        """
+        sql = 'CREATE DATABASE '
+        if if_not_exists:
+            sql += 'IF NOT EXISTS '
+        sql += database_name
+        if character_set is not None:
+            sql += ' CHARACTER SET ' + character_set
+        if collation is not None:
+            sql += ' COLLATE ' + collation_name
+         sql += ';'
+
+    def add_user(self):
+        pass
+
+        """
+        CREATE USER 'newuser'@'localhost' IDENTIFIED BY 'password';
+        GRANT ALL PRIVILEGES ON * . * TO 'newuser'@'localhost';
+        FLUSH PRIVILEGES;
+
+        related:
+        mysqladmin -u root password NEWPASSWORD
+        mysql_secure_connection
+        """
+
+    def backup_table(self):
+        pass
+
+        """
+        mysqldump -u{backup_user} -p{backup_password}
+        from_db_name table_to_backup > backup_file.sql
+        """
+        
+    #
+    # Utf8: Sqlite stores all text as UTF8. MySql has many options. I support ASCII for transitional
+    # convenience. In the long run, everything should be stored as UTF8. I might want to use an
+    # allowed characters editing parameter, but maybe its best to enforce any character restrictions
+    # indirectly through dictionaries and code lists.
+    #
+    # Mysql UTF8 is not a complete implemention. Three bytes/code point max. UTF8MB4 added in 5.5.3
+    # adds 4 byte support.
+    #
+    #
+    # Case Sensitivity: Sqlite NOCASE only considers English letters (ASCII letters) which is good enough
+    # for me know, but could be confusing if internationalization ever matters.
+    #
+    def CreateTableFromTDict(self, parmTDict, TableName=None):
+      self.tableName				= TableName
+      if self.tableName is None:
+        self.tableName				= parmTDict._name
+      if self.tableName is None:
+        # Class names are typically hungarian notation with an app prefix.
+        # If not specified, use the module name for the table name
+        wsClassName				= parmTDict.__class__.__name__
+        wsIx					= utils.FindFirstUpperCaseLetter(wsClassName)
+        if wsIx >= 0:
+          self.tableName				= wsClassName[wsIx:]
+      wsFieldCt					= 0
+      wsQuery					= "CREATE TABLE " + self.tableName + " ("
+      for wsThisTDictElement in parmTDict.Elements():
+        if wsThisTDictElement.roleType in ertypes.Core_VirtualRoleCodes:
+          continue
+        if wsThisTDictElement.roleType == ertypes.Core_PrimaryParticipantRoleCode:
+          continue
+        if wsThisTDictElement.roleType == ertypes.Core_SecondaryParticipantRoleCode:
+          continue
+        wsFieldCt					+= 1
+        wsFieldSpec				= self.db.MakeColumnDefFromTDictElement(wsThisTDictElement)
+        if wsFieldCt > 1:
+          wsQuery					+= ', '
+        wsQuery					+= wsFieldSpec
+      wsQuery					+= ')'
+      if self.RunQuery(wsQuery):
+        self.rdbmsTDict				= self.BuildTDictForTable()
+        return self
+      else:
+        self.rdbmsTDict				= None
+        return None
+
+    def Drop(self):
+      self.RunQuery("DROP TABLE " + self.tableName)
       return None
 
-  def Drop(self):
-    self.RunQuery("DROP TABLE " + self.tableName)
-    return None
+    def AddField(self, parmTDictElement):
+      wsFieldSpec					= self.MakeMySqlColumnDefFromTDictElement(parmTDictElement)
+      wsQuery					= "alter table %s add column %s" % (self.tableName, wsFieldSpec)
+      return self.RunQuery(wsQuery)
 
-  def AddField(self, parmTDictElement):
-    wsFieldSpec					= self.MakeMySqlColumnDefFromTDictElement(parmTDictElement)
-    wsQuery					= "alter table %s add column %s" % (self.tableName, wsFieldSpec)
-    return self.RunQuery(wsQuery)
+    def Post(self, parmValues):
+      if self.modelTDict is None:
+        self.modelTDict				= self.exeController.GetDbTableModel(self.tableName)
+      if self.modelTDict is None:
+        self._lastErrorMsg			= "Model TDict required for Post()."
+        return False
+      if not self.modelTDict.ValidateObject(parmValues, InstancePhysicalType=ertypes.Core_MapDictTypeCode):
+        return False
+      wsUdiFieldName				= self.rdbmsTDict.udi._name
+      if wsUdiFieldName in parmValues:
+        wsUdiValue				= parmValues[wsUdiFieldName]
+      else:
+        wsUdiValue				= 0
+      if wsUdiValue > 0:
+        wsPostAction				= "U"
+        wsWhere					= (wsUdiFieldName, '=', wsUdiValue)
+      else:
+        wsPostAction				= "I"
+        wsWhere					= None
+      wsTimestamp					= utils.DateToYMDHMS()
+      if self.modelTDict.updateTimestamp is not None:
+        parmValues[self.modelTDict.updateTimestamp._name]	= wsTimestamp
+      if wsPostAction == "I":
+        if self.modelTDict.createTimestamp is not None:
+          parmValues[self.modelTDict.createTimestamp._name]	= wsTimestamp
+        wsResult					= self.Insert(parmValues)
+        parmValues[wsUdiFieldName]		= self.AutoId()
+      else:
+        wsResult					= self.Update(parmValues, Where=wsWhere)
+      return wsResult
 
-  def Post(self, parmValues):
-    if self.modelTDict is None:
-      self.modelTDict				= self.exeController.GetDbTableModel(self.tableName)
-    if self.modelTDict is None:
-      self._lastErrorMsg			= "Model TDict required for Post()."
-      return False
-    if not self.modelTDict.ValidateObject(parmValues, InstancePhysicalType=ertypes.Core_MapDictTypeCode):
-      return False
-    wsUdiFieldName				= self.rdbmsTDict.udi._name
-    if wsUdiFieldName in parmValues:
-      wsUdiValue				= parmValues[wsUdiFieldName]
-    else:
-      wsUdiValue				= 0
-    if wsUdiValue > 0:
-      wsPostAction				= "U"
-      wsWhere					= (wsUdiFieldName, '=', wsUdiValue)
-    else:
-      wsPostAction				= "I"
-      wsWhere					= None
-    wsTimestamp					= utils.DateToYMDHMS()
-    if self.modelTDict.updateTimestamp is not None:
-      parmValues[self.modelTDict.updateTimestamp._name]	= wsTimestamp
-    if wsPostAction == "I":
-      if self.modelTDict.createTimestamp is not None:
-        parmValues[self.modelTDict.createTimestamp._name]	= wsTimestamp
-      wsResult					= self.Insert(parmValues)
-      parmValues[wsUdiFieldName]		= self.AutoId()
-    else:
-      wsResult					= self.Update(parmValues, Where=wsWhere)
-    return wsResult
-
-  def Insert(self, parmValues, parmFieldList=None):
-    # This is a relatively thin wrapper around the DBMS insert. It just takes a list of field names
-    # names and values, constructs SQL and then lets the database do its thing.
-    # Use Post() to add records with full TDict control logic.
-    wsFieldsAndValues				= self.GetFieldsAndValues(parmValues, parmFieldList)
-    if not wsFieldsAndValues:
-      return None							# GetFieldsAndValues() sets self._lastErrorMsg
-    (wsFieldsStr, wsValuesStr, wsValueParms)	= self.MakeValueAssignments(wsFieldsAndValues)
-    if wsValuesStr is None:
-      return False							# MakeValueAssignments() sets self._lastErrorMsg
-    wsQuery					= "INSERT INTO {TableName} ({FieldNames}) VALUES ({FieldValues})".format(
+    def Insert(self, parmValues, parmFieldList=None):
+      # This is a relatively thin wrapper around the DBMS insert. It just takes a list of field names
+      # names and values, constructs SQL and then lets the database do its thing.
+      # Use Post() to add records with full TDict control logic.
+      wsFieldsAndValues				= self.GetFieldsAndValues(parmValues, parmFieldList)
+      if not wsFieldsAndValues:
+        return None							# GetFieldsAndValues() sets self._lastErrorMsg
+      (wsFieldsStr, wsValuesStr, wsValueParms)	= self.MakeValueAssignments(wsFieldsAndValues)
+      if wsValuesStr is None:
+        return False							# MakeValueAssignments() sets self._lastErrorMsg
+      wsQuery					= "INSERT INTO {TableName} ({FieldNames}) VALUES ({FieldValues})".format(
 							TableName=self.tableName,
 							FieldNames=wsFieldsStr,
 							FieldValues=wsValuesStr)
-    return self.RunQuery(wsQuery, wsValueParms)
+      return self.RunQuery(wsQuery, wsValueParms)
 
-  def IsOpen(self):
-    if self.rdbmsTDict is None:
-      return False
-    if len(self.rdbmsTDict) < 0:
-      return False
-    return True
-
-  # RdbmsTable
-  def MakeValueAssignments(self, parmFieldsAndValues, SetMode=False):
-    # Make field list, value list and value parameters for insert.
-    # This used to make a value string with quoted values, now it sets things up for
-    # the python library to quote.
-    #
-    if not self.IsOpen():
-      self._lastErrorMsg			= "Table Not Open"
-      return (None, None)
-    wsFieldsStr					= ""
-    wsValuesStr					= ""
-    wsValueParameters				= []
-
-    for (wsFieldIx, wsThisValue) in enumerate(parmFieldsAndValues[1]):
-      # In SetMode, field names and vailue go in one string.
-      # Otherwise we create separate fieldn name and values strings
-      wsFieldName				= parmFieldsAndValues[0][wsFieldIx]
-      if wsFieldIx > 0:
-        wsValuesStr				+= ", "
-        if not SetMode:
-          wsFieldsStr				+= ", "
-      if SetMode:
-        wsValuesStr				+= wsFieldName + ' = '
-      else:
-        wsFieldsStr				+= wsFieldName
-      if isinstance(wsThisValue, Reference):
-        wsValuesStr				+= wsThisValue.Expression(self, wsValueParameters)
-      else:
-        # value is a simple literal
-        wsValuesStr				+= self.db.paramcode
-        wsValueParameters.append(wsThisValue)
-    return (wsFieldsStr, wsValuesStr, tuple(wsValueParameters))
-
-  def FormatValue(self, parmFieldName, parmValue):
-    return parmValue
-    # This formats value per dictionary. May not be needed now that I am letting
-    # the library do the quoting. Might still need to take care of some special cases.
-    wsThisValue					= parmValue
-    if not isinstance(wsThisValue, type("")):
-      wsThisValue				= repr(wsThisValue)
-    if not parmFieldName:
-      self._lastErrorMsg			= "Missing field name"
-      if self._debug > 0:
-        print(self._lastErrorMsg)
-      return None
-    if self.rdbmsTDict.HasElement(parmFieldName):
-      wsFieldSpec				= self.rdbmsTDict.Element(parmFieldName)
-    else:
-      self._lastErrorMsg			= "Undefined field name '%s'" % (parmFieldName)
-      if self._debug > 0:
-        print(self._lastErrorMsg)
-      return None
-    if wsFieldSpec.physicalType == ertypes.Core_IntegerTypeCode:
-      if (wsThisValue is None) or (wsThisValue == '') or (wsThisValue == 'None'):
-        wsThisValue				= "0"
-      if wsThisValue[-1:] == "L":
-        wsThisValue				= wsThisValue[:-1]
-      wsDecPos					= string.find(wsThisValue, '.')
-      if wsDecPos >= 0:
-        wsThisValue				= wsThisValue[:wsDecPos] + wsThisValue[wsDecPos+1:]
-    else:
-      if (wsFieldSpec.maxLength > 0) and (len(wsThisValue) > wsFieldSpec.maxLength):
-        # Truncate excess lenght of strings. At this point we want to write what we can,
-        # not fail the update which is the native MySql behavior.
-        wsThisValue				= wsThisValue[:wsFieldSpec.maxLength]
-      wsThisValue				= wsThisValue.replace("'", "''")
-      wsThisValue				= "'" + wsThisValue + "'"
-    return wsThisValue
-
-  # RdbmsTable
-  def GetFieldsAndValues(self, parmValues, FieldList=None, OmitUdi=False):
-      # This gets the field name and values parameters of Insert and Update and converts
-      # them to corresponding arrays for use in creating the query in MakeValueAssignments().
-      #
+    def IsOpen(self):
       if self.rdbmsTDict is None:
-        self._lastErrorMsg			= "Table not open - no operations allowed."
-        return None								# table is not open
-      try:
-        wsItemList				= list(parmValues.items())
-      except:
-        wsItemList				= None
-      if wsItemList is not None:
-        # It looks like we got a dict or tuple.
-        wsValueList				= []
-        wsFieldList				= []
-        for (wsThisKey, wsThisValue) in wsItemList:
-          # Only take valid field names. ignore extraneous fields.
-          #
-          wsElement				= self.rdbmsTDict.Element(wsThisKey)
-          if wsElement is not None:
-            # The field is defined.
-            # OmitUdi logic needs to be duplicated below.
-            if OmitUdi and wsElement.roleType == ertypes.Core_UdiRoleCode:
-              pass
-            else:
-              wsValueList.append(wsThisValue)
-              wsFieldList.append(wsThisKey)
-      else:
-        # Lets look at it some other ways
-        if isinstance(parmValues, (list, tuple)):
-          wsValueList				= parmValues
-          wsFieldList				= FieldList
+        return False
+      if len(self.rdbmsTDict) < 0:
+        return False
+      return True
+
+    # RdbmsTable
+    def MakeValueAssignments(self, parmFieldsAndValues, SetMode=False):
+      # Make field list, value list and value parameters for insert.
+      # This used to make a value string with quoted values, now it sets things up for
+      # the python library to quote.
+      #
+      if not self.IsOpen():
+        self._lastErrorMsg			= "Table Not Open"
+        return (None, None)
+      wsFieldsStr					= ""
+      wsValuesStr					= ""
+      wsValueParameters				= []
+
+      for (wsFieldIx, wsThisValue) in enumerate(parmFieldsAndValues[1]):
+        # In SetMode, field names and vailue go in one string.
+        # Otherwise we create separate fieldn name and values strings
+        wsFieldName				= parmFieldsAndValues[0][wsFieldIx]
+        if wsFieldIx > 0:
+          wsValuesStr				+= ", "
+          if not SetMode:
+            wsFieldsStr				+= ", "
+        if SetMode:
+          wsValuesStr				+= wsFieldName + ' = '
         else:
-          # if its not a list assume its a single scalar value and put that in a list
-          wsValueList				= [parmValues]
-          if FieldList is None:
-            wsFieldList				= None
+          wsFieldsStr				+= wsFieldName
+        if isinstance(wsThisValue, Reference):
+          wsValuesStr				+= wsThisValue.Expression(self, wsValueParameters)
+        else:
+          # value is a simple literal
+          wsValuesStr				+= self.db.paramcode
+          wsValueParameters.append(wsThisValue)
+      return (wsFieldsStr, wsValuesStr, tuple(wsValueParameters))
+
+    def FormatValue(self, parmFieldName, parmValue):
+      return parmValue
+      # This formats value per dictionary. May not be needed now that I am letting
+      # the library do the quoting. Might still need to take care of some special cases.
+      wsThisValue					= parmValue
+      if not isinstance(wsThisValue, type("")):
+        wsThisValue				= repr(wsThisValue)
+      if not parmFieldName:
+        self._lastErrorMsg			= "Missing field name"
+        if self._debug > 0:
+          print(self._lastErrorMsg)
+        return None
+      if self.rdbmsTDict.HasElement(parmFieldName):
+        wsFieldSpec				= self.rdbmsTDict.Element(parmFieldName)
+      else:
+        self._lastErrorMsg			= "Undefined field name '%s'" % (parmFieldName)
+        if self._debug > 0:
+          print(self._lastErrorMsg)
+        return None
+      if wsFieldSpec.physicalType == ertypes.Core_IntegerTypeCode:
+        if (wsThisValue is None) or (wsThisValue == '') or (wsThisValue == 'None'):
+          wsThisValue				= "0"
+        if wsThisValue[-1:] == "L":
+          wsThisValue				= wsThisValue[:-1]
+        wsDecPos					= string.find(wsThisValue, '.')
+        if wsDecPos >= 0:
+          wsThisValue				= wsThisValue[:wsDecPos] + wsThisValue[wsDecPos+1:]
+      else:
+        if (wsFieldSpec.maxLength > 0) and (len(wsThisValue) > wsFieldSpec.maxLength):
+          # Truncate excess lenght of strings. At this point we want to write what we can,
+          # not fail the update which is the native MySql behavior.
+          wsThisValue				= wsThisValue[:wsFieldSpec.maxLength]
+        wsThisValue				= wsThisValue.replace("'", "''")
+        wsThisValue				= "'" + wsThisValue + "'"
+      return wsThisValue
+
+    # RdbmsTable
+    def GetFieldsAndValues(self, parmValues, FieldList=None, OmitUdi=False):
+        # This gets the field name and values parameters of Insert and Update and converts
+        # them to corresponding arrays for use in creating the query in MakeValueAssignments().
+        #
+        if self.rdbmsTDict is None:
+          self._lastErrorMsg			= "Table not open - no operations allowed."
+          return None								# table is not open
+        try:
+          wsItemList				= list(parmValues.items())
+        except:
+          wsItemList				= None
+        if wsItemList is not None:
+          # It looks like we got a dict or tuple.
+          wsValueList				= []
+          wsFieldList				= []
+          for (wsThisKey, wsThisValue) in wsItemList:
+            # Only take valid field names. ignore extraneous fields.
+            #
+            wsElement				= self.rdbmsTDict.Element(wsThisKey)
+            if wsElement is not None:
+              # The field is defined.
+              # OmitUdi logic needs to be duplicated below.
+              if OmitUdi and wsElement.roleType == ertypes.Core_UdiRoleCode:
+                pass
+              else:
+                wsValueList.append(wsThisValue)
+                wsFieldList.append(wsThisKey)
+        else:
+          # Lets look at it some other ways
+          if isinstance(parmValues, (list, tuple)):
+            wsValueList				= parmValues
+            wsFieldList				= FieldList
           else:
-            wsFieldList				= [FieldList]
-      if wsFieldList is not None:
-        if len(wsFieldList) < 1:
-          self._lastErrorMsg			= "Field list lenght is zero. Nothing to update"
-          return None
-        # supplied field count must match supplied value count
-        if len(wsFieldList) != len(wsValueList):
-          self._lastErrorMsg			= "Value list ct %d does not match field parm ct %d %s %s" % (
-							len(wsFieldList), len(wsValueList), repr(wsFieldList), repr(wsValueList))
-          if self._debug > 0:
-            print(self._lastErrorMsg)
-          return None
-      else:
-        wsFieldList				= []
-        if len(self.rdbmsTDict) < len(wsValueList):
-          self._lastErrorMsg			= "Value list ct %d does not match table field ct %d %s %s" % (
+            # if its not a list assume its a single scalar value and put that in a list
+            wsValueList				= [parmValues]
+            if FieldList is None:
+              wsFieldList				= None
+            else:
+              wsFieldList				= [FieldList]
+        if wsFieldList is not None:
+          if len(wsFieldList) < 1:
+            self._lastErrorMsg			= "Field list lenght is zero. Nothing to update"
+            return None
+          # supplied field count must match supplied value count
+          if len(wsFieldList) != len(wsValueList):
+            self._lastErrorMsg			= "Value list ct %d does not match field parm ct %d %s %s" % (
+  							len(wsFieldList), len(wsValueList), repr(wsFieldList), repr(wsValueList))
+            if self._debug > 0:
+              print(self._lastErrorMsg)
+            return None
+        else:
+          wsFieldList				= []
+          if len(self.rdbmsTDict) < len(wsValueList):
+            self._lastErrorMsg			= "Value list ct %d does not match table field ct %d %s %s" % (
 							len(self.rdbmsTDict), len(wsValueList), repr(self.rdbmsTDict), repr(wsValueList))
-          if self._debug > 0:
-            print(self._lastErrorMsg)
-          return None
-        for wsThisFieldSpec in self.rdbmsTDict.Elements():
-          wsFieldList.append(wsThisFieldSpec._name)
-      return (wsFieldList, wsValueList)
+            if self._debug > 0:
+              print(self._lastErrorMsg)
+            return None
+          for wsThisFieldSpec in self.rdbmsTDict.Elements():
+            wsFieldList.append(wsThisFieldSpec._name)
+        return (wsFieldList, wsValueList)
 
-  def Delete(self, parmWhere=None):
-      if not parmWhere:
-        self._lastErrorMsg			= "Where clause required for Delete funtion."
-        return None									# avoid accidental "delete all"
-      if parmWhere == WhereAllCode:
-        wsWhere					= ""
-      else:
-        wsWhere					= self.Where(parmWhere)
-      wsQuery					= "DELETE FROM %s %s" % (self.tableName, wsWhere)
-      return self.RunQuery(wsQuery)
+    def Delete(self, parmWhere=None):
+        if not parmWhere:
+          self._lastErrorMsg			= "Where clause required for Delete funtion."
+          return None									# avoid accidental "delete all"
+        if parmWhere == WhereAllCode:
+          wsWhere					= ""
+        else:
+          wsWhere					= self.Where(parmWhere)
+        wsQuery					= "DELETE FROM %s %s" % (self.tableName, wsWhere)
+        return self.RunQuery(wsQuery)
 
-  #
-  # Select() Runs a database SELECT statement.
-  #		Returns True for proper SQL or False for a bad statement.
-  #		Proper SQL may not find data, use table.len() to check if anything was found.
-  #
-  def Select(self, FieldList=None, Where=None, Order=None, parmJoin=None, parmGroup=None,
+    #
+    # Select() Runs a database SELECT statement.
+    #		Returns True for proper SQL or False for a bad statement.
+    #		Proper SQL may not find data, use table.len() to check if anything was found.
+    #
+    def Select(self, FieldList=None, Where=None, Order=None, parmJoin=None, parmGroup=None,
 				Limit=None,
 				Messages=None, debug=0):
-    wsJoinTableList				= []
-    wsJoinClause				= ""
-    if parmJoin:
-      for wsThisJoinSpec in parmJoin:
-        wsJoinType				= wsThisJoinSpec[0]
-        wsJoinTable				= wsThisJoinSpec[1]
-        wsJoinPrimaryFieldName			= wsThisJoinSpec[2]
-        wsJoinSecondaryFieldName		= wsThisJoinSpec[3]
-        wsJoinTableList.append(wsJoinTable)
-        if wsJoinType == LEFTOUTERJOIN:
-          wsJoinPhrase				= "LEFT OUTER JOIN"
-        else:
-          wsJoinPhrase				= "LEFT OUTER JOIN"
-        wsJoinClause				+= " %s %s ON %s.%s = %s.%s" % (
+      wsJoinTableList				= []
+      wsJoinClause				= ""
+      if parmJoin:
+        for wsThisJoinSpec in parmJoin:
+          wsJoinType				= wsThisJoinSpec[0]
+          wsJoinTable				= wsThisJoinSpec[1]
+          wsJoinPrimaryFieldName			= wsThisJoinSpec[2]
+          wsJoinSecondaryFieldName		= wsThisJoinSpec[3]
+          wsJoinTableList.append(wsJoinTable)
+          if wsJoinType == LEFTOUTERJOIN:
+            wsJoinPhrase				= "LEFT OUTER JOIN"
+          else:
+            wsJoinPhrase				= "LEFT OUTER JOIN"
+          wsJoinClause				+= " %s %s ON %s.%s = %s.%s" % (
 				                                wsJoinPhrase,
 								wsJoinTable.tableName,
 								self.tableName, wsJoinPrimaryFieldName,
 								wsJoinTable.tableName, wsJoinSecondaryFieldName)
-    if FieldList:
-      wsFieldNameList				= []
-      for wsThisFieldName in FieldList:
-        (wsFieldName, wsFieldType) = self.GetFieldNameAndType(wsThisFieldName, wsJoinTableList,
+      if FieldList:
+        wsFieldNameList				= []
+        for wsThisFieldName in FieldList:
+          (wsFieldName, wsFieldType) = self.GetFieldNameAndType(wsThisFieldName, wsJoinTableList,
 				Messages=Messages,  debug=debug)
-        if not wsFieldName:
-          self._lastErrorMsg			= "Blank found in fields list"
-          return False
-        wsFieldNameList.append(wsFieldName)
-      wsFields					= commastr.ListToCommaStr(wsFieldNameList)
-    else:
-      wsFields					= "*"
-    (wsWhere, wsWhereParams)			= self.Where(Where, JoinTableList=wsJoinTableList, debug=debug)
-    #
-    if Order is not None:
-      if isinstance(Order, str):
-        Order					= [Order]
-      wsOrderFieldNameList			= []
-      for wsThisOrderFieldSpec in Order:
-        if wsThisOrderFieldSpec[0] == '-':
-          wsThisOrderFieldName			= wsThisOrderFieldSpec[1:]
-          wsDescending				= True
-        else:
-          wsThisOrderFieldName			= wsThisOrderFieldSpec
-          wsDescending				= False
-        (wsFieldName, wsFieldType)		= self.GetFieldNameAndType(wsThisOrderFieldName, wsJoinTableList,
+          if not wsFieldName:
+            self._lastErrorMsg			= "Blank found in fields list"
+            return False
+          wsFieldNameList.append(wsFieldName)
+        wsFields					= commastr.ListToCommaStr(wsFieldNameList)
+      else:
+        wsFields					= "*"
+      (wsWhere, wsWhereParams)			= self.Where(Where, JoinTableList=wsJoinTableList, debug=debug)
+      #
+      if Order is not None:
+        if isinstance(Order, str):
+          Order					= [Order]
+        wsOrderFieldNameList			= []
+        for wsThisOrderFieldSpec in Order:
+          if wsThisOrderFieldSpec[0] == '-':
+            wsThisOrderFieldName			= wsThisOrderFieldSpec[1:]
+            wsDescending				= True
+          else:
+            wsThisOrderFieldName			= wsThisOrderFieldSpec
+            wsDescending				= False
+          (wsFieldName, wsFieldType)		= self.GetFieldNameAndType(wsThisOrderFieldName, wsJoinTableList,
 							Messages=Messages, debug=debug)
-        if wsDescending:
-          wsFieldName				= wsFieldName + ' DESC'
-        wsOrderFieldNameList.append(wsFieldName)
-      wsOrderClause				= " ORDER BY " + commastr.ListToCommaStr(wsOrderFieldNameList, QuoteNever=True)
-    else:
-      wsOrderClause				= ""
-    #
-    if parmGroup:
-      wsGroupFieldNameList			= []
-      for wsThisGroupFieldName in parmGroup:
-        (wsFieldName, wsFieldType)		= self.GetFieldNameAndType(wsThisGroupFieldName, wsJoinTableList,
+          if wsDescending:
+            wsFieldName				= wsFieldName + ' DESC'
+          wsOrderFieldNameList.append(wsFieldName)
+        wsOrderClause				= " ORDER BY " + commastr.ListToCommaStr(wsOrderFieldNameList, QuoteNever=True)
+      else:
+        wsOrderClause				= ""
+      #
+      if parmGroup:
+        wsGroupFieldNameList			= []
+        for wsThisGroupFieldName in parmGroup:
+          (wsFieldName, wsFieldType)		= self.GetFieldNameAndType(wsThisGroupFieldName, wsJoinTableList,
 									Messages=Messages, debug=debug)
-        wsGroupFieldNameList.append(wsFieldName)
-      wsGroupClause				= "GROUP BY " + commastr.ListToCommaStr(wsGroupFieldNameList)
-    else:
-      wsGroupClause = ""
-    if Limit is None:
-      wsLimitClause				= ""
-    else:
-      wsLimitClause				= " LIMIT " + utils.Str(Limit)
+          wsGroupFieldNameList.append(wsFieldName)
+        wsGroupClause				= "GROUP BY " + commastr.ListToCommaStr(wsGroupFieldNameList)
+      else:
+        wsGroupClause = ""
+      if Limit is None:
+        wsLimitClause				= ""
+      else:
+        wsLimitClause				= " LIMIT " + utils.Str(Limit)
 
-    wsQuery					= "SELECT {FieldNames} FROM {TableName}{JoinClause}{WhereClause}{GroupClause}{OrderClause}{LimitClause}".format(
+      wsQuery					= "SELECT {FieldNames} FROM {TableName}{JoinClause}{WhereClause}{GroupClause}{OrderClause}{LimitClause}".format(
 							FieldNames=wsFields,
 							TableName=self.tableName,
 							JoinClause=wsJoinClause,
@@ -700,238 +742,235 @@ class RdbmsTable(datastore.DataStoreObject):
 							OrderClause=wsOrderClause,
 							LimitClause=wsLimitClause
 						)
-    wsResult					=  self.RunDataQuery(wsQuery, wsWhereParams)
-    if wsResult is None:
-      return False							# self._lastErrorMsg set by RunDataQuery()
-    return True
+      wsResult					=  self.RunDataQuery(wsQuery, wsWhereParams)
+      if wsResult is None:
+        return False							# self._lastErrorMsg set by RunDataQuery()
+      return True
 
-  def SelectKeyList(self, parmFieldName, Where=None, Order=None, Limit=None):
-    wsList					= []
-    self.Select([parmFieldName], Where=Where, Order=Order, Limit=Limit)
-    for wsThisRecord in self:
-      wsList.append(wsThisRecord[parmFieldName])
-    return wsList
+    def SelectKeyList(self, parmFieldName, Where=None, Order=None, Limit=None):
+      wsList					= []
+      self.Select([parmFieldName], Where=Where, Order=Order, Limit=Limit)
+      for wsThisRecord in self:
+        wsList.append(wsThisRecord[parmFieldName])
+      return wsList
 
-  def Update(self, parmValues, FieldList=None, Where=None):
-    if Where is None:
-      if self.rdbmsTDict.udi is not None:
-        wsUdiFieldName			= self.rdbmsTDict.udi._name
-        wsUdiValue			= parmValues[wsUdiFieldName]
-        if wsUdiValue is not None:
-          Where				= (wsUdiFieldName, '=', wsUdiValue)
-    if Where is None:
-      self._lastErrorMsg		= "Where clause required for Update funtion."
-      return None							# avoid accidental "change all"
-    if Where == WhereAllCode:
-      wsWhere				= ""
-      wsWhereParams			= tuple()
-    else:
-      (wsWhere, wsWhereParams)		= self.Where(Where)
-    wsFieldsAndValues			= self.GetFieldsAndValues(parmValues, FieldList, OmitUdi=True)
-    if wsFieldsAndValues is None:
-      return None							# GetFieldsAndValues() sets self._lastErrorMsg
-    (wsNotUsed, wsAssignmentsStr, wsValueParms)	= self.MakeValueAssignments(wsFieldsAndValues, SetMode=True)
-    if wsAssignmentsStr is None:
-      return None							# MakeValueAssignments() sets self._lastErrorMsg
+    def Update(self, parmValues, FieldList=None, Where=None):
+      if Where is None:
+        if self.rdbmsTDict.udi is not None:
+          wsUdiFieldName			= self.rdbmsTDict.udi._name
+          wsUdiValue			= parmValues[wsUdiFieldName]
+          if wsUdiValue is not None:
+            Where				= (wsUdiFieldName, '=', wsUdiValue)
+      if Where is None:
+        self._lastErrorMsg		= "Where clause required for Update funtion."
+        return None							# avoid accidental "change all"
+      if Where == WhereAllCode:
+        wsWhere				= ""
+        wsWhereParams			= tuple()
+      else:
+        (wsWhere, wsWhereParams)		= self.Where(Where)
+      wsFieldsAndValues			= self.GetFieldsAndValues(parmValues, FieldList, OmitUdi=True)
+      if wsFieldsAndValues is None:
+        return None							# GetFieldsAndValues() sets self._lastErrorMsg
+      (wsNotUsed, wsAssignmentsStr, wsValueParms)	= self.MakeValueAssignments(wsFieldsAndValues, SetMode=True)
+      if wsAssignmentsStr is None:
+        return None							# MakeValueAssignments() sets self._lastErrorMsg
 
-    wsQuery				= "UPDATE {TableName} SET {ValueAssignments}{WhereClause}".format(
+      wsQuery				= "UPDATE {TableName} SET {ValueAssignments}{WhereClause}".format(
 						TableName=self.tableName,
 						ValueAssignments=wsAssignmentsStr,
 						WhereClause=wsWhere
 					)
-    wsResult				= self.RunQuery(wsQuery, wsValueParms+wsWhereParams)
-    return wsResult
-
-  def UpdateCommonFields(self, parmSource, Where, Prefix=""):
-      if not Where:
-        self._lastErrorMsg		= "Where clause required for UpdateCommonFields funtion."
-        return None							# avoid accidental "change all"
-      if Where == WhereAllCode:
-        wsWhere				= ""
-      else:
-        wsWhere				= self.Where(Where)
-      wsFieldNameList			= []
-      wsFieldValueList			= []
-      for (wsFieldName, wsFieldValue) in list(parmSource.items()):
-        wsLocalFieldName		= Prefix + wsFieldName
-        if wsLocalFieldName in self.rdbmsTDict.elements:
-          wsFieldNameList.append(wsLocalFieldName)
-          if not wsFieldValue:
-            wsFieldValue		= ''				# convert None to string
-          wsFieldValueList.append(wsFieldValue)
-      if len(wsFieldNameList) < 0:
-        self._lastErrorMsg		= "No common fields found for UpdateCommonFields funtion."
-        return None
-      wsFieldsAndValues			= self.GetFieldsAndValues(wsFieldValueList, wsFieldNameList)
-      if not wsFieldsAndValues:
-        return None							# GetFieldsAndValues() sets self._lastErrorMsg
-      wsValueAssignments		= self.MakeValueAssignments(wsFieldsAndValues)
-      if not wsValueAssignments:
-        return None							# MakeValueAssignments() sets self._lastErrorMsg
-
-      wsQuery				= "UPDATE %s SET %s %s" % (self.tableName, wsValueAssignments, wsWhere)
-      wsResult				= self.RunQuery(wsQuery)
+      wsResult				= self.RunQuery(wsQuery, wsValueParms+wsWhereParams)
       return wsResult
 
-  def GetFieldNameAction(self, parmFieldName):
-      if parmFieldName[0] == "+":
-        return ('sum', parmFieldName[1:])
-      else:
-        return ('', parmFieldName)
+    def UpdateCommonFields(self, parmSource, Where, Prefix=""):
+        if not Where:
+          self._lastErrorMsg		= "Where clause required for UpdateCommonFields funtion."
+          return None							# avoid accidental "change all"
+        if Where == WhereAllCode:
+          wsWhere				= ""
+        else:
+          wsWhere				= self.Where(Where)
+        wsFieldNameList			= []
+        wsFieldValueList			= []
+        for (wsFieldName, wsFieldValue) in list(parmSource.items()):
+          wsLocalFieldName		= Prefix + wsFieldName
+          if wsLocalFieldName in self.rdbmsTDict.elements:
+            wsFieldNameList.append(wsLocalFieldName)
+            if not wsFieldValue:
+              wsFieldValue		= ''				# convert None to string
+            wsFieldValueList.append(wsFieldValue)
+        if len(wsFieldNameList) < 0:
+          self._lastErrorMsg		= "No common fields found for UpdateCommonFields funtion."
+          return None
+        wsFieldsAndValues			= self.GetFieldsAndValues(wsFieldValueList, wsFieldNameList)
+        if not wsFieldsAndValues:
+          return None							# GetFieldsAndValues() sets self._lastErrorMsg
+        wsValueAssignments		= self.MakeValueAssignments(wsFieldsAndValues)
+        if not wsValueAssignments:
+          return None							# MakeValueAssignments() sets self._lastErrorMsg
 
-  #
-  # GetFieldNameAndType()
-  #
-  def GetFieldNameAndType(self, parmFieldName, JoinTableList=[], Messages=None, debug=0):
-    wsExpandedFieldName			= ""
-    wsFieldType				= ""
-    if isinstance(parmFieldName, type([])):
-      if len(parmFieldName) == 3:
-        wsFieldInfo1			= self.GetOneFieldNameTypeAndAction(
+        wsQuery				= "UPDATE %s SET %s %s" % (self.tableName, wsValueAssignments, wsWhere)
+        wsResult				= self.RunQuery(wsQuery)
+        return wsResult
+
+    def GetFieldNameAction(self, parmFieldName):
+        if parmFieldName[0] == "+":
+          return ('sum', parmFieldName[1:])
+        else:
+          return ('', parmFieldName)
+
+    #
+    # GetFieldNameAndType()
+    #
+    def GetFieldNameAndType(self, parmFieldName, JoinTableList=[], Messages=None, debug=0):
+      wsExpandedFieldName			= ""
+      wsFieldType				= ""
+      if isinstance(parmFieldName, type([])):
+        if len(parmFieldName) == 3:
+          wsFieldInfo1			= self.GetOneFieldNameTypeAndAction(
 						parmFieldName[0], JoinTableList, Messages, debug=0)
-        wsFieldInfo2			= self.GetOneFieldNameTypeAndAction(
+          wsFieldInfo2			= self.GetOneFieldNameTypeAndAction(
 						parmFieldName[2], JoinTableList, Messages, debug=0)
-        wsOperator			= parmFieldName[1]
-        if wsFieldInfo1[1] != wsFieldInfo2[1]:
-          self._lastErrorMsg		= "Invalid expression %s type mismatch %s != %s" % (
+          wsOperator			= parmFieldName[1]
+          if wsFieldInfo1[1] != wsFieldInfo2[1]:
+            self._lastErrorMsg		= "Invalid expression %s type mismatch %s != %s" % (
 						repr(parmFieldName), wsFieldInfo1[1], wsFieldInfo2[1])
+            if Messages:
+              Messages.AppendCriticalMessage(self._lastErrorMsg)
+          wsExpandedFieldName		= wsFieldInfo1[0] + wsOperator + wsFieldInfo2[0]
+          wsFieldType			= wsFieldInfo1[1]
+          wsActionRefname			= wsFieldInfo1[2]
+          if not wsActionRefname:
+            wsActionRefname		= wsFieldInfo2[2]
+        else:
+          self._lastErrorMsg		= "Invalid number of parameters in expression %s" % (
+						repr(parmFieldName))
           if Messages:
             Messages.AppendCriticalMessage(self._lastErrorMsg)
-        wsExpandedFieldName		= wsFieldInfo1[0] + wsOperator + wsFieldInfo2[0]
-        wsFieldType			= wsFieldInfo1[1]
-        wsActionRefname			= wsFieldInfo1[2]
-        if not wsActionRefname:
-          wsActionRefname		= wsFieldInfo2[2]
       else:
-        self._lastErrorMsg		= "Invalid number of parameters in expression %s" % (
-						repr(parmFieldName))
-        if Messages:
-          Messages.AppendCriticalMessage(self._lastErrorMsg)
-    else:
-      (wsExpandedFieldName, wsFieldType, wsActionRefname) = self.GetOneFieldNameTypeAndAction(
+        (wsExpandedFieldName, wsFieldType, wsActionRefname) = self.GetOneFieldNameTypeAndAction(
 				parmFieldName, JoinTableList, Messages, debug=0)
-    if wsActionRefname:
-      wsExpandedFieldName		= "%s(%s)" % (wsActionRefname, wsExpandedFieldName)
-    return (wsExpandedFieldName, wsFieldType)
+      if wsActionRefname:
+        wsExpandedFieldName		= "%s(%s)" % (wsActionRefname, wsExpandedFieldName)
+      return (wsExpandedFieldName, wsFieldType)
 
-  def GetOneFieldNameTypeAndAction(self, parmFieldName, JoinTableList=[], Messages=None, debug=0):
-    # Creates FQN of field (table.field)
-    wsTableName				= ""
-    wsFieldName				= ""
-    wsFieldType				= ""
-    wsFieldSpec				= None
-    wsActionRefname			= ""
-    if isinstance(parmFieldName, type (())):
-      # parmFieldName is (tableobject, fieldnamestring)
-      wsFieldTable			= parmFieldName[0]
-      wsTableName			= wsFieldTable.tableName
-      (wsActionRefname, wsFieldName)	= self.GetFieldNameAction(parmFieldName[1])
-      if debug > 0:
-        print("Get Field %s.%s from '%s'" % (wsTableName, wsFieldName, repr(parmFieldName)))
-      wsFieldSpec			= wsFieldTable.rdbmsTDict[wsFieldName]
-    else:
-      (wsActionRefname, wsFieldName)	= self.GetFieldNameAction(parmFieldName)
-      if wsFieldName in self.rdbmsTDict.elements:
-        wsTableName			= self.tableName
-        wsFieldSpec			= self.rdbmsTDict.elements[wsFieldName]
+    def GetOneFieldNameTypeAndAction(self, parmFieldName, JoinTableList=[], Messages=None, debug=0):
+      # Creates FQN of field (table.field)
+      wsTableName				= ""
+      wsFieldName				= ""
+      wsFieldType				= ""
+      wsFieldSpec				= None
+      wsActionRefname			= ""
+      if isinstance(parmFieldName, type (())):
+        # parmFieldName is (tableobject, fieldnamestring)
+        wsFieldTable			= parmFieldName[0]
+        wsTableName			= wsFieldTable.tableName
+        (wsActionRefname, wsFieldName)	= self.GetFieldNameAction(parmFieldName[1])
+        if debug > 0:
+          print("Get Field %s.%s from '%s'" % (wsTableName, wsFieldName, repr(parmFieldName)))
+        wsFieldSpec			= wsFieldTable.rdbmsTDict[wsFieldName]
       else:
-        for wsThisTable in JoinTableList:
-          if wsFieldName in wsThisTable.rdbmsTDict.elements:
-            wsTableName			= wsThisTable.tableName
-            wsFieldSpec			= wsThisTable.rdbmsTDict.elements[wsFieldName]
-    wsExpandedFieldName			= "%s.%s" % (wsTableName, wsFieldName)
-
-    if wsFieldSpec:
-      return (wsExpandedFieldName, wsFieldSpec.physicalType, wsActionRefname)
-    else:
-      self._lastErrorMsg = "Invalid field %s.%s" % (wsTableName, wsFieldName)
-      if Messages:
-        Messages.AddUserCriticalMessage(self._lastErrorMsg)
-      return (None, None, None)
-
-  def Where(self, parmWhereList, JoinTableList=[], debug=0):
-      wsWhere				= ""
-      wsWhereParams			= []
-      if not parmWhereList:
-        return ("", None)
-      if not self.rdbmsTDict:
-         return ("", None)
-      if not isinstance(parmWhereList, type([])):
-        parmWhereList			= [parmWhereList]
-      for wsWhereSpec in parmWhereList:
-        if not isinstance(wsWhereSpec, type(())):
-          return (None, None)
-        if len(wsWhereSpec) < 3:
-          return (None, None)
-        wsWhereData			= wsWhereSpec[2]
-        (wsFieldName, wsFieldType)	= self.GetFieldNameAndType(wsWhereSpec[0], JoinTableList, debug=0)
-        if wsWhere:
-          if len(wsWhereSpec) > 3:
-            wsConjunction 		= wsWhereSpec[3]
-          else:
-            wsConjunction		= "AND"
-          wsWhere			+= " " + wsConjunction + " "
-        if wsWhereSpec[1] in ['is', 'is not']:
-          # the operand (wsWhereSpec[2] should be 'null' or None, but I'm not checking
-          wsWhere			+= "%s %s %s" % (wsFieldName, wsWhereSpec[1], 'null')
+        (wsActionRefname, wsFieldName)	= self.GetFieldNameAction(parmFieldName)
+        if wsFieldName in self.rdbmsTDict.elements:
+          wsTableName			= self.tableName
+          wsFieldSpec			= self.rdbmsTDict.elements[wsFieldName]
         else:
-          wsWhere			+= "%s %s " % (wsFieldName, wsWhereSpec[1])
-          if isinstance(wsWhereData, Reference):
-            wsWhere			+= wsWhereData.Expression(self, wsWhereParams)
+          for wsThisTable in JoinTableList:
+            if wsFieldName in wsThisTable.rdbmsTDict.elements:
+              wsTableName			= wsThisTable.tableName
+              wsFieldSpec			= wsThisTable.rdbmsTDict.elements[wsFieldName]
+      wsExpandedFieldName			= "%s.%s" % (wsTableName, wsFieldName)
+
+      if wsFieldSpec:
+        return (wsExpandedFieldName, wsFieldSpec.physicalType, wsActionRefname)
+      else:
+        self._lastErrorMsg = "Invalid field %s.%s" % (wsTableName, wsFieldName)
+        if Messages:
+          Messages.AddUserCriticalMessage(self._lastErrorMsg)
+        return (None, None, None)
+
+    def Where(self, parmWhereList, JoinTableList=[], debug=0):
+        wsWhere				= ""
+        wsWhereParams			= []
+        if not parmWhereList:
+          return ("", None)
+        if not self.rdbmsTDict:
+           return ("", None)
+        if not isinstance(parmWhereList, type([])):
+          parmWhereList			= [parmWhereList]
+        for wsWhereSpec in parmWhereList:
+          if not isinstance(wsWhereSpec, type(())):
+            return (None, None)
+          if len(wsWhereSpec) < 3:
+            return (None, None)
+          wsWhereData			= wsWhereSpec[2]
+          (wsFieldName, wsFieldType)	= self.GetFieldNameAndType(wsWhereSpec[0], JoinTableList, debug=0)
+          if wsWhere:
+            if len(wsWhereSpec) > 3:
+              wsConjunction 		= wsWhereSpec[3]
+            else:
+              wsConjunction		= "AND"
+            wsWhere			+= " " + wsConjunction + " "
+          if wsWhereSpec[1] in ['is', 'is not']:
+            # the operand (wsWhereSpec[2] should be 'null' or None, but I'm not checking
+            wsWhere			+= "%s %s %s" % (wsFieldName, wsWhereSpec[1], 'null')
           else:
-            # The third parameter is a literal, so let the dbms libary quote the value
-            wsWhere			+= self.db.paramcode
-            wsWhereParams.append(wsWhereData)
-      if wsWhere:
-        wsWhere				= " WHERE " + wsWhere
-      return (wsWhere, tuple(wsWhereParams))
+            wsWhere			+= "%s %s " % (wsFieldName, wsWhereSpec[1])
+            if isinstance(wsWhereData, Reference):
+              wsWhere			+= wsWhereData.Expression(self, wsWhereParams)
+            else:
+              # The third parameter is a literal, so let the dbms libary quote the value
+              wsWhere			+= self.db.paramcode
+              wsWhereParams.append(wsWhereData)
+        if wsWhere:
+          wsWhere				= " WHERE " + wsWhere
+        return (wsWhere, tuple(wsWhereParams))
 
 #
 # Lookup creates and executes a query that is expected to
 # return exactly one record.  It is most often used to verify
 # referential integrity or for code translation.
 #
-  def Lookup(self, parmFld, parmValue, FieldList=None):
-    wsResult				= self.Select(FieldList=FieldList, Where=[(parmFld, '=', parmValue)])
-    if not wsResult:
-      return False
-    if len(self._tuples) != 1:
-      return False
-    return True
+    def Lookup(self, parmFld, parmValue, FieldList=None):
+      wsResult				= self.Select(FieldList=FieldList, Where=[(parmFld, '=', parmValue)])
+      if not wsResult:
+        return False
+      if len(self._tuples) != 1:
+        return False
+      return True
 
-  def LookupTuple(self, parmFld, parmValue, FieldList=None):
-    if self.Lookup(parmFld, parmValue, FieldList=FieldList):
-      wsTuple				= datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
-      for (wsKey, wsValue) in list(self._tuples[0].items()):
-        wsTuple[wsKey]			= wsValue
-      return wsTuple
-    else:
-      return None
+    def LookupTuple(self, parmFld, parmValue, FieldList=None):
+      if self.Lookup(parmFld, parmValue, FieldList=FieldList):
+        wsTuple				= datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
+        for (wsKey, wsValue) in list(self._tuples[0].items()):
+          wsTuple[wsKey]			= wsValue
+        return wsTuple
+      else:
+        return None
 
-  def Lookup2(self, Where=None, FieldList=None):
-    wsResult				= self.Select(FieldList=FieldList, Where=Where)
-    if not wsResult:
-      return False
-    if len(self._tuples) != 1:
-      return False
-    return True
+    def Lookup2(self, Where=None, FieldList=None):
+      wsResult				= self.Select(FieldList=FieldList, Where=Where)
+      if not wsResult:
+        return False
+      if len(self._tuples) != 1:
+        return False
+      return True
 
-  def Lookup2Tuple(self, Where=None, FieldList=None):
-    if self.Lookup2(Where=Where, FieldList=FieldList):
-      wsTuple				= datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
-      for (wsKey, wsValue) in list(self._tuples[0].items()):
-        wsTuple[wsKey]			= wsValue
-      return wsTuple
-    else:
-      return None
+    def Lookup2Tuple(self, Where=None, FieldList=None):
+      if self.Lookup2(Where=Where, FieldList=FieldList):
+        wsTuple				= datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
+        for (wsKey, wsValue) in list(self._tuples[0].items()):
+          wsTuple[wsKey]			= wsValue
+        return wsTuple
+      else:
+        return None
 
 #
 # RdbmsConnector() is the  database object.
 #
 #
-
-
-
 
 class RdbmsConnector(object):
   __slots__ = ('exeController', 'db', 'dbPath', 'dbType', 'tables', 'hostName', 'dbName', 'refname', 'userName', 'paramcode', 'paramstyle', 'password', 'debug')

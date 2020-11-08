@@ -49,20 +49,12 @@ try:
     from ezcore import ezconst
 except ModuleNotFoundError:
     ezconst = None
-
 if ezconst is None:
-    sys.path.append(EZCORE_PATH)
-    import ezconst
+    sys.path.append(EZDEV_PATH)
+    from ezcore import ezconst
 
-try:
-    from ezcore import cli
-except ModuleNotFoundError:
-    import cli
-
-try:
-    from ezcore import inifile
-except ModuleNotFoundError:
-    import inifile
+from ezcore import cli
+from ezcore import inifile
 
 class EzStart():
     """Create or repair an EzDev site. """
@@ -174,6 +166,7 @@ class EzStart():
         ezcore_path = os.path.join(packages_path, EZCORE_DIR_NAME)
         if not os.path.islink(ezcore_path):
             os.symlink(EZCORE_PATH, ezcore_path)
+        return True
 
     def error(self, msg):
         """Print an error message."""

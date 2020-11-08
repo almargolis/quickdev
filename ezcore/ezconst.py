@@ -3,8 +3,11 @@ These are constants and utiities for the EzDev environment.
 
 """
 
+CONF_EXT = 'conf'
 SITE_CONF_DIR_NAME = 'conf'                 # relative to site_path
-SITE_CONF_FILE_NAME = 'site.conf'
+SITE_DB_DIR_NAME = 'db'
+
+SITE_CONF_FILE_NAME = 'site' + CONF_EXT
 PROJECT_DB_FN = 'project_db.sql'
 PROJECT_CONF_FN = 'xpython.conf'
 

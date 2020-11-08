@@ -19,9 +19,8 @@
 import string
 import sys
 
-import tupledata
-
-import utils
+from ezcore import tupledata
+from ezcore import utils
 
 
 def AsList(parmData):

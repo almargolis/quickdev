@@ -48,6 +48,10 @@ SOURCE_STATUS_PROCESSING = 1
 SOURCE_STATUS_COMPLETE = 2
 SOURCE_STATUS_ERROR = 3
 
+SEP_WHITE_SPACE = " \t"
+SEP_GRAMMAR = "()[]:"
+SEP_ALL = SEP_WHITE_SPACE + SEP_GRAMMAR
+
 db_dict = pdict.DbDict()
 
 d = db_dict.add_table(pdict.DbTableDict('sources'))
@@ -94,6 +98,56 @@ def input_yn(prompt, default='y'):
             else:
                 resp = 'n'
     return resp == 'y'
+LEX_STATE_SCAN_LINE = 0
+LEX_STATE_SCAN_TOKEN = 1
+
+class SimpleLex:
+    __slots__ = ('debug', 'start_ixs', 'state', 'token', 'token_ix', 'tokens')
+
+    def __init__(self, debug=0):
+        self.debug = debug
+        self.state = LEX_STATE_SCAN_LINE
+
+    def save_token(self):
+        self.tokens.append(self.token)
+        self.start_ixs.append(self.token_ix)
+        self.token = ''
+        self.token_ix = -1
+
+    def save_c(self, c, ix):
+        self.tokens.append(c)
+        self.start_ixs.append(ix)
+
+    def lex(self, src_line):
+        if self.debug >= 1:
+            print('LEX Line', src_line)
+        self.tokens = []
+        self.start_ixs = []
+        self.token = ''
+        self.token_ix = 0
+        self.state = LEX_STATE_SCAN_LINE
+        for ix, c in enumerate(src_line):
+            if self.debug >= 1:
+                print("'{}', {}, {} '{}'".format(self.token, self.state, ix, c))
+            if self.state == LEX_STATE_SCAN_LINE:
+                if c in SEP_WHITE_SPACE:
+                    continue
+                if c in SEP_GRAMMAR:
+                    self.save_c(c, ix)
+                    continue
+                self.token = c
+                self.token_ix = ix
+                self.state = LEX_STATE_SCAN_TOKEN
+            elif self.state == LEX_STATE_SCAN_TOKEN:
+                if c in SEP_ALL:
+                    self.save_token()
+                    if c in SEP_GRAMMAR:
+                        self.save_c(c, ix)
+                    self.state = LEX_STATE_SCAN_LINE
+                else:
+                    self.token += c
+        if self.state == LEX_STATE_SCAN_TOKEN:
+            self.save_token()
 
 class FileInfo:  # pylint: disable=too-few-public-methods
     """
@@ -121,9 +175,12 @@ class FileInfo:  # pylint: disable=too-few-public-methods
 
 class XSource:
     """ Class to process one XPython source file. """
-    __slots__ = ('err_ct', 'py_out', 'sources_row', 'src_line_ct', 'x_obj')
+    __slots__ = ('built_ins', 'err_ct', 'lex',
+                 'py_out', 'sources_row', 'src_line_ct', 'x_obj')
 
     def __init__(self, x_obj, sources_row):
+        self.built_ins = {}
+        self.lex = SimpleLex()
         self.x_obj = x_obj
         self.sources_row = sources_row  # row of sources table
         print("Processing {}".format(sources_row['module_name']))
@@ -183,14 +240,10 @@ class XSource:
         elif sql_data[0]['status'] == SOURCE_STATUS_PROCESSING:
             self.syntax_error("Recursive loop with module '{}'.".format(module_name))
 
-    def xpython_subst(self, src_line, ix, ix2):
-        xpy_string = src_line[ix+1:ix2]  # NOQA E226
-        if xpy_string[0] in ['"', "'"]:
-            quote = xpy_string[0]
-            xpy_string = xpy_string[1:]
-        else:
-            quote = ''
-        parts = xpy_string.split('.')
+    def xpython_lookup_subst(self, key):
+        if key in self.built_ins:
+            return self.built_ins[key]
+        parts = key.split('.')
         if len(parts) == 1:
             fld_values = {
                 'module_name': self.sources_row['module_name'],
@@ -205,16 +258,42 @@ class XSource:
             self.post_module_uses(parts[0])
         sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
         if len(sql_data) != 1:
+            return None
+        return sql_data[0]['value']
+
+    def xpython_subst(self, src_line, ix, ix2):
+        xpy_string = src_line[ix+1:ix2]  # NOQA E226
+        if xpy_string[0] in ['"', "'"]:
+            quote = xpy_string[0]
+            xpy_string = xpy_string[1:]
+        else:
+            quote = ''
+        value = self.xpython_lookup_subst(xpy_string)
+        if value is None:
             self.syntax_error('Unknown substituion {}'.format(xpy_string))
             return ix2+1, src_line
-        sub_string = '{}{}{}'.format(quote, sql_data[0]['value'], quote)
+        sub_string = '{}{}{}'.format(quote, value, quote)
         new_line = src_line[:ix] + sub_string
         ix_next = len(new_line)
         new_line += src_line[ix2+1:]
         return ix_next, new_line
 
+    def xpython_parse(self):
+        if self.x_obj.debug >= 1:
+            print(self.lex.tokens)
+        if len(self.lex.tokens) < 1:
+            return
+        if self.lex.tokens[0] == 'class':
+            self.built_ins['__class_name__'] = self.lex.tokens[1]
+            return
+        if self.lex.tokens[0] == 'def':
+            self.built_ins['__def_name__'] = self.lex.tokens[1]
+            return
+
     def xpython_p(self, src_line):
         """ Process one line of python source. """
+        self.lex.lex(src_line)
+        self.xpython_parse()
         ix_next = 0
         while True:
             ix = src_line.find('$', ix_next)
@@ -252,12 +331,14 @@ class XSource:
 
 class XPython:
     """ Main XPython implementation class."""
-    __slots__ = ('base_dir', 'db', 'project_conf_dir_path', 'project_conf_file_path',
+    __slots__ = ('base_dir', 'db', 'debug',
+                 'project_conf_dir_path', 'project_conf_file_path',
                     'project_db_path', 'quiet',
                     'source_dirs', 'stand_alone',
                     'xpy_files', 'xpy_files_changed')
 
-    def __init__(self, args):
+    def __init__(self, args, debug=0):
+        self.debug = debug
         self.quiet = args.quiet
         self.stand_alone = args.stand_alone
         if self.stand_alone:

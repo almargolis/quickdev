@@ -36,7 +36,7 @@
 # the minimal number of dependencies and none outside the development
 # directory.
 #
-import utils
+from ezcore import utils
 
 def MakeClassTDict_For_TupleData(ExeController=None, InstanceClassName=None):
     from . import bafErTypes

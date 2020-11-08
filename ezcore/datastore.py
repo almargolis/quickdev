@@ -79,15 +79,12 @@
 # directory.
 #
 
-import string
+from ezcore import ertypes
+from ezcore import tupledict
+from ezcore import vcomputer
+from ezcore import tupledata
 
-# import Er				# import locally to avoid circular reference
-import ertypes
-import tupledict
-import vcomputer
-import tupledata
-
-import utils
+from ezcore import utils
 
 
 def FullyQualifiedName(parmSelf):

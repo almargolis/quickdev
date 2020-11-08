@@ -62,8 +62,8 @@ import os
 import syslog
 import time
 
-import filedriver
-import utils
+from ezcore import filedriver
+from ezcore import utils
 
 STDIN = "__stdin__"
 STDOUT = "__stdout__"

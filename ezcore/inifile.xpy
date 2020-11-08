@@ -6,8 +6,10 @@ ezcore because it is need for ezstart, potentially before Python
 importing is configured by the virtual environment.
 """
 
-import ezconst
-import textfile
+import os
+
+from ezcore import ezconst
+from ezcore import textfile
 
 #
 # INI File Support
@@ -70,35 +72,73 @@ INI_PARSE_STATE_INIT		= 0
 INI_PARSE_STATE_NORMAL_LINE	= 1
 INI_PARSE_STATE_COLLECT_MULTI	= 3
 
+def read_ini_directory(dir, ext='conf', target={}, debug=0):
+    """
+    Read a hierarchy of conf files into a hierarchy of dict-like objects.
+
+    This is convenient for code where we want to see the full configuration.
+    In order to be able to write back, we will need a trail of breadcrumbs
+    in order to tell if a sub-dict represents a different file or directory or
+    just a section within an ini file.
+    """
+    if debug >= 1:
+        print($__def_name__$, ext, target)
+    for this_item in os.listdir(dir):
+        this_path = os.path.join(dir, this_item)
+        if this_item.endswith(ext):
+            if debug >= 1:
+                print($'__def_name__$, 'FILE', this_item, target)
+            read_ini_file(file_name=this_item, dir=dir, target=target, debug=debug)
+        elif os.path.isdir(this_path):
+            if debug >= 1:
+                print($'__def_name__$, 'DIR', this_item, target)
+            target[this_item] = {}
+            read_ini_directory(dir=this_path, ext=ext, target=target[this_item], debug=debug)
+    return target
+
 def read_ini_file(file_name=None, dir=None, target={},
                   hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
                   exe_controller=None, debug=0):
     """ Load an ini text file into a hierarchy of map type objects. """
-    ini_reader = IniReader(file_name=file_name, dir=dir,
+    ini_reader = IniReader(file_name=file_name, dir=dir, target=target,
                            hierarchy_separator=hierarchy_separator,
                            exe_controller=exe_controller, debug=debug)
-    if ini_reader.load(file_name=file_name, dir=dir):
+    if ini_reader.load():
         return ini_reader.target
     else:
         return None
 
 class IniReader:
+    __slots__ = ('active_target', 'active_key', 'current_line',
+                 'debug', 'dir', 'exe_controller', 'file_name',
+                 'hierarchy_separator', 'multi_line_signature',
+                 'state', 'target')
+
     def __init__(self, file_name=None, dir=None, target={},
                  hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
                  exe_controller=None, debug=0):
-        self.target = target
         self.active_target = target
         self.active_key = None
         self.current_line = None
+        self.debug = debug
+        self.dir = dir
         self.exe_controller = exe_controller
+        self.file_name = file_name
         self.hierarchy_separator = hierarchy_separator
         self.multi_line_signature = None
         self.state = INI_PARSE_STATE_INIT
-        if file_name is not None:
-            self.load(file_name=file_name, dir=dir)
+        self.target = target
 
-    def load(self, file_name, dir=None):
-        f = textfile.open_read(file_name=file_name, dir=dir, source=self.target)
+    def load(self, file_name=None, dir=None, target=None):
+        if file_name is not None:
+            self.file_name = file_name
+        if dir is not None:
+            self.dir = dir
+        if target is not None:
+            self.target = target
+        if self.debug >= 1:
+            print($'__class_name__$, $'__def_name__$, self.file_name, self.dir)
+        f = textfile.open_read(file_name=self.file_name, dir=self.dir, source=self.target)
         if f is not None:
             ini_lines = f.readlines()
             f.close()
@@ -162,7 +202,8 @@ class IniReader:
 
     def parse_line(self):
         """ Parse self.current_line of the ini file. """
-        print("^^^", self.current_line)
+        if self.debug >= 1:
+            print("^^^", self.current_line)
         if self.state == INI_PARSE_STATE_COLLECT_MULTI:
             # This is not required in file if the variable continues to EOF
             if this_line == self.multi_line_signature:
