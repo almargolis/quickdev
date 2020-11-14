@@ -133,7 +133,7 @@ class EzDict():
     """
     __slots__ = ('exeAction', 'exeController',
                  '_data', '_defaultValue', '_defaultValueAssigned',
-                          '_serialized_file_path',
+                          '_source_file_path',
                           '_hierarchy_separator',
                           '_is_directory',
                           '_isCaseSensitive',
@@ -153,7 +153,7 @@ class EzDict():
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
-        self._serialized_file_path = None
+        self._source_file_path = None
         self._hierarchy_separator = HierarchySeparator
         self._isCaseSensitive = is_case_sensitive
         self._is_directory = False

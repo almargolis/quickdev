@@ -59,9 +59,9 @@ def test_read_ini_directory(tmpdir):
     assert db1_container['db1_3'] == 'c'
 
     # check path attributes
-    assert ini_tree._is_directory is True
-    assert ini_tree._source_file_path == tmpdir
-    print("Sub1", ini_tree['site.Sub1']._is_directory,
-          ini_tree['site.Sub1']._source_file_path)
-    assert ini_tree['site.Sub1']._is_directory is False
-    assert ini_tree['site.Sub1']._source_file_path == ''
+    assert ini_tree.$ezconst.IS_DIRECTORY_ATTR$ is True
+    assert ini_tree.$ezconst.SOURCE_FILE_PATH_ATTR$ == tmpdir
+    print("Sub1", ini_tree['site.Sub1'].$ezconst.IS_DIRECTORY_ATTR$,
+          ini_tree['site.Sub1'].$ezconst.SOURCE_FILE_PATH_ATTR$)
+    assert ini_tree['site.Sub1'].$ezconst.IS_DIRECTORY_ATTR$ is False
+    assert ini_tree['site.Sub1'].$ezconst.SOURCE_FILE_PATH_ATTR$ == ''

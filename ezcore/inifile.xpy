@@ -62,20 +62,25 @@ def read_ini_directory(dir, ext='conf', target=None, debug=0):
         target = ezdict.EzDict()
     if debug >= 1:
         print($__def_name__$, ext, target)
-    if hasattr(target, $'ezconst.IS_DIRECTORY_ATTR$):
-        setattr(target, $'ezconst.IS_DIRECTORY_ATTR$, True)
+    dir = os.path.abspath(dir)
+    set_target_path(target, True, dir)
     ini_ext = '.' + ext
     for this_item in os.listdir(dir):
         this_path = os.path.join(dir, this_item)
         if this_item.endswith(ini_ext):
             if debug >= 1:
                 print($'__def_name__$, 'FILE', this_item, target)
-            read_ini_file(file_name=this_item, dir=dir, target=target, debug=debug)
+            ext_pos = this_item.rfind(ini_ext)
+            this_container = this_item[:ext_pos]
+            child_target = target.__class__()
+            target[this_container] = child_target
+            read_ini_file(file_name=this_item, dir=dir, target=child_target, debug=debug)
         elif os.path.isdir(this_path):
             if debug >= 1:
                 print($'__def_name__$, 'DIR', this_item, target)
-            target[this_item] = target.__class__()
-            read_ini_directory(dir=this_path, ext=ext, target=target[this_item], debug=debug)
+            child_target = target.__class__()
+            target[this_item ] = child_target
+            read_ini_directory(dir=this_path, ext=ext, target=child_target, debug=debug)
     return target
 
 def read_ini_file(file_name=None, dir=None, target=None,
@@ -92,6 +97,12 @@ def read_ini_file(file_name=None, dir=None, target=None,
     else:
         return None
 
+def set_target_path(target, is_dir, path):
+    if hasattr(target, $'ezconst.IS_DIRECTORY_ATTR$):
+        setattr(target, $'ezconst.IS_DIRECTORY_ATTR$, is_dir)
+    if hasattr(target, $'ezconst.SOURCE_FILE_PATH_ATTR$):
+        setattr(target, $'ezconst.SOURCE_FILE_PATH_ATTR$, path)
+
 class IniReader:
     __slots__ = ('active_target', 'active_key', 'current_line',
                  'debug', 'dir', 'exe_controller', 'file_name',
@@ -101,8 +112,6 @@ class IniReader:
     def __init__(self, file_name=None, dir=None, target=None,
                  hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
                  exe_controller=None, debug=0):
-        if target is None:
-            target = ezdict.EzDict()
         self.active_target = target
         self.active_key = None
         self.current_line = None
@@ -122,6 +131,8 @@ class IniReader:
             self.dir = dir
         if target is not None:
             self.target = target
+        if self.target is None:
+            self.target = ezdict.EzDict()
         if self.debug >= 1:
             print($'__class_name__$, $'__def_name__$, self.file_name, self.dir)
         f = textfile.open_read(file_name=self.file_name, dir=self.dir, source=self.target)
@@ -130,6 +141,7 @@ class IniReader:
             f.close()
             for self.current_line in ini_lines:
                 self.parse_line()
+            set_target_path(self.target, False, f.path)
             return True
         else:
             return False
@@ -147,7 +159,9 @@ class IniReader:
         self.active_target = self.target
         for this_part in parts:
             if not this_part in self.active_target:
-                self.active_target[this_part] = {}
+                new_child = self.active_target.__class__()
+                self.active_target[this_part] = new_child
+                set_target_path(new_child, False, '')
             self.active_target = self.active_target[this_part]
 
     def start_section(self):
@@ -251,7 +265,7 @@ def write_ini_level(f, data, section_name=''):
 def write_ini_file(source, path=None, $ezconst.EXE_CONTROLLER$=None):
       """ Write a hierarchy of dict-like data as an ini file. """
       if path is None:
-          path = getattr(source, $'ezconst.SERIALIZED_FILE_PATH$, None)
+          path = getattr(source, $'ezconst.SOURCE_FILE_PATH_ATTR$, None)
       if path is None:
           raise ValueError("No path specified for output file.")
       if $ezconst.EXE_CONTROLLER$ is None:

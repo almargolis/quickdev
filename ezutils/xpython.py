@@ -56,10 +56,6 @@ except SyntaxError:
     # Might be xpython translate failed.
     inifile = None
 
-# the following are place holders for EzDev modules which
-# are imported below if this is not a stand-alone run.
-ezconst = None
-
 SOURCE_STATUS_READY = 0
 SOURCE_STATUS_PROCESSING = 1
 SOURCE_STATUS_COMPLETE = 2
@@ -404,7 +400,7 @@ class XSource:
     def syntax_error(self, msg):
         """Format and print an xpython syntax error."""
         # Print the module name as part of the message because
-        # recursive module search can result in intermingled messages. 
+        # recursive module search can result in intermingled messages.
         self.err_ct += 1
         print("{} Line {}: {}".format(self.module_name, self.src_line_ct, msg))
 
