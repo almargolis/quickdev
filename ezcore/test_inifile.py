@@ -38,9 +38,16 @@ def test_write_ini_file(tmpdir):
     sub1 = {}
     sub1['child1'] = 'def'
     sub1['child2'] = 45
+    sub1['list'] = ['a', 'b', 'c']
     source['sub1'] = sub1
 
     assert inifile.write_ini_file(source, path=test_path)
+
+    with open(test_path) as outf:
+        out_lines = outf.readlines()
+    print('** INI FILE START **')
+    print(out_lines)
+    print('** INI FILE END **')
 
     result = inifile.read_ini_file(file_name=test_path)
     assert  source == result

@@ -9,6 +9,7 @@ importing is configured by the virtual environment.
 import os
 
 from ezcore import ezconst
+from ezcore import ezdict
 from ezcore import textfile
 
 #
@@ -24,55 +25,31 @@ from ezcore import textfile
 # To the degree possible, these methods should also work with general Python types.
 #
 
-class EzIni():
-    __slots__ = ('_data', $'ezconst.SERIALIZED_FILE_PATH$)
-
-    def __init__(self, path=None):
-        self._data = {}
-        self.$ezconst.SERIALIZED_FILE_PATH$ = path
-
-    def get_dict(self, key):
-        parts = key.split('.')
-        data = self._data
-        for this in parts[:-1]:
-            data = data[this]
-        return data
-
-    def __getitem__(self, key):
-        data = self.get_dict(key)
-        return data[key[-1]]
-
-    def __setitem__(self, key, value):
-        data = self.get_dict(key)
-        data[key[-1]] = value
-
-    def write(self, path=None):
-        if path is not None:
-            pass
 
 def AsIniText(parmData, Level=0, ParentName=''):
-  wsIni				= ''
-  wsChildRecordNames		= []
-  for (wsChildName, wsChildData) in list(parmData.items()):
-    if hasattr(parmData, 'items'):
-      wsChildRecordNames.append(wsChildName)
-    else:
-      # This is an atomic data type
-      wsIni			+= '%s = %s\n' % (wsChildName, wsChildData)
-  for wsThisRecordName in wsChildRecordNames:
-    if Level > 0:
-      wsSectionName		= ParentName + '.' + wsThisRecordName
-    else:
-      wsSectionName		= wsThisRecordName
-    wsIni			+= '[%s]\n' % (wsThisRecordName)
-    wsIni			+= AsIniText(parmData[wsThisRecordName], Level=Level+1, ParentName=wsSectionName)
-  return wsIni
+    wsIni = ''
+    wsChildRecordNames = []
+    for (wsChildName, wsChildData) in list(parmData.items()):
+        if hasattr(parmData, 'items'):
+            wsChildRecordNames.append(wsChildName)
+        else:
+            # This is an atomic data type
+            wsIni += '%s = %s\n' % (wsChildName, wsChildData)
+    for wsThisRecordName in wsChildRecordNames:
+        if Level > 0:
+            wsSectionName = ParentName + '.' + wsThisRecordName
+        else:
+            wsSectionName = wsThisRecordName
+        wsIni += '[%s]\n' % (wsThisRecordName)
+        wsIni += AsIniText(parmData[wsThisRecordName], Level=Level+1,
+                           ParentName=wsSectionName)
+    return wsIni
 
 INI_PARSE_STATE_INIT		= 0
 INI_PARSE_STATE_NORMAL_LINE	= 1
 INI_PARSE_STATE_COLLECT_MULTI	= 3
 
-def read_ini_directory(dir, ext='conf', target={}, debug=0):
+def read_ini_directory(dir, ext='conf', target=None, debug=0):
     """
     Read a hierarchy of conf files into a hierarchy of dict-like objects.
 
@@ -81,25 +58,32 @@ def read_ini_directory(dir, ext='conf', target={}, debug=0):
     in order to tell if a sub-dict represents a different file or directory or
     just a section within an ini file.
     """
+    if target is None:
+        target = ezdict.EzDict()
     if debug >= 1:
         print($__def_name__$, ext, target)
+    if hasattr(target, $'ezconst.IS_DIRECTORY_ATTR$):
+        setattr(target, $'ezconst.IS_DIRECTORY_ATTR$, True)
+    ini_ext = '.' + ext
     for this_item in os.listdir(dir):
         this_path = os.path.join(dir, this_item)
-        if this_item.endswith(ext):
+        if this_item.endswith(ini_ext):
             if debug >= 1:
                 print($'__def_name__$, 'FILE', this_item, target)
             read_ini_file(file_name=this_item, dir=dir, target=target, debug=debug)
         elif os.path.isdir(this_path):
             if debug >= 1:
                 print($'__def_name__$, 'DIR', this_item, target)
-            target[this_item] = {}
+            target[this_item] = target.__class__()
             read_ini_directory(dir=this_path, ext=ext, target=target[this_item], debug=debug)
     return target
 
-def read_ini_file(file_name=None, dir=None, target={},
+def read_ini_file(file_name=None, dir=None, target=None,
                   hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
                   exe_controller=None, debug=0):
     """ Load an ini text file into a hierarchy of map type objects. """
+    if target is None:
+        target = ezdict.EzDict()
     ini_reader = IniReader(file_name=file_name, dir=dir, target=target,
                            hierarchy_separator=hierarchy_separator,
                            exe_controller=exe_controller, debug=debug)
@@ -114,9 +98,11 @@ class IniReader:
                  'hierarchy_separator', 'multi_line_signature',
                  'state', 'target')
 
-    def __init__(self, file_name=None, dir=None, target={},
+    def __init__(self, file_name=None, dir=None, target=None,
                  hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
                  exe_controller=None, debug=0):
+        if target is None:
+            target = ezdict.EzDict()
         self.active_target = target
         self.active_key = None
         self.current_line = None
@@ -172,9 +158,18 @@ class IniReader:
         section_name = self.current_line[1:pos2].strip()
         self.locate_active_target_section(section_name)
 
-    def add_key(self, key, value):
+    def add_key(self, key, value, is_list_value):
         if key in self.active_target:
+            if is_list_value and isinstance(self.active_target[key], list):
+                self.active_target[key].append(value)
+                return
             self.err_message('Duplicate key in Ini file line "{}"'.format(self.current_line))
+            return
+        if is_list_value:
+            self.active_target[key] = []
+            if value is not None:
+                self.active_target[key].append(value)
+            return
         self.active_target[key] = value
 
     def start_multi_line(self):
@@ -183,7 +178,10 @@ class IniReader:
             self.err_messsage('Invalid Ini file line "%s"' % (self.current_line))
             return
         key = self.current_line[1:pos2].strip()
-        self.add_key(key, [])
+        if key == '':
+            self.err_messsage('Invalid Ini file line "%s"' % (self.current_line))
+            return
+        self.add_key(key, None, True)
         self.multi_line_signature = "--%s--%s--".format(key, [])
         self.state = INI_PARSE_STATE_COLLECT_MULTI
 
@@ -193,12 +191,17 @@ class IniReader:
             self.err_messsage('Invalid Ini file line "%s"' % (self.current_line))
             return
         key = self.current_line[:pos2].strip()
+        if key[-2:] == '[]':
+            key = key[:-2]
+            is_list_value = True
+        else:
+            is_list_value = False
         value = self.current_line[pos2+1:].strip()
         try:
             value = int(value)
         except ValueError:
             value = value
-        self.add_key(key, value)
+        self.add_key(key, value, is_list_value)
 
     def parse_line(self):
         """ Parse self.current_line of the ini file. """
@@ -233,7 +236,11 @@ def write_ini_level(f, data, section_name=''):
         except AttributeError:
             # We get here if value doesn't have an items method.
             # It's a scalar.
-            f.write('{} = {}\n'.format(key, value))
+            if isinstance(value, list):
+                for this_list_value in value:
+                    f.write('{}[] = {}\n'.format(key, this_list_value))
+            else:
+                f.write('{} = {}\n'.format(key, value))
     for child_key, child_data in children:
         f.write('\n')
         child_section_name = child_key

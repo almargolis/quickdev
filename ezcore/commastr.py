@@ -19,7 +19,7 @@
 import string
 import sys
 
-from ezcore import tupledata
+from ezcore import ezdict
 from ezcore import utils
 
 
@@ -154,7 +154,7 @@ class bzLineParse:
         self.quoteChar = ""
         self.stripAll = StripAll
         if getKeywords:
-            self.keywords = tupledata.tupledataTuple()
+            self.keywords = ezdict.EzDict()
 
     def ClearCurField(self):
         if self.ascii:

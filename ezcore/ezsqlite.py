@@ -48,7 +48,7 @@ def dict_to_sql_flds(source_dict):
         value_data.append(this[1])
     return flds, value_str, value_data
 
-class SqliteEz:
+class EzSqlite:
     """
     Sqlite3 api with dictionary support and python methods
     that create all sql.

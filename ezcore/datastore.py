@@ -36,7 +36,7 @@
 #
 #  Copyright (C) 2001 by Albert B. Margolis - All Rights Reserved
 #
-#  4/29/2001:  Initial Release.  Clone from tupledata.
+#  4/29/2001:  Initial Release.  Clone from ezdict.
 #  5/12/2001:  Add DataStoreObject.  Finally getting back to using this.
 #		DataStoreObject becomes the ancestor class for Rdbms.
 #  5/12/2001:  Move iterator process and FldAsType actions here
@@ -61,12 +61,12 @@
 #  6/20/2004:  Modify handling of dictionary to allow richer dictionaries.
 #		We only need the name here, but allow the definition to
 #		be an array or tuple and take [0] as the name.  Eliminates
-#		the need to create a separate dictionary for tupledata.
+#		the need to create a separate dictionary for ezdict.
 #		Added for bzCommaDb.py.
 #  5/17/2006:  Add support for python iterator protocol and slices
 # 10/02/2005:  Add Dup() to TupleObject and DataStoreObject
 #  5/04/2014:  Change dict to tdict and its type to tupledict
-#			from tupledata where there value was simply the ix.
+#			from ezdict where there value was simply the ix.
 #			(This has been very stable but there have definately
 #			been changes in the last 9 years!)
 #
@@ -82,7 +82,7 @@
 from ezcore import ertypes
 from ezcore import tupledict
 from ezcore import vcomputer
-from ezcore import tupledata
+from ezcore import ezdict
 
 from ezcore import utils
 
@@ -347,7 +347,7 @@ class DataTreeBranch(object):
                 if HierarchySeparator is None:
                     # We didn't get a separator from the parent so use the
                     # default.
-                    HierarchySeparator = tupledata.HierarchySeparatorCharacter
+                    HierarchySeparator = ezdict.HierarchySeparatorCharacter
             else:
                 # If IsHierarch is specifically set to no, clear the character.
                 # This doesn't really need to be done because we wouldn't get here
@@ -418,7 +418,7 @@ class DataTreeBranch(object):
                 wsName = self._name
                 if wsName is None:
                     wsName = '---'
-                self._path = self._parent._path + tupledata.HierarchySeparatorCharacter + wsName
+                self._path = self._parent._path + ezdict.HierarchySeparatorCharacter + wsName
 
     def MakeInheritedDataStore(
             self,
@@ -481,7 +481,7 @@ class DataStoreIndex(object):
 
     def __init__(self, parmFieldName, IsCaseSensitive=False):
         self.fieldName = parmFieldName
-        self.IX = tupledata.tupledataTuple(IsCaseSensitive=IsCaseSensitive)
+        self.IX = ezdict.ezdictTuple(IsCaseSensitive=IsCaseSensitive)
 
 
 class DataStoreIterator(object):
@@ -590,7 +590,7 @@ class DataStoreObject(DataTreeBranch):
 
     def DefineIndex(self, parmIndexField):
         if self._indices is None:
-            self._indices = tupledata.tupledataTuple(
+            self._indices = ezdict.ezdictTuple(
                 IsCaseSensitive=self._isCaseSensitive)
         wsIndex = DataStoreIndex(
             parmIndexField,
@@ -612,9 +612,9 @@ class DataStoreObject(DataTreeBranch):
     def GetIndex(self, parmRecordTypeName, parmIndexName):
         wsIndexFqnName = parmRecordTypeName + '.' + parmIndexName
         if self._indices is None:
-            self._indices = tupledata.tupledataTuple()
+            self._indices = ezdict.ezdictTuple()
         if wsIndexFqnName not in self._indices:
-            self._indices[wsIndexFqnName] = tupledata.tupledataTuple()
+            self._indices[wsIndexFqnName] = ezdict.ezdictTuple()
         return self._indices[wsIndexFqnName]
 
     def GetIndexKey(self, parmIndexDef, parmDataSource):
@@ -641,7 +641,7 @@ class DataStoreObject(DataTreeBranch):
         if wsTDict is not None:
             if wsTDict.indexDefs is not None:
                 if self._indices is None:
-                    self._indices = tupledata.tupledataTuple()
+                    self._indices = ezdict.ezdictTuple()
                 for wsThisIndexDef in list(wsTDict.indexDefs.values()):
                     wsThisIndex = self.GetIndex(
                         wsTDict.__class__.__name__, wsThisIndexDef._name)
@@ -935,15 +935,16 @@ class TupleObject(DataTreeBranch):
         self._isTupleModified = False
         self._modifiedDatums = []
 
-    def __cmp__(self, parmOther):
-        if isinstance(parmOther, type([])):
-            return self._datums.__cmp__(parmOther)
-        elif isinstance(parmOther, type(self)):
-            return self._datums.__cmp__(parmOther._datums)
+    def __eq__(self, other):
+        ## *** THIS IS HALF CONVERTED FROM __cmp__
+        if isinstance(other, type([])):
+            return self._datums.__eq__(other)
+        elif isinstance(other, type(self)):
+            return self._datums.__eq__(other._datums)
         elif (isinstance(parmOther, type({}))) \
-                or (isinstance(parmOther, tupledata.tupledataTuple)):
-            if len(self._datums) != len(parmOther):
-                return -1
+                or (isinstance(parmOther, ezdict.EzDict)):
+            if len(self._datums) != len(other):
+                return False
             for (wsKey, wsDictElement) in list(self._tdict.items()):
                 # parmOther can be a TupleObject or a normal {}
                 if wsKey not in parmOther:

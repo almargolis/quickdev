@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #############################################
 #
-#  TupleData class
+#  EzDict class
 #
 #
 #  FEATURES
@@ -38,7 +38,7 @@
 #
 from ezcore import utils
 
-def MakeClassTDict_For_TupleData(ExeController=None, InstanceClassName=None):
+def MakeClassTDict_For_EzDict(ExeController=None, InstanceClassName=None):
     from . import bafErTypes
     from . import bafTupleDictionary
     wsTDict = bafTupleDictionary.bafTupleDictionary(
@@ -56,7 +56,7 @@ def MakeClassTDict_For_TupleData(ExeController=None, InstanceClassName=None):
     wsTDict.AddScalarElement('_defaultValue')
     wsTDict.AddScalarElementBoolean('_defaultValueAssigned')
     wsTDict.AddScalarElement('_exportFilePath')
-    wsTDict.AddScalarElement('_hierarchySeparator')
+    wsTDict.AddScalarElement('$ezconst.HIERARCHY_SEPARATOR$')
     wsTDict.AddScalarElementBoolean('_isCaseSensitive')
     wsTDict.AddScalarElementReference(
         '_lastElementModified',
@@ -101,7 +101,7 @@ def CopyFields(parmSource, parmTarget, FieldList=None):
         parmTarget[wsTargetKey] = wsValue
     return parmTarget
 
-class TupleData(object):
+class EzDict():
     """
     This is a replacement for the built-in dictionary class which
         (1) ignores the case of alphabetic key characters, and
@@ -109,7 +109,7 @@ class TupleData(object):
     	(3) provides a default value instead of exception for invalid key access.
         (4) maintains the insertion order for serial access.
     	(5) append() and replace() to copy and merge dictionaries.
-    		Accepts TupleData, {} and ().
+    		Accepts EzDict, {} and ().
         (6) supports CommerceNode standards and idioms.
 
     Feature one is handy for any case-insensitive application, saving
@@ -133,53 +133,49 @@ class TupleData(object):
     """
     __slots__ = ('exeAction', 'exeController',
                  '_data', '_defaultValue', '_defaultValueAssigned',
-                          '_serialized_file_path',
-                          '_hierarchySeparator',
+                          $'ezconst.SERIALIZED_FILE_PATH$,
+                          $'ezconst.HIERARCHY_SEPARATOR$,
+                          $'ezconst.IS_DIRECTORY_ATTR$,
                           '_isCaseSensitive',
-                          '_lastElementModified', '_name'
+                          '_lastElementModified', '_name',
+                          '_upper_keys'
                  )
 
     def __init__(
             self,
             ExeAction=None,
             ExeController=None,
-            IsCaseSensitive=False,
-            IsHierarchy=False,
+            is_case_sensitive=False,
+            is_hierarchy=True,
             HierarchySeparator=None,
             Name=None):
         self.exeController = ExeController
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
-        self._serialized_file_path = None
-        self._hierarchySeparator = HierarchySeparator
-        self._isCaseSensitive = IsCaseSensitive
+        self.$ezconst.SERIALIZED_FILE_PATH$ = None
+        self.$ezconst.HIERARCHY_SEPARATOR$ = HierarchySeparator
+        self._isCaseSensitive = is_case_sensitive
+        self.$ezconst.IS_DIRECTORY_ATTR$ = False
         self._name = Name
-        if IsHierarchy:
-            if self._hierarchySeparator is None:
-                self._hierarchySeparator = '.'
+        if is_hierarchy:
+            if self.$ezconst.HIERARCHY_SEPARATOR$ is None:
+                self.$ezconst.HIERARCHY_SEPARATOR$ = $'ezconst.HIERARCHY_SEPARATOR_CHARACTER$
         self.Clear()
+#  __lt__, __gt__, __le__, __ge__, __eq__, and __ne__
+    def __eq__(self, other):
+        if isinstance(other, EzDict):
+            return self._data.__eq__(other._data)
+        elif isinstance(other, dict):
+            return self._data.__eq__(other)
+        return super().__eq__(other)
 
-    def __cmp__(self, parmOther):
-        if parmOther:
-            if len(self._data) != len(parmOther):
-                return -1
-            for (wsKey, wsValue) in list(self._data.items()):
-                # parmOther can be a TupleData or a normal {}
-                if wsKey not in parmOther:
-                    return -1
-                if parmOther[wsKey] != wsValue[1]:
-                    return -1
-            return 0
-        else:
-            if len(self._data) == 0:
-                return 0
-            else:
-                return -1
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __contains__(self, parmKey):				# this implement in operator
         try:
-            wsThis = self.__getitem__(parmKey, AllowDefault=False)
+            wsThis = self.__getitem__(parmKey, allow_default=False)
             return True
         except IndexError:
             return False
@@ -188,20 +184,29 @@ class TupleData(object):
         wsKey = self.FixKey(parmKey)
         del self._data[wsKey]
 
-    def __getitem__(self, parmKey, AllowDefault=True):
-        wsKey = self.FixKey(parmKey)
-        if self._hierarchySeparator is not None:
-            wsPos = wsKey.find(self._hierarchySeparator)
-            if wsPos > 0:
-                wsThis = wsKey[:wsPos]
-                wsRest = wsKey[wsPos + 1:]
-                if wsThis in self._data:
-                    wsChild = self._data[wsThis]
-                    if isinstance(wsChild, TupleData):
-                        return wsChild[wsRest]
-        if wsKey in self._data:
-            return self._data[wsKey][1]
-        if AllowDefault and self._defaultValueAssigned:
+    def _translate_key(self, key):
+        """ Returns the actual key in _data. """
+        if self._isCaseSensitive:
+            return key
+        upper_key = key.upper()
+        if upper_key in self._upper_keys:
+            return self._upper_keys[upper_key]
+        return key
+
+    def __getitem__(self, key, allow_default=True):
+        if self.$ezconst.HIERARCHY_SEPARATOR$ is not None:
+            pos = key.find(self.$ezconst.HIERARCHY_SEPARATOR$)
+            if pos > 0:
+                local_key = self._translate_key(key[:pos])
+                child_key = key[pos + 1:]
+                if local_key in self._data:
+                    child = self._data[local_key]
+                    if isinstance(child, EzDict):
+                        return child[child_key]
+        local_key = self._translate_key(key)
+        if local_key in self._data:
+            return self._data[local_key]
+        if allow_default and self._defaultValueAssigned:
             return self._defaultValue
         if self._name is None:
             wsName = ""
@@ -209,7 +214,7 @@ class TupleData(object):
             wsName = self._name + " "
         raise IndexError(
             "%sNV value has not been assigned for name %s" %
-            (wsName, repr(parmKey)))
+            (wsName, repr(local_key)))
 
     def __len__(self):
         return len(self._data)
@@ -219,30 +224,39 @@ class TupleData(object):
         return self._name
 
     def __repr__(self):
-        wsString = "{"
-        for (wsKey, wsValue) in list(self._data.items()):
-            if wsString != "{":
-                wsString += ","
-            wsString += repr(wsValue[0]) + ": " + repr(wsValue[1])
-        wsString += "}"
-        return wsString
+        return repr(self._data)
 
-    def __setitem__(self, parmKey, parmValue, HierarchySeparator=None):
-        wsKey = self.FixKey(parmKey)
-        if self._hierarchySeparator is not None:
-            if isinstance(parmValue, TupleData):
-                if HierarchySeparator is not None:
-                    parmValue._hierarchySeparator = HierarchySeparator
-                if parmValue._hierarchySeparator is None:
-                    parmValue._hierarchySeparator = self.hierarchySeparator
-                if parmValue.exeAction is None:
-                    parmValue.exeAction = self.exeAction
-                if parmValue.exeController is None:
-                    parmValue.exeController = self.exeController
-        if wsKey in self._data:
-            parmKey = self._data[wsKey][0]
-        self._data[wsKey] = (parmKey, parmValue)
-        self._lastElementModified = parmValue
+    def __setitem__(self, key, value, hierarchy_separator=None):
+        if self.$ezconst.HIERARCHY_SEPARATOR$ is not None:
+            pos = key.find(self.$ezconst.HIERARCHY_SEPARATOR$)
+            if pos > 0:
+                # Set value further down the tree.
+                local_key = self._translate_key(key[:pos])
+                child_key = key[pos + 1:]
+                if local_key in self._data:
+                    child = self._data[local_key]
+                    if isinstance(child, EzDict):
+                        child[child_key] = value
+                        return
+            if isinstance(value, EzDict):
+                # Since a hierarchy is enabled, treat this as part of the
+                # hierarchy, not as a value that happens to be an EzDict.
+                if hierarchy_separator is not None:
+                    value.$ezconst.HIERARCHY_SEPARATOR$ = hierarchy_separator
+                if value.$ezconst.HIERARCHY_SEPARATOR$ is None:
+                    value.$ezconst.HIERARCHY_SEPARATOR$ = self.$ezconst.HIERARCHY_SEPARATOR$
+                if value.exeAction is None:
+                    value.exeAction = self.exeAction
+                if value.exeController is None:
+                    value.exeController = self.exeController
+        # Set value at this level of tree.
+        local_key = self._translate_key(key)
+        if local_key not in self._data:
+            # this is a new key
+            if local_key != local_key.upper():
+                self._upper_keys[local_key.upper()] = local_key
+        self._data[local_key] = value
+        self._lastElementModified = local_key
 
     def _baf_MakeModel(self):
         import pylib.bafErModel.py as bafErModel
@@ -296,9 +310,9 @@ class TupleData(object):
 
     def ConfigureAsHierarchy(
             self,
-            HierarchySeperator='.'):
-        if self._hierarchySeparator is None:
-            self._hierarchySeparator = HierarchySeparator
+            HierarchySeperator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$):
+        if self.$ezconst.HIERARCHY_SEPARATOR$ is None:
+            self.$ezconst.HIERARCHY_SEPARATOR$ = HierarchySeparator
 
     def MakeChildTuple(self, parmKey, HierarchySeparator=None):
         wsValue = self.__class__(Name=parmKey)
@@ -319,41 +333,24 @@ class TupleData(object):
 
     def Clear(self):
         self._data = {}
+        self._upper_keys = {}
         self._lastElementModified = None
 
-    def ConfigureAsCaseSensitive(parmIsCaseSensitive=True):
+    def ConfigureAsCaseSensitive(parmis_case_sensitive=True):
         # probably should convert existing entries if this is a change
-        self._isCaseSensitive = parmIsCaseSensitive
+        self._isCaseSensitive = parmis_case_sensitive
 
     def Dup(self):
-        wsDup = TupleData()
+        wsDup = EzDict()
         wsDup._defaultValue = self._defaultValue
         wsDup._defaultValueAssigned = self._defaultValueAssigned
         for (wsKey, wsData) in list(self._data.items()):
             wsDup.__setitem__(wsData[0], wsData[1])
         return wsDup
 
-    def FixKey(self, parmKey):
-        if parmKey is None:
-            return None
-        if isinstance(parmKey, str):
-            if self._isCaseSensitive:
-                return parmKey
-            else:
-                return parmKey.upper()
-        if isinstance(parmKey, type(0)):
-            return str(parmKey)
-        return repr(parmKey)
-
-    def AsStr(self, parmKey, Default=""):
-        wsKey = self.FixKey(parmKey)
-        if wsKey in self._data:
-            wsValue = self._data[wsKey][1]
-        else:
-            wsValue = Default
-        wsValue = utils.Str(wsValue)
-        self.__setitem__(parmKey, wsValue)
-        return wsValue
+    def AsStr(self, key, Default=""):
+        value = self.__getitem__(key, allow_default=False)
+        return utils.Str(value)
 
     def AsStrUpper(self, parmKey, Default=""):
         wsKey = self.FixKey(parmKey)
@@ -400,14 +397,10 @@ class TupleData(object):
 #        return None
 
     def keys(self):
-        wsList = []
-        for (wsKey, wsValue) in list(self._data.items()):
-            wsList.append(wsValue[0])
-        return wsList
+        return self._data.keys()
 
-    def sortedkeys(self):
-        wsList = list(self.keys())
-        return sorted(wsList)
+    def sorted_keys(self):
+        return sorted(self._data.keys())
 
     def keyeditems(self):
         wsList = []
@@ -416,30 +409,24 @@ class TupleData(object):
         return wsList
 
     def items(self):
-        wsList = []
-        for (wsKey, wsValue) in list(self._data.items()):
-            wsList.append((wsValue[0], wsValue[1]))
-        return wsList
+        return self._data.items()
 
     def replace(self, parmEntry):
         self._data = {}
         return self.append(parmEntry)
 
     def values(self):
-        wsList = []
-        for (wsKey, wsValue) in list(self._data.items()):
-            wsList.append(wsValue[1])
-        return wsList
+        return self._data.values()
 
     def SetLenient(self, DefaultValue=None):
         self.defaultValue = DefaultValue
 
-    def sortedvalues(self):
-        wsSortedKeys = self.sortedkeys()
-        wsList = []
-        for wsThisKey in wsSortedKeys:
-            wsList.append(self[wsThisKey])
-        return wsList
+    def sorted_values(self):
+        sorted_keys = self.sorted_keys()
+        result = []
+        for this_key in sorted_keys:
+            result.append(self._data[this_key])
+        return result
 
     def ValuesForKeyList(self, parmKeyList):
         wsList = []
@@ -517,9 +504,9 @@ def testReference(parmDict, parmKey):
 
 
 if (__name__ == "__main__"):
-    wsDict = TupleData()
+    wsDict = EzDict()
     wsDict._name = "wsDict"
-    wsDict2 = TupleData()
+    wsDict2 = EzDict()
     wsDict2._name = "wsDict2"
     testAssign(wsDict, "fred", "string 1")
     testAssign(wsDict, "joe", "string 2")

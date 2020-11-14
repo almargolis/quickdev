@@ -13,6 +13,7 @@ EzDev modules but XPython can use XPython features.
 
 import argparse
 import os
+import sqlite3
 import stat
 import sys
 
@@ -29,15 +30,31 @@ try:
     from ezcore import pdict
 except ModuleNotFoundError:
     pdict = None
-
 if pdict is None:
     sys.path.append(EZCORE_PATH)
-    import pdict
+    from ezcore import pdict
+
+from ezcore import ezsqlite
 
 try:
-    from ezcore import sqlite_ez
+    from ezcore import ezconst
 except ModuleNotFoundError:
-    import sqlite_ez
+    # May not be found because its an xpy that might not
+    # have been gen'd.
+    ezconst = None
+except SyntaxError:
+    # Might be xpython translate failed.
+    ezconst = None
+
+try:
+    from ezcore import inifile
+except ModuleNotFoundError:
+    # May not be found because its an xpy that might not
+    # have been gen'd.
+    inifile = None
+except SyntaxError:
+    # Might be xpython translate failed.
+    inifile = None
 
 # the following are place holders for EzDev modules which
 # are imported below if this is not a stand-alone run.
@@ -49,8 +66,11 @@ SOURCE_STATUS_COMPLETE = 2
 SOURCE_STATUS_ERROR = 3
 
 SEP_WHITE_SPACE = " \t"
-SEP_GRAMMAR = "()[]:"
+SEP_GRAMMAR = "()[]:#,@"
 SEP_ALL = SEP_WHITE_SPACE + SEP_GRAMMAR
+LEX_STATE_SCAN_LINE = 0
+LEX_STATE_SCAN_TOKEN = 1
+NO_INDENT = -1
 
 db_dict = pdict.DbDict()
 
@@ -72,6 +92,19 @@ d.add_column(pdict.Text('module_name'))
 d.add_column(pdict.Text('define_name'))
 d.add_column(pdict.Text('value'))
 d.add_index('ix_defines', 'module_name', 'define_name')
+
+d = db_dict.add_table(pdict.DbTableDict('classes'))
+d.add_column(pdict.Text('module_name'))
+d.add_column(pdict.Text('class_name'))
+d.add_column(pdict.Text('base_class'))
+d.add_index('ix_classes', 'module_name', 'class_name')
+
+d = db_dict.add_table(pdict.DbTableDict('defs'))
+d.add_column(pdict.Text('module_name'))
+d.add_column(pdict.Text('class_name'))
+d.add_column(pdict.Text('def_name'))
+d.add_column(pdict.Text('decorator'))
+d.add_index('ix_defs', 'module_name', 'class_name', 'def_name', 'decorator')
 
 
 def abend(msg):
@@ -98,8 +131,6 @@ def input_yn(prompt, default='y'):
             else:
                 resp = 'n'
     return resp == 'y'
-LEX_STATE_SCAN_LINE = 0
-LEX_STATE_SCAN_TOKEN = 1
 
 class SimpleLex:
     __slots__ = ('debug', 'start_ixs', 'state', 'token', 'token_ix', 'tokens')
@@ -173,26 +204,102 @@ class FileInfo:  # pylint: disable=too-few-public-methods
         """
         return os.path.join(self.dir_name, self.module_name) + ext
 
+class PythonParse:
+    """ Class to parse python. """
+    ___slots___ = ('class_indent', 'class_name',
+                   'decorator', 'debug', 'def_indent', 'def_name', 'source_obj')
+
+    def __init__(self, source_obj, debug=0):
+        self.debug = debug
+        self.source_obj = source_obj
+        self.new_module()
+
+    def new_module(self):
+        self.class_indent = NO_INDENT
+        self.class_name = ''
+        self.decorator = ''
+        self.def_indent = NO_INDENT
+        self.def_name = ''
+
+    def new_class(self, lex):
+        self.class_name = lex.tokens[1]
+        self.class_indent = lex.start_ixs[0]
+        if (len(lex.tokens) >= 5) and (lex.tokens[2] == '(') \
+           and (lex.tokens[4] == ')'):
+             # this doesn't recognize multiple inheritence
+             base_class = lex.tokens[3]
+        else:
+            base_class = ''
+        if base_class == 'object':
+            base_class = ''
+        self.source_obj.built_ins['__class_name__'] = self.class_name
+        fld_values = {'module_name': self.source_obj.module_name,
+                'class_name': self.class_name,
+                'base_class': base_class}
+        self.source_obj.x_obj.db.insert('classes', fld_values)
+        self.decorator = ''
+
+    def end_class(self):
+        self.class_indent = NO_INDENT
+        self.class_name = ''
+
+    def new_def(self, lex):
+        self.def_name = lex.tokens[1]
+        self.def_indent = lex.start_ixs[0]
+        self.source_obj.built_ins['__def_name__'] = self.def_name
+        fld_values = {'module_name': self.source_obj.module_name,
+                'class_name': self.class_name,
+                'def_name': self.def_name,
+                'decorator': self.decorator}
+        try:
+            self.source_obj.x_obj.db.insert('defs', fld_values)
+        except sqlite3.IntegrityError:
+            self.source_obj.syntax_error('Duplicate function ' + repr(fld_values))
+        self.decorator = ''
+
+    def end_def(self):
+        self.def_indent = NO_INDENT
+        self.def_name = ''
+
+    def parse_line(self, lex):
+        if self.debug >= 1:
+            print(self.lex.tokens)
+        if (len(lex.tokens) < 1) or (lex.tokens[0] == '#'):
+            return
+        if lex.start_ixs[0] <= self.class_indent:
+            self.end_class()
+        if lex.start_ixs[0] <= self.def_indent:
+            self.end_def()
+        if lex.tokens[0] == '@':
+            self.decorator = lex.tokens[1]
+        if lex.tokens[0] == 'class':
+            self.new_class(lex)
+            return
+        if lex.tokens[0] == 'def':
+            self.new_def(lex)
+            return
+
 class XSource:
     """ Class to process one XPython source file. """
-    __slots__ = ('built_ins', 'err_ct', 'lex',
-                 'py_out', 'sources_row', 'src_line_ct', 'x_obj')
+    __slots__ = ('built_ins', 'err_ct', 'lex', 'module_name', 'parse',
+                 'path', 'py_out', 'src_line_ct', 'x_obj')
 
     def __init__(self, x_obj, sources_row):
         self.built_ins = {}
         self.lex = SimpleLex()
+        self.parse = PythonParse(self)
         self.x_obj = x_obj
-        self.sources_row = sources_row  # row of sources table
-        print("Processing {}".format(sources_row['module_name']))
+        self.module_name = sources_row['module_name']
+        self.path = sources_row['path']
+        print("Processing {}".format(self.module_name))
         self.x_obj.db.update('sources',
                      {'status': SOURCE_STATUS_PROCESSING},
-                     where={'module_name': sources_row['module_name']})
+                     where={'module_name': self.module_name})
         self.py_out = []                # output python lines
         self.err_ct = 0
         self.src_line_ct = 0
-        x_source_file_path = sources_row['path']
-        p_output_file_path = x_source_file_path[:-3] + 'py'
-        with open(x_source_file_path, 'r') as f:
+        p_output_file_path = self.path[:-3] + 'py'
+        with open(self.path, 'r') as f:
             for this_line in f.read().splitlines():
                 self.src_line_ct += 1
                 if this_line[:2] == '#$':
@@ -205,7 +312,7 @@ class XSource:
             status = SOURCE_STATUS_ERROR
         self.x_obj.db.update('sources',
                              {'status': status},
-                             where={'module_name': sources_row['module_name']})
+                             where={'module_name': self.module_name})
 
         if os.path.isfile(p_output_file_path):
             statinfo = os.stat(p_output_file_path)
@@ -222,11 +329,11 @@ class XSource:
         """Update the module uses table for one reference."""
         self.x_obj.db.update_insert('module_uses',
                         {
-                            'source_module_name': self.sources_row['module_name'],
+                            'source_module_name': self.module_name,
                             'uses_module_name': uses_module_name
                         },
                         where={
-                            'source_module_name': self.sources_row['module_name'],
+                            'source_module_name': self.module_name,
                             'uses_module_name': uses_module_name
                         })
 
@@ -246,7 +353,7 @@ class XSource:
         parts = key.split('.')
         if len(parts) == 1:
             fld_values = {
-                'module_name': self.sources_row['module_name'],
+                'module_name': self.module_name,
                 'define_name': parts[0]
             }
         else:
@@ -278,22 +385,10 @@ class XSource:
         new_line += src_line[ix2+1:]
         return ix_next, new_line
 
-    def xpython_parse(self):
-        if self.x_obj.debug >= 1:
-            print(self.lex.tokens)
-        if len(self.lex.tokens) < 1:
-            return
-        if self.lex.tokens[0] == 'class':
-            self.built_ins['__class_name__'] = self.lex.tokens[1]
-            return
-        if self.lex.tokens[0] == 'def':
-            self.built_ins['__def_name__'] = self.lex.tokens[1]
-            return
-
     def xpython_p(self, src_line):
         """ Process one line of python source. """
         self.lex.lex(src_line)
-        self.xpython_parse()
+        self.parse.parse_line(self.lex)
         ix_next = 0
         while True:
             ix = src_line.find('$', ix_next)
@@ -308,8 +403,10 @@ class XSource:
 
     def syntax_error(self, msg):
         """Format and print an xpython syntax error."""
+        # Print the module name as part of the message because
+        # recursive module search can result in intermingled messages. 
         self.err_ct += 1
-        print("Line {}: {}".format(self.src_line_ct, msg))
+        print("{} Line {}: {}".format(self.module_name, self.src_line_ct, msg))
 
     def xpython_x(self, src_line):
         """Parse and process an xpython directive line."""
@@ -319,7 +416,7 @@ class XSource:
             return
         if parts[0] == 'define':
             fld_values = {
-                'module_name': self.sources_row['module_name'],
+                'module_name': self.module_name,
                 'define_name': parts[1],
             }
             sql_data = self.x_obj.db.select('defines', '*', where=fld_values)
@@ -332,21 +429,22 @@ class XSource:
 class XPython:
     """ Main XPython implementation class."""
     __slots__ = ('base_dir', 'db', 'debug',
-                 'project_conf_dir_path', 'project_conf_file_path',
+                 'conf_info',
+                 'conf_dir_path',
                     'project_db_path', 'quiet',
                     'source_dirs', 'stand_alone',
                     'xpy_files', 'xpy_files_changed')
 
     def __init__(self, args, debug=0):
+        self.conf_info = None
+        self.conf_dir_path = None
         self.debug = debug
         self.quiet = args.quiet
         self.stand_alone = args.stand_alone
         if self.stand_alone:
             self.base_dir = None
-            self.project_conf_dir_path = None
-            self.project_conf_file_path = None
             self.source_dirs = args.site_path
-            self.project_db_path = sqlite_ez.SQLITE_IN_MEMORY_FN
+            self.project_db_path = ezsqlite.SQLITE_IN_MEMORY_FN
         else:
             if len(args.site_path) < 1:
                 self.base_dir = os.getcwd()
@@ -354,25 +452,20 @@ class XPython:
                 self.base_dir = args.site_path[0]
             if not self.init_ezdev(args):
                 return
-        self.db = sqlite_ez.SqliteEz(self.project_db_path,
+        self.db = ezsqlite.EzSqlite(self.project_db_path,
                                      db_dict=db_dict, debug=0)
         self.process_xpy_files()
 
     def init_ezdev(self, args):
-        global ezconst
-        try:
-            import ezconst
-        except ImportError:
+        if ezconst is None:
             print('EzDev not inintialied. Run EzStart. (E1)')
             return False
 
-        self.project_conf_dir_path = os.path.join(self.base_dir,
+        self.conf_dir_path = os.path.join(self.base_dir,
                                                   ezconst.SITE_CONF_DIR_NAME)
-        self.project_conf_file_path = os.path.join(self.project_conf_dir_path,
-                                                   ezconst.PROJECT_CONF_FN)
-        self.project_db_path = os.path.join(self.project_conf_dir_path,
+        self.project_db_path = os.path.join(self.conf_dir_path,
                                             ezconst.PROJECT_DB_FN)
-        if not os.path.isdir(self.project_conf_dir_path):
+        if not os.path.isdir(self.conf_dir_path):
             print('EzDev not inintialied. Run EzStart. (E2)')
             return False
         if args.reset:
@@ -384,6 +477,11 @@ class XPython:
             print('XPython source files not processed.')
             return False
         return True
+
+    def load_conf(self):
+        self.conf_info = inifile.read_ini_directory(dir=self.conf_dir_path,
+                                                    ext=ezconst.CONF_EXT)
+        self.source_dirs = self.conf_info['site.source_dirs']
 
     def scan_directory(self, search_dir, ext, recursive=False):
         """

@@ -10,14 +10,14 @@ import os
 import types
 
 from ezcore import ertypes
-from ezcore import tupledata
+from ezcore import ezdict
 
 from ezcore import commastr
 from ezcore import utils
 
 #
 # TupleDictionary should probably be descendant from bafDataStoreObject
-# instead of TupleData because each entry is a complex element instead
+# instead of EzDict because each entry is a complex element instead
 # of a scalar. Making that happen requires more work to avoid circular
 # definintions.
 #
@@ -262,8 +262,8 @@ class bafTupleSchema(object):
 
     def __init__(self, Name=None):
         self._name = Name
-        self.dictionaries = tupledata.TupleData(Name='dictionaries')
-        self.associations = tupledata.TupleData(Name='associations')
+        self.dictionaries = ezdict.EzDict(Name='dictionaries')
+        self.associations = ezdict.EzDict(Name='associations')
 
     def __repr__(self):
         return "SCHEMA: %s %s" % (
@@ -494,16 +494,16 @@ class TupleDict(object):
                  IsStaticCollection=True,
                  BinderUdi=0,
                  Schema=None):
-        self.associations = tupledata.TupleData()
+        self.associations = ezdict.EzDict()
         self.binderUdi = BinderUdi			# Source definition (documentation only)
         self.exeController = ExeController
         # ordered list of record choosing fields
-        self.choosingFields = tupledata.TupleData()
+        self.choosingFields = ezdict.EzDict()
         # identifies how to access values / container type
         self.primaryDataPhysicalType = PrimaryDataPhysicalType
         self.instanceClassName = InstanceClassName		# identifies class to create for new
         self.instancePhysicalType = InstancePhysicalType		# identifies how to access data
-        self.dbmsFieldNames = tupledata.TupleData()
+        self.dbmsFieldNames = ezdict.EzDict()
         self.dbmsTableIndices = []				# list of bzDbmsTableIndex objects
         self.debug = 0
         self.dictionaryElementClass = TupleDictionaryElement
@@ -739,7 +739,7 @@ class TupleDict(object):
         return wsCaptions
 
     def Clear(self):
-        self.elements = tupledata.TupleData(Name=self._name)
+        self.elements = ezdict.EzDict(Name=self._name)
         self.indexDefs = None
         self.ixCtr = 0
 
@@ -776,13 +776,13 @@ class TupleDict(object):
             self._path = self._name
         else:
             self._path = self._superiorTDict._path + \
-                tupledata.HierarchySeparatorCharacter + self._name
+                ezdict.HierarchySeparatorCharacter + self._name
 
     def DefineIndex(self, parmIndexFields, Name=None, IsUnique=True):
         # parmIndexFields is an array of field names. Each name must be defined for this
         # tuple. The combined values must be unique within the record set.
         if self.indexDefs is None:
-            self.indexDefs = tupledata.TupleData()
+            self.indexDefs = ezdict.EzDict()
         if Name is None:
             # Default index name is field name(s) with dot separators
             wsIndexName = ''
@@ -959,7 +959,7 @@ class TupleDict(object):
             # We need to accesss the environment in order to validate the data.
             self.exeController = ExeController
         # This may be reduntent with ValidateTuple -- replace later
-        wsAssociatedRecords = tupledata.TupleData()
+        wsAssociatedRecords = ezdict.EzDict()
 
         def GetAssociatedRecord(parmElement):
             # This can be accessees the record associated with parmElement.
@@ -1508,7 +1508,7 @@ class TupleDict(object):
 #
 
     def AddChoosingField(self, parmField):
-        # Nice and simple. No need to check for duplicates, tupledata maintains order.
+        # Nice and simple. No need to check for duplicates, ezdict maintains order.
         # Duplicates happen because we add uii, udi, unique identifiers and then all fields.
         # First insertions put important felds first.
         # This method exists to keep this service centralized in case it needs to be
@@ -1675,7 +1675,7 @@ class TupleDict(object):
         # Build Ordered List of Associations.
         # These are only associations where this table is secondary.
         # The names key in self.associations is the secondary field name, not the association name.
-        # self.associations is a tupledata, so the sorted insertion order is accessed when
+        # self.associations is a ezdict, so the sorted insertion order is accessed when
         # stepping though the dictionary.
         #
         wsIndirectAssociations = []
@@ -1972,7 +1972,7 @@ class TupleDictionaryElement(object):
             self._path = self._name
         else:
             self._path = self.parentTDict._path + \
-                tupledata.HierarchySeparatorCharacter + self._name
+                ezdict.HierarchySeparatorCharacter + self._name
         self.roleType = RoleType
         if self.roleType == ertypes.Core_TriggerRoleCode:
             # Triggers don't get handled like data fields on forms -- they
