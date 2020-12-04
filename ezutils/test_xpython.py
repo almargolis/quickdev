@@ -1,10 +1,5 @@
 import xpython
 
-def test_lex():
-    lex = xpython.SimpleLex()
-    lex.lex('class thing:')
-    assert lex.tokens == ['class', 'thing', ':']
-
 class XPythonArgs:
     quiet = False
     stand_alone = True
