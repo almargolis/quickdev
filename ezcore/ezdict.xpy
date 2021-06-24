@@ -160,7 +160,7 @@ class EzDict():
         self._name = Name
         if is_hierarchy:
             if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
-                self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = $'ezconst.HIERARCHY_SEPARATOR_CHARACTER$
+                self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = $'ezconst.hierarchy_separator$
         self.Clear()
 #  __lt__, __gt__, __le__, __ge__, __eq__, and __ne__
     def __eq__(self, other):
@@ -271,7 +271,7 @@ class EzDict():
             raise IndexError
         self.__setitem__(key, value)
 
-    def AppendDatum(self, parmKey, parmValue, HierarchySeparator=None):
+    def AppendDatum(self, parmKey, parmValue, hierarchy_separator=None):
         if parmKey in self:
             raise IndexError(
                 "%s value has already been assigned for name %s" %
@@ -279,7 +279,7 @@ class EzDict():
         self.__setitem__(
             parmKey,
             parmValue,
-            HierarchySeparator=HierarchySeparator)
+            hierarchy_separator=hierarchy_separator)
         return parmValue
 
     def GetDatum(self, parmKey, SubstituteValue=None):
@@ -310,7 +310,7 @@ class EzDict():
 
     def ConfigureAsHierarchy(
             self,
-            HierarchySeperator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$):
+            hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR$):
         if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
             self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = HierarchySeparator
 

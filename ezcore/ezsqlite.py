@@ -22,13 +22,17 @@ def dict_to_sql_equal(source_dict, seperator):
     sql = ''
     values = []
     if source_dict is not None:
-        ix = -1
-        for this in source_dict.items():
-            ix += 1
+        for ix, (key, value) in enumerate(source_dict.items()):
             if ix > 0:
                 sql += seperator
-            sql += this[0] + '=?'
-            values.append(this[1])
+            if isinstance(value, tuple):
+                op = value[1]
+                v = value[0]
+            else:
+                op = '='
+                v = value
+            sql += key + op + '?'
+            values.append(v)
     return sql, values
 
 def dict_to_sql_flds(source_dict):
@@ -47,6 +51,20 @@ def dict_to_sql_flds(source_dict):
         value_str += '?'
         value_data.append(this[1])
     return flds, value_str, value_data
+
+def row_repr(row):
+    """
+    The Sqlite Row object behaves more or less like a named tuple,
+    but it doesn't have an __repr__ method. This method provides a
+    dict-like __repr__ capability.
+    """
+    result = ''
+    for key in row.keys():
+        value = row[key]
+        if result == '': sep = ''
+        else: sep = ', '
+        result += '{}{}: {}'.format(sep, key, value)
+    return '{' + result + '}'
 
 class EzSqlite:
     """
@@ -105,6 +123,12 @@ class EzSqlite:
         self.db_cursor.execute(sql, tuple(flds_values))
         self.db_conn.commit()
 
+    def lookup(self, table, flds='*', where=None):
+        select = self.select(table, flds=flds, where=where)
+        if len(select) != 1:
+            raise KeyError('"{}" not found in table {}'.format(where, table))
+        return select[0]
+
     def select(self, table, flds='*', where=None, limit=0, offset=0):
         """Perform SQL select command."""
         sql = 'SELECT '
@@ -128,14 +152,19 @@ class EzSqlite:
         self.db_cursor.execute(sql, tuple(where_values))
         return self.db_cursor.fetchall()
 
-    def update_insert(self, table, flds, where):
+    def update_insert(self, table, flds, where, defaults=None):
         """
         Perform SQL insert or update command depending
         on whether or not a match is found for where clause.
         """
         sql_data = self.select(table, '*', where=where)
         if len(sql_data) == 0:
-            self.insert(table, flds)
+            if defaults is None:
+                uflds = flds
+            else:
+                uflds = defaults.copy()
+                uflds.update(flds)
+            self.insert(table, uflds)
         else:
             self.update(table, flds, where=where)
 

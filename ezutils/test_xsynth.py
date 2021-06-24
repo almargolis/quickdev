@@ -1,13 +1,13 @@
-import xpython
+import xsynth
 
-class XPythonArgs:
+class XSynthArgs:
     quiet = False
     stand_alone = True
     site_path = []
 
-def test_xpython(tmpdir):
+def test_xsynth(tmpdir):
     print(tmpdir)
-    args = XPythonArgs()
+    args = XSynthArgs()
     setattr(args, 'site_path', [tmpdir])
     f = tmpdir.join("test.xpy")
     f.write("""class thing:
@@ -16,7 +16,7 @@ $__class_name__$
 $__def_name__$
 """)
 
-    x = xpython.XPython(args, debug=1)
+    x = xsynth.XSynth(args, debug=1)
 
     outf_name = tmpdir.join('test.py')
     with open(outf_name) as outf:

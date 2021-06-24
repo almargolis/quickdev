@@ -21,29 +21,13 @@ import os
 import subprocess
 import sys
 
-PYTHON_MIN_MAJOR = 3
-PYTHON_MIN_MINOR = 6
-PYTHON_MIN_VERSION = "{}.{}".format(PYTHON_MIN_MAJOR, PYTHON_MIN_MINOR)
-
-# Check python version before imports because excepton classes
-# have changed.
-
-PYTHON_VERSION = "{}.{}".format(sys.version_info.major, sys.version_info.minor)
-PYTHON_VERSION_ERR = "EzDev requires Python version {} or later.".format(PYTHON_MIN_VERSION)
-print("Running Python Version: {}".format(PYTHON_VERSION))
-if sys.version_info.major < PYTHON_MIN_MAJOR:
-    print(PYTHON_VERSION_ERR)
-    sys.exit(-1)
-if (sys.version_info.major == PYTHON_MIN_MAJOR) \
-             and (sys.version_info.minor < PYTHON_MIN_MINOR):
-    print(PYTHON_VERSION_ERR)
-    sys.exit(-1)
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
 EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
 EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
 EZCORE_DIR_NAME = 'ezcore'
 EZCORE_PATH = os.path.join(EZDEV_PATH, EZCORE_DIR_NAME)
+EZSTART_PATH = os.path.join(EZUTILS_PATH, 'ezstart.py')
 
 try:
     from ezcore import ezconst

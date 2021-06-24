@@ -1,8 +1,12 @@
-#
-# configutils.py - Configuration Utilities
-#
-# This code was originally removed from configure.py because
-# that module was getting too big.
+"""
+    Identify and normalize the program execution environment.
+
+    Modules may run under a variety of operating system and
+    operating modes. This module provides a standard way
+    for a program to know how it is running and normalizes
+    some services so that most code doesn't have to consider
+    how it is running.
+"""
 
 import os
 import pwd
@@ -14,11 +18,18 @@ def make_directory(dir_name):
         os.mkdir(dir_name)
 
 #
-# sys.platform recognized by commercenode
+# sys.platform recognized by ezdev
 #
-platform_darwin = 'darwin'
-commercenode_dir = '/etc/commercenode'
+PLATFORM_DARWIN = 'darwin'
+PLATFORM_LINUX = 'linux'
+ALL_PLATFORMS = [PLATFORM_DARWIN, PLATFORM_LINUX]
 
+PYTHON_MIN_MAJOR = 3
+PYTHON_MIN_MINOR = 6
+PYTHON_MIN_VERSION = "{}.{}".format(PYTHON_MIN_MAJOR, PYTHON_MIN_MINOR)
+
+# Check python version before imports because excepton classes
+# have changed.
 
 #
 # MakeSymlink
@@ -101,7 +112,6 @@ def MakeSymlink(
         return False
     return True
 
-
 def MakeSymlinkToFile(
         parmSymlinkDirectory,
         parmSymlinkName,
@@ -113,7 +123,6 @@ def MakeSymlinkToFile(
         parmSymlinkName,
         parmTargetDirectory,
         parmTargetName)
-
 
 def MakeSymlinkToDirectory(
         parmSymlinkDirectory,
@@ -141,23 +150,28 @@ class ExecutionUser(object):
 			self.real_uid, self.real_username, self.effective_uid, self.effective_username)
         return res
 
-execution_user = ExecutionUser(os.getuid(), os.geteuid())
-
-class ExecutionEnvironment(object):
+class ExecutionEnvironment():
     slots = (
-                    'error_ct', 'execution_cwd',
+                    'error_ct', 'execution_cwd', 'ezdev_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
-                    'main_module_path',
-                    'package_parent_directory'
+                    'main_module_path', 'platform',
+                    'package_parent_directory', 'python_version'
                 )
-    def __init__(self, run_name):
+    def __init__(self):
         self.error_ct = 0
-        self.execution_cwd = None               # current working directory where run
+        self.ezdev_dir = '/etc/ezdev'
+        self.execution_cwd = os.getcwd()
         self.main_module_name = None            # file name of python module running
         self.main_module_object = None          # imported object of this module
         self.main_module_package = None         # package object containing this module
         self.main_module_path = None            # FQN path + file name of module
         self.package_parent_directory = None    # package parent directory
+        if not self.check_platform(verbose=False):
+            raise Exception('Unsupported operating system platform.')
+        if not self.check_python_version(verbose=False):
+            raise Exception('Unsupported Python version.')
+
+    def set_run_name(self, run_name):
         if run_name == "__main__":
 
             #
@@ -200,17 +214,26 @@ class ExecutionEnvironment(object):
         self.main_module_path = os.path.realpath(wsModuleFilePath)
         wsModulePackagePath = os.path.dirname(self.main_module_path)
         self.package_parent_directory = os.path.dirname(wsModulePackagePath[:-1])
-        self.execution_cwd = os.getcwd()
 
-    def check_version(self, verbose=True):
+    def check_platform(self, verbose=True):
+        self.platform = sys.platform
+        if verbose:
+            print('Platform: {}.'.format(self.platform))
+        if self.platform in ALL_PLATFORMS:
+            return True
+        else:
+            return False
+
+    def check_python_version(self, verbose=True):
         # This is both informational, when vervose, and diagnostic
         # Also check apache and operating system
+        self.python_version = sys.version
         result = True
         if verbose:
-            print('Python version {}/{} running.'.format(sys.version_info[0], sys.version_info[1]))
-        if (sys.version_info[0] < 3) or (sys.version_info[1] < 6):
+            print('Python version {}.{} running.'.format(sys.version_info[0], sys.version_info[1]))
+        if (sys.version_info[0] < PYTHON_MIN_MAJOR) or (sys.version_info[1] < PYTHON_MIN_MINOR):
             # uses index of version_info instead of name for compatibility with Python v2
-            print('Python version 3.6 or later required')
+            print('Python version {} or later required.'.format(PYTHON_MIN_VERSION))
             result = False
         return result
 
@@ -226,11 +249,9 @@ class ExecutionEnvironment(object):
     def PrintWarning(self, parmMessage):
         PrintError(parmMessage, IsWarningOnly=True)
 
-
     def PrintStatus(self, parmMessage):
         wsMsgPrefix = "Status:  "
         print(wsMsgPrefix + parmMessage)
-
 
     def PrintException(self, parmException, parmTitle, parmInfo):
         wsExceptionType = parmException[0]
@@ -245,5 +266,10 @@ class ExecutionEnvironment(object):
             PrintStatus(wsThisLine)
         PrintStatus("******************************")
 
-if __name__ == "__main__":
-    print(execution_user)
+    def show(self):
+        print('Platform:', self.platform)
+        print('Python:', self.python_version)
+        print('User:', execution_user)
+
+execution_user = ExecutionUser(os.getuid(), os.geteuid())
+execution_env = ExecutionEnvironment()

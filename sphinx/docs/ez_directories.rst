@@ -31,15 +31,18 @@ CnHosting supports multi-tenant hosts and multi-server applications
 Site Types
 ------------
 
-**Operations:** A site used to run an application in production.
+**Operations Site:** A site used to run an application in production.
 Most operations sites reference critical operational data.
 Operations sites have a minimum of development tools available.
 
-**Development:** A site used to develop an EzDev application.
+**Development Site:** A site used to develop an EzDev application.
 Most dev sites reference test data.
 Development sites have access to a full set of development tools.
 EzDev automatically creates basic configuration files for primary
 development tools.
+
+**PIP Site:** A development site for a PIP installable python package.
+EzDev has utilities to assist with the boilerplate required for PIP.
 
 
 Site Directory Content
@@ -61,6 +64,9 @@ requirements.
 |                 |      | Potentially omitted for non-Python |
 |                 |      | applications, but may be required  |
 |                 |      | for EzDev utilities.               |
++-----------------+------+------------------------------------+
+| pip/            | pip  | this is the root directory for     |
+|                 |      | the pip upload    
 +-----------------+------+------------------------------------+
 | sphinx/         | dev  | Documentation development using    |
 |                 |      | sphinx-doc.org.                    |

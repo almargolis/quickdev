@@ -58,12 +58,19 @@ class DbTableDict:
         self.columns[column.name] = column
         return column
 
-    def add_index(self, name, *args, is_unique=True):
-        """Add an index to the table."""
+    def add_index(self, name, columns, is_unique=True):
+        """
+            Add an index to the table.
+
+            columns can be either a single column name or a list of
+            column names.
+        """
         if name in self.indexes:
             raise Exception("Duplicate index name '{}' in table '{}'".format(
                                 name, self.name))
-        index = Index(name, args, self, is_unique=is_unique)
+        if not isinstance(columns, list):
+            columns = [columns]
+        index = Index(name, columns, self, is_unique=is_unique)
         self.indexes[name] = index
         return index
 

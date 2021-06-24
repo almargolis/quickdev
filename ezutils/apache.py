@@ -1,9 +1,9 @@
 import os
 import sys
 
-from cncore import configutils
-from cncore import textfile
-from cncore import utils
+from ezcore import exenv
+from ezcore import textfile
+from ezcore import utils
 
 #
 # These are good guides for apache on macos:
@@ -44,6 +44,10 @@ DEBIAN = {
     'document_base_dir':	'/var/www'
 }
 
+APACHE_PLATFORMS = {
+    exenv.PLATFORM_DARWIN: MACOS_DARWIN,
+    exenv.PLATFORM_LINUX: DEBIAN
+}
 #
 # ConfDirectiveDef defines an Apache *.conf file directive and tracks its
 # *.conf file parsing/editing state.
@@ -121,7 +125,7 @@ class ApacheHosting():
         )
     def __init__(self, platform):
         # just consider this a good place to track core directories.
-        if platform == configutils.platform_darwin:
+        if platform == exenv.PLATFORM_DARWIN:
             self.platform_details = MACOS_DARWIN
         else:
             raise ValueError("Unknown platform code '{}'".format(platform))
@@ -184,6 +188,19 @@ class ApacheHosting():
                 f.writeln('\t</Directory>')
                 f.writeln('</VirtualHost>')
 
+if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('cmd',
+                            action='store',
+                            choices=['sites', 'dogs'],
+                            required=True,
+                            help='Apache topic to process.')
+    arg_parser.add_argument('-q',
+                            action='store_true',
+                            dest='quiet',
+                            help='Display as few messages as possible.')
+    run_args = arg_parser.parse_args()
+    #if run_args.cmd == 'sites':
 
 
 """

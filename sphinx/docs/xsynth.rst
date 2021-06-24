@@ -1,16 +1,16 @@
-XPython
+XSynth
 =======
 
-XPython is a pre-processor that helps maximize production code
+XSynth is a pre-processor that helps maximize production code
 consistency and maximize DRY (Don't Repeat Yourself) implementation.
 
-An 'xpy' is a source file that XPython translates into a standard
-'py' python file. XPython uses an simple parsing defininition
+An 'xpy' is a source file that XSynth translates into a standard
+'py' python file. XSynth uses an simple parsing defininition
 inspired by the C preprocessor. An 'xpy' file contains lines of
-XPython code and python code. XPython code lines begin with '#$' in the first
+XSynth code and python code. XSynth code lines begin with '#$' in the first
 two characters of the line. All other lines are Python code lines.
 
-XPython Code
+XSynth Code
 -------------
 
 **#$define name value**:
@@ -28,7 +28,7 @@ XPython Code
 Python Code
 -------------
 
-Python code lines are processed for character substitions.
+Python code lines are processed for character substitutions.
 Substitutions can include any valid python code. The
 substitution identifier format is '$[quote]name$'.
 
@@ -39,11 +39,11 @@ substitution identifier format is '$[quote]name$'.
 * The name can be a simple reference, not containing a '.'
   which is defined in the current source file or a module
   reference in the format module.name.
-* The named substition must exist or the pre-processor
+* The named substitution must exist or the pre-processor
   reports an error.
 
-XPython.py Documentation
+XSynth.py Documentation
 ---------------------------
 
-.. automodule:: xpython
+.. automodule:: xsynth
    :members:

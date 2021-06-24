@@ -17,12 +17,12 @@ class Crawler(object):
           self.exeController		= ExeController
           self.findIx			= 0		# last succesful find
           self.nextCharIx		= 0		# start of next thing
-          self.crawlSession		= requests.Session()
+          self.crawl_session		= requests.Session()
           self.crawlCredentials	= None
-          self.crawlResponse		= None
+          self.crawl_response		= None
           self.crawlPage		= None		# page being analyzed
           self.crawlPageLen		= 0
-          self.crawlTree		= None		# beutiful soup tree
+          self.parse_tree		= None		# beutiful soup tree
           self.crawlFromCache		= False
           self.savePath		= None
           self.scrapeUrlsTable	= None
@@ -49,7 +49,7 @@ class Crawler(object):
         return None
 
     def FindHrefs(self, href, element='a'):
-        elements = self.crawlTree.find_all(href=re.compile(href))
+        elements = self.parse_tree.find_all(href=re.compile(href))
         return elements
 
     def FindTables(self):
@@ -59,7 +59,7 @@ class Crawler(object):
             Embedded tables are included in the list. This mainly
             is the case for tables used for layout.
         """
-        tables = self.crawlTree.find_all('table')
+        tables = self.parse_tree.find_all('table')
         return tables
 
     def FindDataTables(self, require_headers=True):
@@ -70,7 +70,7 @@ class Crawler(object):
             eliminate noise on some pages.
         """
         data_tables = []
-        all_tables = self.crawlTree.find_all('table')
+        all_tables = self.parse_tree.find_all('table')
         for this in all_tables:
             child_table = this.find('table')
             if child_table is None:
@@ -113,7 +113,7 @@ class Crawler(object):
             else:
                 wsFunction		= wsThis
             if wsIx == 0:
-                wsResult		= self.crawlTree.find(wsThis[0], string=wsString)
+                wsResult		= self.parse_tree.find(wsThis[0], string=wsString)
                 if wsResult is None:
                     return None
             else:
@@ -206,7 +206,7 @@ class Crawler(object):
         # It would be nice to integrate with Load() -- but no time today
         if fn is None:
             fn = url.split('/')[-1]
-        with self.crawlSession.get(url, stream=True) as r:
+        with self.crawl_session.get(url, stream=True) as r:
             with open(fn, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         return fn
@@ -225,7 +225,7 @@ class Crawler(object):
     def website_login(self, credentials):
         self.crawlCredentials=credentials
         self.Load(url=credentials.login_page_url, Data=None, DataGet=True, Tree=True, UseCache=False)
-        forms = self.crawlTree.find_all('form')
+        forms = self.parse_tree.find_all('form')
         login_form = forms[0]
         form_action = urllib.parse.urljoin(credentials.login_page_url, login_form['action'])
         form_method = login_form['method']
@@ -251,16 +251,16 @@ class Crawler(object):
         credentials.get_login_data(login_data, input_fields)
         print(login_data)
         self.Load(url=form_action, Data=login_data, DataGet=form_data_get, Tree=True, UseCache=False)
-        print(self.crawlResponseCode)
+        print(self.crawl_responseCode)
         print(self.crawlPage)
 
     def LoadBlob(self, parmBlob, Tree=True):
         self.crawlPage			= parmBlob
         if Tree:
-           self.crawlTree			= BeautifulSoup(self.crawlPage, 'lxml')
+           self.parse_tree			= BeautifulSoup(self.crawlPage, 'lxml')
         else:
-           self.crawlTree			= None
-        if self.crawlTree is None:
+           self.parse_tree			= None
+        if self.parse_tree is None:
             return False
         else:
             return True
@@ -297,27 +297,27 @@ class Crawler(object):
             self.crawlFromCache		        = True
             wsScrapeUdi	        		= wsScrapeUrlRecord['Udi']
             wsScrapeContentFileName		= "C" + bzUtil.Str(wsScrapeUdi)
-            self.crawlResponse	        	= bafCrawlerResponse()
+            self.crawl_response	        	= bafCrawlerResponse()
             wsF				        = open('/exports/Catalog/Scrape/' + wsScrapeContentFileName, "rb")
-            self.crawlResponse.content	        = wsF.read()
-            self.crawlResponse.url		= wsScrapeUrlRecord['Url']
-            self.crawlResponseCode		= wsScrapeUrlRecord['ResponseCode']
+            self.crawl_response.content	        = wsF.read()
+            self.crawl_response.url		= wsScrapeUrlRecord['Url']
+            self.crawl_responseCode		= wsScrapeUrlRecord['ResponseCode']
             wsF.close()
             if Binary:
-                self.crawlPage			= self.crawlResponse.content
+                self.crawlPage			= self.crawl_response.content
             else:
-                self.crawlPage			= self.crawlResponse.content.decode('utf-8')
+                self.crawlPage			= self.crawl_response.content.decode('utf-8')
         else:
             self.crawlFromCache		        = False
             if (Data is None) or DataGet:
-                self.crawlResponse		= self.crawlSession.get(fqn_url, params=Data)
+                self.crawl_response		= self.crawl_session.get(fqn_url, params=Data)
             else:
-                 self.crawlResponse		= self.crawlSession.post(fqn_url, data=Data)
-            self.crawlResponseCode		= self.crawlResponse.status_code
-            if UseCache and (self.crawlResponseCode == 200):
+                 self.crawl_response		= self.crawl_session.post(fqn_url, data=Data)
+            self.crawl_responseCode		= self.crawl_response.status_code
+            if UseCache and (self.crawl_responseCode == 200):
                 wsScrapeUrlRecord		= {
 						'Url':		fqn_url,
-						'ResponseCode':	self.crawlResponseCode
+						'ResponseCode':	self.crawl_responseCode
 					}
                 if not self.scrapeUrlsTable.Post(wsScrapeUrlRecord):
                     self.exeController.errs.AddDevCriticalMessage("Unable to Post() %s %s " % (
@@ -327,12 +327,12 @@ class Crawler(object):
                 wsScrapeUdi			= wsScrapeUrlRecord['Udi']
                 wsScrapeContentFileName		= "C" + bzUtil.Str(wsScrapeUdi)
                 wsF				= open('/exports/Catalog/Scrape/' + wsScrapeContentFileName, "wb")
-                wsF.write(self.crawlResponse.content)
+                wsF.write(self.crawl_response.content)
                 wsF.close()
         if Binary:
-            self.crawlPage			= self.crawlResponse.content
+            self.crawlPage			= self.crawl_response.content
         else:
-            self.crawlPage			= self.crawlResponse.content.decode('utf-8')
+            self.crawlPage			= self.crawl_response.content.decode('utf-8')
         self.crawlPageLen			= len(self.crawlPage)
         self.nextCharIx		        	= 0
         if self.crawlPageLen < 1:
@@ -340,9 +340,9 @@ class Crawler(object):
         if StartAfter is not None:
             return self.FindNextText(StartAfter)
         if Tree:
-            self.crawlTree			= BeautifulSoup(self.crawlPage, 'lxml')
+            self.parse_tree			= BeautifulSoup(self.crawlPage, 'lxml')
         else:
-            self.crawlTree			= None
+            self.parse_tree			= None
         return True
 
 class HttpCredentials(object):

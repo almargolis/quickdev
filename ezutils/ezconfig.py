@@ -14,7 +14,7 @@ from ezcore import exe
 from ezcore import xsource
 
 PROG_STUB = []
-PROG_STUB.append("import $xlocal.this_module")
+PROG_STUB.append("import $xlocal.this_module$")
 PROG_STUB.append("from ezcore import exe")
 PROG_STUB.append("")
 PROG_STUB.append("ez_env = exe.EzEnv()")
@@ -32,7 +32,14 @@ class EzConfig(exe.EzAction):
 
     def gen_program_stubs(self):
         for this_row in self.db.select('progs', '*'):
-            gen = xsource.XSource(db=self.db, source_lines=PROG_STUB)
+            action_name = this_row['action_name']
+            action_spec = self.db.lookup(xsource.XDB_ACTIONS,
+                                         where={'action_name': action_name})
+            xlocal = {}
+            xlocal['this_module'] action_spec['module']
+            xlocal['action'] = action_name
+            gen = xsource.XSource(module_name=this_row['prog_name'],
+                                  db=self.db, source_lines=PROG_STUB)
 
 if __name__ == '__main__':
     ez_env = exe.EzEnv()
