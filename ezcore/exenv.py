@@ -15,7 +15,12 @@ import sys
 def make_directory(dir_name):
     # This needs a security profile and handle chown and chmod
     if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+        try:
+            os.mkdir(dir_name)
+        except PermissionError:
+            print('Permission denied creating directory {}.'.format(dir_name))
+            return False
+    return True
 
 #
 # sys.platform recognized by ezdev

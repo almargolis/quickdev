@@ -147,14 +147,14 @@ class EzDict():
             ExeController=None,
             is_case_sensitive=False,
             is_hierarchy=True,
-            HierarchySeparator=None,
+            hierarchy_separator=None,
             Name=None):
         self.exeController = ExeController
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
         self._source_file_path = None
-        self._hierarchy_separator = HierarchySeparator
+        self._hierarchy_separator = hierarchy_separator
         self._isCaseSensitive = is_case_sensitive
         self._is_directory = False
         self._name = Name
@@ -271,7 +271,7 @@ class EzDict():
             raise IndexError
         self.__setitem__(key, value)
 
-    def AppendDatum(self, parmKey, parmValue, HierarchySeparator=None):
+    def AppendDatum(self, parmKey, parmValue, hierarchy_separator=None):
         if parmKey in self:
             raise IndexError(
                 "%s value has already been assigned for name %s" %
@@ -279,7 +279,7 @@ class EzDict():
         self.__setitem__(
             parmKey,
             parmValue,
-            HierarchySeparator=HierarchySeparator)
+            hierarchy_separator=hierarchy_separator)
         return parmValue
 
     def GetDatum(self, parmKey, SubstituteValue=None):
@@ -312,14 +312,14 @@ class EzDict():
             self,
             HierarchySeperator='.'):
         if self._hierarchy_separator is None:
-            self._hierarchy_separator = HierarchySeparator
+            self._hierarchy_separator = hierarchy_separator
 
-    def MakeChildTuple(self, parmKey, HierarchySeparator=None):
+    def MakeChildTuple(self, parmKey, hierarchy_separator=None):
         wsValue = self.__class__(Name=parmKey)
         self.AppendDatum(
             parmKey,
             wsValue,
-            HierarchySeparator=HierarchySeparator)
+            hierarchy_separator=hierarchy_separator)
         return wsValue
 
     @property

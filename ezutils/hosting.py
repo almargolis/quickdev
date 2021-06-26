@@ -32,11 +32,11 @@ hosting_conf = None
 
 def init_hosting():
     if cli.cli_input_yn("Do you want to initialize or repair this host?"):
-        print("yes")
-        exenv.make_directory(exenv.execution_env.ezdev_dir)
-    else:
-        print("no")
+        if not exenv.make_directory(exenv.execution_env.ezdev_dir):
+            sys.exit(-1)
     print(repr(exenv.execution_user))
+    print("Host {} initialized.".format(exenv.execution_env.ezdev_dir))
+    sys.exit(0)
 
 def init_site(site_name):
     resp = cli.cli_input("Do you want to initialize or repair site '{}'?".format(site_name), "yn")
@@ -63,7 +63,5 @@ if __name__ == "__main__":
     m = menu.append(cli.CliMenuItem('sinit', init_site, None, desc="Initialize site"))
     m.tdict = tdict
     #
-    env = exenv.ExecutionEnvironment(__name__)
-    if not env.check_version():
-        sys.exit(-1)
+    exenv.execution_env.set_run_name(__name__)
     menu.cli_run()
