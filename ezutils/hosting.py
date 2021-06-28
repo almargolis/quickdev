@@ -55,12 +55,12 @@ if __name__ == "__main__":
     # Main()
     menu = cli.CliMenu()
     #
-    menu.append(cli.CliMenuItem('hinit', init_hosting, None, desc="Initialize host"))
-    menu.append(cli.CliMenuItem('show', show_hosting, None, desc="Show host information"))
+    menu.add_action(cli.CliMenuActionItem('hinit', init_hosting, None, desc="Initialize host"))
+    menu.add_action(cli.CliMenuActionItem('show', show_hosting, None, desc="Show host information"))
     #
     tdict = tupledict.TupleDict()
     tdict.define_positional_parameter('site_name')
-    m = menu.append(cli.CliMenuItem('sinit', init_site, None, desc="Initialize site"))
+    m = menu.add_action(cli.CliMenuActionItem('sinit', init_site, None, desc="Initialize site"))
     m.tdict = tdict
     #
     exenv.execution_env.set_run_name(__name__)

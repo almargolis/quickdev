@@ -44,10 +44,17 @@ DEBIAN = {
     'document_base_dir':	'/var/www'
 }
 
-APACHE_PLATFORMS = {
+ALL_APACHE_PLATFORMS = {
     exenv.PLATFORM_DARWIN: MACOS_DARWIN,
     exenv.PLATFORM_LINUX: DEBIAN
 }
+
+if exenv.execution_env.platform in ALL_APACHE_PLATFORMS:
+    APACHE_PLATFORM = ALL_APACHE_PLATFORMS[exenv.execution_env.platform]
+else:
+    raise ValueError("Unsupported Apache platform '{}'".format(
+                     exenv.execution_env.platform))
+
 #
 # ConfDirectiveDef defines an Apache *.conf file directive and tracks its
 # *.conf file parsing/editing state.
@@ -120,22 +127,18 @@ class ApacheHosting():
         'apache_config_dir',
         'conf_directives',
         'default_page_path', 'document_base_dir',
-        'parsed_config_file', 'platform_details',
+        'parsed_config_file',
         'sites_available_dir', 'sites_enabled_dir'
         )
     def __init__(self, platform):
         # just consider this a good place to track core directories.
-        if platform == exenv.PLATFORM_DARWIN:
-            self.platform_details = MACOS_DARWIN
-        else:
-            raise ValueError("Unknown platform code '{}'".format(platform))
         self.conf_directives = ApacheConf()
         self.define_directives()
-        self.apache_config_dir = self.platform_details['apache_config_dir']
+        self.apache_config_dir = APACHE_PLATFORM['apache_config_dir']
         config_fn = os.path.join(self.apache_config_dir, APACHE_CONFIG_FILE)
         self.sites_available_dir = os.path.join(self.apache_config_dir, SITES_AVAILABLE)
         self.sites_enabled_dir = os.path.join(self.apache_config_dir, SITES_ENABLED)
-        self.document_base_dir = self.platform_details['document_base_dir']
+        self.document_base_dir = APACHE_PLATFORM['document_base_dir']
         self.document_base_dir = os.path.expanduser(self.document_base_dir)
         self.default_page_path = os.path.join(self.document_base_dir, 'index.html')
         self.parsed_config_file = ApacheConf()
@@ -195,6 +198,14 @@ if __name__ == '__main__':
                             choices=['sites', 'dogs'],
                             required=True,
                             help='Apache topic to process.')
+    arg_parser.add_argument('-s',
+                            action='store_true',
+                            dest='site',
+                            help='Specify site to configure.')
+    arg_parser.add_argument('-w',
+                            action='store_true',
+                            dest='website',
+                            help='Specify website to configure.')
     arg_parser.add_argument('-q',
                             action='store_true',
                             dest='quiet',

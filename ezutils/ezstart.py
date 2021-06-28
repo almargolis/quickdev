@@ -39,32 +39,24 @@ if ezconst is None:
 
 from ezcore import cli
 from ezcore import inifile
+from ezcore import ezsite
 
 class EzStart():
     """Create or repair an EzDev site. """
     __slots__ = ('conf_path',
                  'err_ct', 'ezdev_path', 'ezutils_path',
-                 'ini_info', 'ini_path',
-                 'quiet', 'site_path')
+                 'quiet', 'site_info')
 
     def __init__(self, args):
         module_path = os.path.abspath(__file__)
         self.err_ct = 0
         self.ezutils_path = os.path.dirname(module_path)
         self.ezdev_path = os.path.dirname(self.ezutils_path)
-        self.ini_info = None
-        self.ini_path = None
+        self.site_info = ezsite.EzSite(site_path=args.site_path)
         self.quiet = args.quiet
-        if args.site_path is None:
-            self.site_path = os.getcwd()
-        else:
-            self.site_path = args.site_path
-        self.site_path = os.path.abspath(self.site_path)
         if not self.check_site_path():
             return
         if not self.check_conf_path():
-            return
-        if not self.check_conf_ini():
             return
         if not self.check_acronym():
             return
@@ -72,7 +64,7 @@ class EzStart():
             return
         if not self.validate_venv():
             return
-        inifile.write_ini_file(source=self.ini_info, path=self.ini_path)
+        self.site_info.write_site_ini()
 
     def check_directory(self, name, path):
         """Create a directory if it doesn't exist. """
@@ -91,26 +83,17 @@ class EzStart():
 
     def check_site_path(self):
         """Create site directory if it doesn't exist. """
-        return self.check_directory('Site', self.site_path)
+        return self.check_directory('Site', self.site_info.site_path)
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        self.conf_path = os.path.join(self.site_path, ezconst.SITE_CONF_DIR_NAME)
-        self.ini_path = os.path.join(self.conf_path, ezconst.SITE_CONF_FILE_NAME)
-        return self.check_directory('Conf', self.conf_path)
-
-    def check_conf_ini(self):
-        self.ini_info = inifile.read_ini_file(file_name=self.ini_path)
-        if self.ini_info is None:
-            self.ini_info = {}
-            self.ini_info['site_dir'] = self.site_path
-        return True
+        return self.check_directory('Conf', self.site_info.conf_path)
 
     def check_acronym(self):
-        if 'acronym' in self.ini_info:
-            print('Site acronym "{}"'.format(self.ini_info['acronym']))
+        if 'acronym' in self.site_info.ini_info:
+            print('Site acronym "{}"'.format(self.site_info.ini_info['acronym']))
             return True
-        self.ini_info['acronym'] = cli.cli_input_symbol('Site Acronym')
+        self.site_info.ini_info['acronym'] = cli.cli_input_symbol('Site Acronym')
         return True
 
     def check_python_venv(self):
@@ -118,16 +101,16 @@ class EzStart():
         if venv_path is not None:
             print("VENV: {}".format(venv_path))
             if cli.cli_input_yn("Do you want to use this VENV for this project?"):
-                self.ini_info['venv_path'] = venv_path
+                self.site_info.ini_info['venv_path'] = venv_path
                 return True
-        venv_name = self.ini_info['acronym'] + ".venv"
+        venv_name = self.site_info.ini_info['acronym'] + ".venv"
         venv_path = os.path.join(self.site_path, venv_name)
         if not os.path.isdir(venv_path):
             if cli.cli_input_yn("Create VENV '{}'?".format(venv_path)):
                 cmd = ['python', '-m', 'venv', venv_path]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
-                    self.ini_info['venv_path'] = venv_path
+                    self.site_info.ini_info['venv_path'] = venv_path
                     return True
                 else:
                     self.error("Unable to create VENV.")
@@ -135,7 +118,7 @@ class EzStart():
             return False
 
     def validate_venv(self):
-        venv_path = self.ini_info['venv_path']
+        venv_path = self.site_info.ini_info['venv_path']
         lib_path = os.path.join(venv_path, 'lib')
         libs = os.listdir(lib_path)
         python_lib = None

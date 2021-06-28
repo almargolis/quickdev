@@ -1,7 +1,7 @@
 import re
 import sys
 
-class CliMenuItem(object):
+class CliMenuActionItem(object):
     __slots__ = ('cmd', 'desc', 'func', 'security', 'tdict')
     def __init__(self, cmd, func, security, desc=""):
         self.cmd = cmd
@@ -11,19 +11,19 @@ class CliMenuItem(object):
         self.tdict = None
 
 class CliMenu(object):
-    __slots__ = ('items')
+    __slots__ = ('action_items')
     def __init__(self):
-        self.items = {}
+        self.action_items = {}
 
-    def append(self, item):
-        if item.cmd in self.items:
+    def add_action(self, item):
+        if item.cmd in self.action_items:
             raise ValueError("Duplicate CliMenu cmd '{}'".format(item.cmd))
-        self.items[item.cmd] = item
+        self.action_items[item.cmd] = item
         return item
 
     def help(self, prog):
         print("usage {}".format(prog))
-        for this in self.items.values():
+        for this in self.action_items.values():
             print("  {} {}".format(this.cmd, this.desc))
 
     def cli_run(self):
@@ -42,7 +42,7 @@ class CliMenu(object):
         if cmd[0] == '-':
             cmd = cmd[1:]
         try:
-            item = self.items[cmd]
+            item = self.action_items[cmd]
         except KeyError:
             self.help(prog)
             sys.exit(-1)
