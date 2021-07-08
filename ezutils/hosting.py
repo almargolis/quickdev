@@ -11,7 +11,6 @@ import sys
 
 from ezcore import exenv
 from ezcore import cli
-from ezcore import tupledict
 import apache
 
 #
@@ -53,15 +52,14 @@ def show_hosting():
 if __name__ == "__main__":
     # StartupMode = StartupDirect
     # Main()
-    menu = cli.CliMenu()
+    menu = cli.CliCommandLine()
+    exenv.command_line_site(menu)
     #
-    menu.add_action(cli.CliMenuActionItem('hinit', init_hosting, None, desc="Initialize host"))
-    menu.add_action(cli.CliMenuActionItem('show', show_hosting, None, desc="Show host information"))
+    menu.add_item(cli.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
+    menu.add_item(cli.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
     #
-    tdict = tupledict.TupleDict()
-    tdict.define_positional_parameter('site_name')
-    m = menu.add_action(cli.CliMenuActionItem('sinit', init_site, None, desc="Initialize site"))
-    m.tdict = tdict
+    m = menu.add_item(cli.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
+    m.add_parameter(cli.CliCommandLineParameterItem('s', is_positional=True))
     #
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()

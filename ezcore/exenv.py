@@ -6,11 +6,45 @@
     for a program to know how it is running and normalizes
     some services so that most code doesn't have to consider
     how it is running.
+
+    The global execution_env object created at the bottom
+    of this module provide a standardized way for an
+    EzDev program to know how it is running and where to
+    find things. This module is obviously Python specific.
+    When EzDev is extended to support other languages a
+    similar structure will be created so all EzDev programs
+    can have a similar structure regardless of language.
 """
 
 import os
 import pwd
 import sys
+
+from ezcore import cli
+from ezcore import ezsite
+
+#
+# Command line flags commonly used by EzDev utilities.
+# These functions help assure consistency.
+#
+def command_line_quiet(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('q',
+                  default_value=False,
+                  help="Display as few messages as possible.",
+                  value_type=cli.PARAMETER_BOOLEAN
+                  ))
+
+def command_line_site(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('s',
+                  help="Specify site to configure.",
+                  value_type=cli.PARAMETER_STRING
+                  ))
+
+def command_line_website(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('w',
+                  help="Specify website to configure.",
+                  value_type=cli.PARAMETER_STRING
+                  ))
 
 def make_directory(dir_name):
     # This needs a security profile and handle chown and chmod
@@ -157,7 +191,7 @@ class ExecutionUser(object):
 
 class ExecutionEnvironment():
     slots = (
-                    'error_ct', 'execution_cwd', 'ezdev_dir',
+                    'error_ct', 'execution_cwd', 'execution_site', 'execution_user', 'ezdev_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
                     'main_module_path', 'platform',
                     'package_parent_directory', 'python_version'
@@ -166,6 +200,8 @@ class ExecutionEnvironment():
         self.error_ct = 0
         self.ezdev_dir = '/etc/ezdev'
         self.execution_cwd = os.getcwd()
+        self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
+        self.execution_site = ezsite.EzSite()
         self.main_module_name = None            # file name of python module running
         self.main_module_object = None          # imported object of this module
         self.main_module_package = None         # package object containing this module
@@ -274,7 +310,7 @@ class ExecutionEnvironment():
     def show(self):
         print('Platform:', self.platform)
         print('Python:', self.python_version)
-        print('User:', execution_user)
+        print('User:', self.execution_user)
+        print('Site:', self.execution_site)
 
-execution_user = ExecutionUser(os.getuid(), os.geteuid())
 execution_env = ExecutionEnvironment()

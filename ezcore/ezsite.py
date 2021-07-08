@@ -11,9 +11,10 @@ class EzSite():
     """
     EzSite is a container for core information regarding a site.
 
-    A global instance is created below which describes the site where
-    the current program is executing, which could be an development site
-    for EzDev itself or a host management site. Programs run from their
+    A global instance is created within exenv.ExecutionEnvironment()
+    which describes the site where the current program is executing,
+    which could be an development site
+    for EzDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
     """
     __slots__ = ('conf_path', 'ini_info', 'ini_path', 'site_path')
@@ -30,8 +31,8 @@ class EzSite():
             self.ini_info = {}
             self.ini_info['site_dir'] = self.site_path
 
+    def __repr__(self):
+        return self.site_path
+
     def write_site_ini(self):
         inifile.write_ini_file(source=self.ini_info, path=self.ini_path)
-
-
-execution_site = EzSite()

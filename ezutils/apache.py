@@ -1,6 +1,7 @@
 import os
 import sys
 
+from ezcore import cli
 from ezcore import exenv
 from ezcore import textfile
 from ezcore import utils
@@ -63,40 +64,83 @@ class ApacheDirective():
     """
     Records one apache conf file directive.
     """
-    __slots__ = ('count_found', 'count_max', 'directive', 'directive_uc', 'value_key')
-    def __init__(self, directive, value_key, count_max=1):
+    __slots__ = ('count_found', 'count_max', 'directives',
+                 'name', 'name_uc',
+                 'parent_block', 'value')
+    def __init__(self, name, value, count_max=1, parent_block=None):
         self.count_found = 0
         self.count_max = count_max
-        self.directive = directive
-        self.directive_uc = directive.upper()		# apache config directives are case insensitive
-        self.value_key = value_key
-
-    def apply(self, value_store):
-        self.count_found += 1
-        assert self.count_found <= self.count_max
-        return '{} "{}"'.format(self.directive, value_store[self.value_key])
+        self.directives = None
+        self.name = name
+        self.name_uc = name.upper()		# apache config directives are case insensitive
+        self.parent_block = parent_block
+        self.value = value
 
 class ApacheConf():
     """
     Records an apache configuation as a list of ApacheDirective objects.
+
+    It saves comments and blank lines so that it can recreate the
+    configuration file after any changes are made.
     """
     __slots__ = ('directives',)
     def __init__(self):
         self.directives = []
 
-    def add(self, directive, value):
-        """Add a directive to the list. """
-        directive_def = ApacheDirective(directive, value)
-
-    def append(self, directive):
-        self.directives.append(directive)
-        return directive
-
     def load(self, file_name):
         """ Read config file and build directive list. """
+        self.directives = []
+        current_block = self
+        line_ct = 0
+        continuation = ''
         with open(file_name, "r") as f:
+            line_ct += 1
             for this in f.readlines():
-                self.parse(this)
+                if this[-1] == '\\':
+                    continuation += this[:-1]
+                else:
+                    continuation += this
+                    result = self.parse(continuation)
+                    continuation = ''
+                    if isinstance(result, str):
+                        current_block.directives.append(result)
+                    else:
+                        (new_block, end_block, name, value) = result
+                        if end_block:
+                            if current_block.name_uc != name.upper():
+                                raise ValueError("Unmatched '<!{}>' @ {}".format(
+                                                 name, line_ct
+                                                 ))
+                            current_block = current_block.parent_block
+                        else:
+                            directive = ApacheDirective(name, value)
+                            current_block.directives.append(directive)
+                            if new_block:
+                                directive.directives = []
+                                directive.parent_block = current_block
+                                current_block = directive
+
+    def write(self, file_name):
+        def write_block(fout, spc, d):
+            for this in d.directives:
+                if isinstance(this, str):
+                    if this == '':
+                        fout.write('\n')
+                    else:
+                        fout.write(spc + this + '\n')
+                elif this.directives is None:
+                    fout.write(spc + this.name + ' ' + this.value + '\n')
+                else:
+                    open_ln = '<' + this.name
+                    if this.value != '':
+                        open_ln += ' ' + this.value
+                    open_ln += '>'
+                    fout.write(spc + open_ln + '\n')
+                    write_block(fout, spc+'    ', this)
+                    fout.write(spc + '</' + this.name + '>\n')
+
+        with open(file_name, "w") as f:
+            write_block(f, '', self)
 
     def parse(self, config_line):
         """
@@ -105,17 +149,34 @@ class ApacheConf():
         Config file parsing rules are pretty simple:
         https://httpd.apache.org/docs/current/configuring.html
         """
-        directive_ix = utils.FindFirstNonWhiteSpace(config_line)
-        if (directive_ix < 0) or (config_line[directive_ix] == '#'):
-            # blank line or comment
-            return None
-        end_ix = utils.FindFirstWhiteSpace(config_line, StartPos=directive_ix)
-        directive_uc = config_line[directive_ix:end_ix].upper()
-        for this in self.directives:
-            print('ConfEdits.find() {} {}'.format(directive_uc, this.directive_uc))
-            if directive_uc == this.directive_uc:
-                return this
-        return None
+        new_block = False
+        end_block = False
+        trimmed = config_line.strip()
+        if trimmed == '':
+            return trimmed
+        if trimmed[0] == '#':
+            return trimmed
+        if trimmed[0] == '<':
+            trimmed = trimmed[1:]
+            if trimmed[0] == '/':
+                trimmed = trimmed[1:]
+                end_block = True
+            else:
+                new_block = True
+            if trimmed[-1] == '>':
+                # The closing bracket should always be found but
+                # we don't complain if it's missing.
+                trimmed = trimmed[:-1]
+
+        value_ix = utils.FindFirstWhiteSpace(trimmed)
+        if value_ix < 0:
+            directive = trimmed.strip()
+            value = None
+        else:
+            directive = trimmed[:value_ix].strip()
+            value = trimmed[value_ix+1:].strip()
+
+        return (new_block, end_block, directive, value)
 
 class ApacheHosting():
     """
@@ -192,26 +253,10 @@ class ApacheHosting():
                 f.writeln('</VirtualHost>')
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('cmd',
-                            action='store',
-                            choices=['sites', 'dogs'],
-                            required=True,
-                            help='Apache topic to process.')
-    arg_parser.add_argument('-s',
-                            action='store_true',
-                            dest='site',
-                            help='Specify site to configure.')
-    arg_parser.add_argument('-w',
-                            action='store_true',
-                            dest='website',
-                            help='Specify website to configure.')
-    arg_parser.add_argument('-q',
-                            action='store_true',
-                            dest='quiet',
-                            help='Display as few messages as possible.')
-    run_args = arg_parser.parse_args()
-    #if run_args.cmd == 'sites':
+    menu = cli.CliCommandLine()
+    exenv.command_line_quiet(menu)
+    exenv.command_line_site(menu)
+    exenv.command_line_website(menu)
 
 
 """
