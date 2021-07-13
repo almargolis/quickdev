@@ -11,7 +11,6 @@ EzDev modules but XSynth can use XSynth features.
 
 """
 
-import argparse
 import os
 import stat
 import sys
@@ -46,7 +45,9 @@ if ezsqlite is None:
     sys.path.append(EZCORE_PATH)
     from ezcore import ezsqlite
 
+from ezcore import cli
 from ezcore import xsource
+from ezcore import exenv
 
 try:
     from ezcore import ezconst
@@ -109,15 +110,15 @@ class XSynth:
                     'source_dirs', 'stand_alone',
                     'xpy_files', 'xpy_files_changed')
 
-    def __init__(self, args, debug=0):
+    def __init__(self, quiet=False, sources=[], stand_alone=False, debug=0):
         self.conf_info = None
         self.conf_dir_path = None
         self.debug = debug
-        self.quiet = args.quiet
-        self.stand_alone = args.stand_alone
+        self.quiet = quiet
+        self.stand_alone = stand_alone
         if self.stand_alone:
             self.base_dir = None
-            self.source_dirs = args.site_path
+            self.source_dirs = sources
             self.project_db_path = ezsqlite.SQLITE_IN_MEMORY_FN
         else:
             if len(args.site_path) < 1:
@@ -253,23 +254,27 @@ class XSynth:
                                              file_info.module_name})
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('site_path',
-                            action='store',
-                            nargs='*',
-                            default=None,
-                            help='Path of site root directory.')
-    arg_parser.add_argument('-q',
-                            action='store_true',
-                            dest='quiet',
-                            help='Display as few messages as possible.')
-    arg_parser.add_argument('-r',
-                            action='store_true',
-                            dest='reset',
-                            help='Reset (clear) EzDev process.')
-    arg_parser.add_argument('-s',
-                            action='store_true',
-                            dest='stand_alone',
-                            help='Stand-alone operation. No conf file.')
-    run_args = arg_parser.parse_args()
-    xp = XSynth(run_args)
+
+    menu = cli.CliCommandLine()
+    exenv.command_line_quiet(menu)
+    exenv.command_line_site(menu)
+    exenv.command_line_no_conf(menu)
+    menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+                  help="Specify files or directory to synthesise in stand-alone mode.",
+                  value_type=cli.PARAMETER_STRING
+                  ))
+
+    m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
+                                                   init_site,
+                                                   help="Synthesize directory."))
+    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+                                                    parameter_name='sources',
+                                                    is_positional=False))
+
+
+    exenv.execution_env.set_run_name(__name__)
+    menu.cli_run()

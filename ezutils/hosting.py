@@ -50,8 +50,9 @@ def show_hosting():
     exenv.execution_env.show()
 
 if __name__ == "__main__":
-    # StartupMode = StartupDirect
-    # Main()
+    # There is a great deal of symetry between hosting.py and apache.py
+    # commands. If you change one, check the other to see if similar
+    # changes are needed.
     menu = cli.CliCommandLine()
     exenv.command_line_site(menu)
     #

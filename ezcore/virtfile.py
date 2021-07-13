@@ -293,7 +293,6 @@ class VirtFile(object):
             if source is not None:
                 if hasattr(source, '_source_file_path'):
                     path = getattr(source, '_source_file_path', None)
-
         elif dir is None:
             path = file_name
         else:

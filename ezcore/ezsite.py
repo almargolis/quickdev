@@ -7,6 +7,10 @@ import os
 from ezcore import ezconst
 from ezcore import inifile
 
+CONF_ETC_ORG = 'etc_org'
+
+CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
+
 class EzSite():
     """
     EzSite is a container for core information regarding a site.

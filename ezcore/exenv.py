@@ -27,6 +27,13 @@ from ezcore import ezsite
 # Command line flags commonly used by EzDev utilities.
 # These functions help assure consistency.
 #
+def command_line_no_conf(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('n',
+                  default_value=False,
+                  help="Stand-alone operation. No conf file.",
+                  value_type=cli.PARAMETER_BOOLEAN
+                  ))
+
 def command_line_quiet(menu):
     menu.add_item(cli.CliCommandLineParameterItem('q',
                   default_value=False,
@@ -191,12 +198,15 @@ class ExecutionUser(object):
 
 class ExecutionEnvironment():
     slots = (
-                    'error_ct', 'execution_cwd', 'execution_site', 'execution_user', 'ezdev_dir',
+                    'debug', 'error_ct',
+                    'execution_cwd', 'execution_site', 'execution_user',
+                    'ezdev_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
                     'main_module_path', 'platform',
                     'package_parent_directory', 'python_version'
                 )
     def __init__(self):
+        self.debug = 0                          # mainly used for pytest
         self.error_ct = 0
         self.ezdev_dir = '/etc/ezdev'
         self.execution_cwd = os.getcwd()
@@ -213,6 +223,8 @@ class ExecutionEnvironment():
             raise Exception('Unsupported Python version.')
 
     def set_run_name(self, run_name):
+        if self.debug > 0:
+            print("exenv.set_run_name({}).".format(run_name))
         if run_name == "__main__":
 
             #
@@ -241,9 +253,9 @@ class ExecutionEnvironment():
             #
             # This is how we normally get here, through the program stub and bafExeController.
             #
-            wsMyModuleImportNameSplit = run_name.split('.')	# import name (no .py)
-            self.main_module_name = wsMyModuleImportNameSplit[-1]
-            self.main_module_package = __import__(wsMyModuleImportName)
+            run_name_split = run_name.split('.')	# import name (no .py)
+            self.main_module_name = run_name_split[-1]
+            self.main_module_package = __import__(run_name)
             self.main_module_object = getattr(
                 self.main_module_package, self.main_module_name)
         #

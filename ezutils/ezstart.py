@@ -87,7 +87,13 @@ class EzStart():
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        return self.check_directory('Conf', self.site_info.conf_path)
+        if not self.check_directory('Conf', self.site_info.conf_path):
+            return False
+        for this in ezsite.CONF_SUBDIRECTORIES:
+            this_path = os.path.join(self.site_info.conf_path, this)
+            if not self.check_directory('Conf', this_path):
+                return False
+        return True
 
     def check_acronym(self):
         if 'acronym' in self.site_info.ini_info:
@@ -116,6 +122,15 @@ class EzStart():
                     self.error("Unable to create VENV.")
                     return False
             return False
+
+    def save_org(self, source_path):
+        """
+        Save a system configuration file before making changes.
+        """
+        source_directory, source_filename = os.path.split(source_path)
+        org_file_path = os.path.join(self.site_info.conf_path, CONF_ETC_ORG, source_filename)
+        if not os.path.exists(org_path):
+            shutil.copy2(source_path, org_file_path)
 
     def validate_venv(self):
         venv_path = self.site_info.ini_info['venv_path']
