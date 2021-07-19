@@ -81,8 +81,13 @@ class CliCommandLineParameterItem(CliCommandLineItem):
                  value_type=PARAMETER_BOOLEAN, help="", security=None):
         super().__init__(argument_code, help_description=help, security=security)
         self.default_value = default_value
-        self.is_positional = is_positional
-        self.is_required = is_required
+        if is_positional:
+            self.is_positional = True
+            self.is_required = True
+        else:
+            self.is_positional = False
+            self.is_required = is_required
+
         self.parameter_name = parameter_name
         if value_type not in PARAMETER_TYPES:
             raise ValueError("Unknown parameter type '{}'.".format(value_type))
@@ -225,9 +230,8 @@ class CliCommandLine():
         self.action_item = None
         self.value_item = None
         for this_ix, this in enumerate(self.cli_argv):
-            if this_ix <= 1:
-                # self.cli_argv[0] is python or pytest (may include full path)
-                # self.cli_argv[1] is python module name as entered on command line.
+            if this_ix < 1:
+                # self.cli_argv[0] is python module name as entered on command line.
                 #    That could be either a relative or absolute path.
                 continue
             if self.value_item is not None:
@@ -248,7 +252,7 @@ class CliCommandLine():
             if self.action_item is None:
                 # This should maybe be an explicit option or have
                 # more conditions since "this" could be a file name
-                # that happends to be the same as an action argument. 
+                # that happends to be the same as an action argument.
                 if (this in self.items) \
                         and isinstance(self.items[this], CliCommandLineActionItem):
                     if not self.process_argument(this, ''):
@@ -290,7 +294,8 @@ class CliCommandLine():
             sys.exit(-1)
         if self.action_function_args is None:
             return self.action_item.action_function()
-        return self.action_item.action_function(*args, **kwargs)
+        return self.action_item.action_function(*self.action_function_args,
+                                                **self.action_function_kwargs)
 
     def build_action_function(self):
         # This is separated from cli_run() so it can be tested
@@ -318,7 +323,7 @@ class CliCommandLine():
                     this_flag = self.items[this.argument_code]
                     if this_flag.default_value is not None:
                         this_value = this_flag.default_value
-            if this_value is None:
+            if (this_value is None) and this.is_required:
                 self.err_code = 102
                 self.err_msg = "No value specified for action '{}' parameter '{}' flag '{}'".format(
                       argument_code_str(self.action_item.argument_code),
@@ -326,6 +331,8 @@ class CliCommandLine():
                       argument_code_str(this.argument_code)
                       )
                 return False
+            if this_value is None:
+                continue
             if this.is_positional:
                 self.action_function_args.append(this_value)
             else:

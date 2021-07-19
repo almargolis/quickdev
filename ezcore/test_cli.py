@@ -1,4 +1,7 @@
+import sys
 from . import cli
+
+SOME_FILE_NAMES = ['file1', 'dir1/', 'something_else']
 
 def action_function():
     pass
@@ -16,8 +19,7 @@ def print_help(menu):
     print("Menu:", menu.items)
     menu.show_help()
 
-def test_cli(tmpdir):
-
+def make_menu():
     menu = cli.CliCommandLine(debug=1)
     menu.add_item(cli.CliCommandLineParameterItem('q',
                   default_value=False,
@@ -28,37 +30,81 @@ def test_cli(tmpdir):
                       help="Specify site to configure.",
                       value_type=cli.PARAMETER_STRING
                       ))
+    menu.add_item(cli.CliCommandLineParameterItem('n',
+                  default_value=False,
+                  help="Stand-alone operation. No conf file.",
+                  value_type=cli.PARAMETER_BOOLEAN
+                  ))
     menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                   help="Specify files or directory to synthesise in stand-alone mode.",
                   value_type=cli.PARAMETER_STRING
                   ))
+    return menu
 
+def add_default_action(menu):
     m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
                                                    action_function,
                                                    help="Synthesize directory."))
+    return m
+
+def test_cli_clean(tmpdir):
+
+    menu = make_menu()
+    m = add_default_action(menu)
     m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
                                                     is_positional=False))
-
+    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='stand_alone',
+                                                    default_value=False,
+                                                    is_positional=False))
     print_help(menu)
 
-    some_file_names = ['file1', 'dir1/', 'something_else']
-
-    menu.cli_argv = ['python', 'prog.py']
-    menu.build_action_function()
-    print_actions_function(menu)
-    assert menu.err_code == 102
-
-    menu.cli_argv = ['python', 'prog.py', '-s', 'which_site']
+    menu.cli_argv = ['prog.py']
     menu.build_action_function()
     print_actions_function(menu)
     assert menu.err_code is None
+
+    menu.cli_argv = ['prog.py', '-s', 'which_site']
+    menu.build_action_function()
+    print_actions_function(menu)
+    assert menu.err_code is None
+    assert menu.action_function_kwargs['site'] == 'which_site'
+
+    menu.cli_argv = ['prog.py', '-n']
+    menu.build_action_function()
+    print_actions_function(menu)
+    assert menu.err_code is None
+    assert menu.action_function_kwargs['stand_alone'] is True
+
 
     m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                                                     parameter_name='sources',
                                                     is_positional=False))
     print_help(menu)
 
-    menu.cli_argv = ['python', 'prog.py', '-s', 'which_site'] + some_file_names
+    menu.cli_argv = ['prog.py', '-s', 'which_site']
     menu.build_action_function()
     print_actions_function(menu)
     assert menu.err_code is None
+    assert menu.action_function_kwargs['site'] == 'which_site'
+
+
+    menu.cli_argv = ['prog.py', '-s', 'which_site'] + SOME_FILE_NAMES
+    menu.build_action_function()
+    print_actions_function(menu)
+    assert menu.err_code is None
+    assert menu.action_function_kwargs['site'] == 'which_site'
+    assert menu.file_list == SOME_FILE_NAMES
+
+def test_cli_errors(tmpdir):
+
+    menu = make_menu()
+    m = add_default_action(menu)
+    m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+                                                    is_positional=False,
+                                                    is_required=True))
+    print_help(menu)
+
+    menu.cli_argv = ['prog.py']
+    menu.build_action_function()
+    print_actions_function(menu)
+    assert menu.err_code == 102         # -s not specified

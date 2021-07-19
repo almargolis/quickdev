@@ -107,21 +107,29 @@ class XSynth:
                  'conf_info',
                  'conf_dir_path',
                     'project_db_path', 'quiet',
-                    'source_dirs', 'stand_alone',
+                    'site', 'sources', 'stand_alone',
                     'xpy_files', 'xpy_files_changed')
 
-    def __init__(self, quiet=False, sources=[], stand_alone=False, debug=0):
+    def __init__(self, site=None, sources=[], stand_alone=False, quiet=False, debug=0):
+        if debug > 0:
+            print("XSynth(site={}, sources={}, stand_alone={}, quiet={}, debug={})".format(
+                  site, sources, stand_alone, quiet, debug))
         self.conf_info = None
         self.conf_dir_path = None
         self.debug = debug
         self.quiet = quiet
+        self.site = site
+        if ezconst is None:
+            stand_alone = True
+        if inifile is None:
+            stand_alone = True
         self.stand_alone = stand_alone
         if self.stand_alone:
             self.base_dir = None
-            self.source_dirs = sources
+            self.sources = sources
             self.project_db_path = ezsqlite.SQLITE_IN_MEMORY_FN
         else:
-            if len(args.site_path) < 1:
+            if (sources is None) or (len(sources) < 1):
                 self.base_dir = os.getcwd()
             else:
                 self.base_dir = args.site_path[0]
@@ -158,10 +166,10 @@ class XSynth:
                                                     ext=ezconst.CONF_EXT)
         if self.conf_info is None:
             return False
-        self.source_dirs = self.conf_info['site.source_dirs']
+        self.sources = self.conf_info['site.sources']
         return True
 
-    def scan_directory(self, search_dir, source_exts, target_exts, recursive=False):
+    def scan_directory(self, search_dir, recursive=False):
         """
         Scan a direcory and update the sources database.
         """
@@ -172,17 +180,10 @@ class XSynth:
             if os.path.isdir(this_path):
                 dir_dir.append(this_path)
             else:
-                parts = os.path.splitext(this_path)
-                ext = parts[1]
-                if ext.startswith('.'):
-                    ext = ext[1:]
-                if ext in source_exts:
-                    self.post_sources_table(this_path, is_source=True)
-                elif ext == target_exts:
-                    self.post_sources_table(this_path, is_source=False)
+                self.post_sources_table(this_path)
         if recursive:
             for this_subdir in dir_dir:
-                self.scan_directory(this_subdir, source_ext, output_ext, recursive=True)
+                self.scan_directory(this_subdir, recursive=True)
 
     def process_xpy_files(self):
         """
@@ -197,9 +198,11 @@ class XSynth:
                         'is_xsource': 'N',
                         'is_translated': 'N'})
         self.db.update(xsource.XDB_SOURCES, {'found': 0})
-        for this_directory in self.source_dirs:
-            self.scan_directory(this_directory,
-                                xsynth_source_ext, xsynth_target_ext,
+        for this in self.sources:
+            if os.path.isfile(this):
+                self.post_sources_table(this)
+            else:
+                self.scan_directory(this_directory,
                                 recursive=True)
         self.db.update(xsource.XDB_MODULES, {'is_xsource': 'Y'},
                        where={'source_path': ('', '!=')})
@@ -217,11 +220,17 @@ class XSynth:
                             src_ext='xpy', dest_ext='py',
                             dir_path=os.path.dirname(sql_data[0]['path']), db=self.db)
 
-    def post_sources_table(self, path, is_source):
+    def post_sources_table(self, path):
         "Updates the modules and sources tables for a file."
         file_info = FileInfo(path)
         if file_info.module_name in RESERVED_MODULE_NAMES:
             abend("Reserved module name {}".format(file_info.module_name))
+        if file_info.file_ext in xsynth_source_ext:
+            is_source=True
+        elif file_info.file_ext == xsynth_target_ext:
+            is_source=False
+        else:
+            abend("Unsuported file type {}".format(file_info.path))
         sql_data = self.db.select(xsource.XDB_SOURCES, '*',
                                       where={'module_name':
                                              file_info.module_name})
@@ -253,8 +262,27 @@ class XSynth:
                                       where={'source_module_name':
                                              file_info.module_name})
 
-if __name__ == '__main__':
+def synth_site(site=None, sources=None, stand_alone=None, quiet=False):
+    XSynth(site=site, sources=sources, stand_alone=stand_alone, quiet=quiet, debug=0)
 
+
+if __name__ == '__main__':
+    """
+    XSynth can operate in either ezdev or stand-alone mode.
+
+    If -n is specified, xsynth operates in stand-alone mode, not looking for
+    an ezdev site configuration and using a temporary xsynth database.
+
+    If -s is specified, xsynth processes that ezdev site, regardless of the current
+    working directory (cwd).
+
+    If neither is specified, xsynth checks if the cwd seems to be an ezdev site.
+    If so, it processes that ezdev site as if it were specified with -s.
+    If not, it behaves as if -n was specified.
+
+    If no file list is provided, xsynth processes either the entire site (-s mode)
+    or the cwd and all subdirectories (-n mode).
+    """
     menu = cli.CliCommandLine()
     exenv.command_line_quiet(menu)
     exenv.command_line_site(menu)
@@ -265,14 +293,19 @@ if __name__ == '__main__':
                   ))
 
     m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
-                                                   init_site,
+                                                   synth_site,
                                                    help="Synthesize directory."))
     m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
                                                     is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='stand_alone',
+                                                    default_value=False,
+                                                    is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+                                                    default_value=None,
                                                     is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                                                     parameter_name='sources',
+                                                    default_value=None,
                                                     is_positional=False))
 
 

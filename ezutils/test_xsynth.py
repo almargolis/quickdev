@@ -1,22 +1,17 @@
 import xsynth
 
-class XSynthArgs:
-    quiet = False
-    stand_alone = True
-    site_path = []
+test_xpy = []
+test_xpy.append("class thing:")
+test_xpy.append("    def inner():")
+test_xpy.append("$__class_name__$")
+test_xpy.append("$__def_name__$")
 
 def test_xsynth(tmpdir):
     print(tmpdir)
-    args = XSynthArgs()
-    setattr(args, 'site_path', [tmpdir])
     f = tmpdir.join("test.xpy")
-    f.write("""class thing:
-        def inner():
-$__class_name__$
-$__def_name__$
-""")
+    f.write("\n".join(test_xpy))
 
-    x = xsynth.XSynth(args, debug=1)
+    x = xsynth.XSynth(sources=[f], stand_alone=True, debug=1)
 
     outf_name = tmpdir.join('test.py')
     with open(outf_name) as outf:

@@ -1,9 +1,8 @@
 from ezcore import ezsqlite
 from ezcore import xsource
-from ezutils import xpython
 
-class data_xpython_action:
-    """ Data for test_xpython_action """
+class data_xsource_action:
+    """ Data for test_xsource_action """
     __slots__ = ('example_x', 'expected_p')
     def __init__(self):
         self.example_x = []
@@ -14,13 +13,14 @@ class data_xpython_action:
         self.expected_p.append('    def __init__(self):')
         self.expected_p.append('        super().__init__()')
 
-def test_xpython_action(tmpdir):
-    """ Test xpython action declaration. """
-    test_data = data_xpython_action()
+def test_xsource_action(tmpdir):
+    """ Test xsource action declaration. """
+    test_data = data_xsource_action()
     db_path = tmpdir.join("db.sql")
-    db = ezsqlite.EzSqlite(db_path, db_dict=xpython.db_dict, debug=0)
+    db = ezsqlite.EzSqlite(db_path, db_dict=xsource.xdb_dict, debug=0)
+    assert db is not None
     print(db_path)
-    x = xsource.XSource('test', tmpdir, db, source_lines=test_data.example_x)
+    x = xsource.XSource('test', dir_path=tmpdir, db=db, source_lines=test_data.example_x)
     print(x.output_file_path)
     with open(x.output_file_path) as outf:
         out_lines = outf.readlines()
