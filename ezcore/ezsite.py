@@ -11,6 +11,14 @@ CONF_ETC_ORG = 'etc_org'
 
 CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
 
+def identify_cwd_site():
+    """
+    Returns site name if the current working directory is the
+    root of a site. Otherwise returns None
+    """
+    cwd = os.path.cwd()
+    return None
+
 class EzSite():
     """
     EzSite is a container for core information regarding a site.

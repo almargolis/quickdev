@@ -10,11 +10,27 @@ import sqlite3
 SQLITE_IN_MEMORY_FN = ':memory:'
 SQLITE_TEMP_FN = ''
 
+class AttributeName():
+    __slots__ = ('name',)
+    def __init__(self, name):
+        self.name = name
+
 def dict_to_sql_equal(source_dict, seperator):
     """
     Convert a dictionary to a string of comma separated
     sql "fld = ?" statements plus a list of substituion
     values.
+
+    The dictionary key is the first element of a
+    comparison clause and is always assumed to be a
+    field / attribute name. If the dictionay element
+    value is a tuple,
+    the first element is the comparison operator and
+    the second element is the second element of the
+    comparison. If the second element is an instance
+    of AttributeName, it is treated as a
+    field / attribute name. Otherwise it is treated
+    as a literal value.
 
     This can be used both for update asignments and
     where clause comparisions.
@@ -26,13 +42,16 @@ def dict_to_sql_equal(source_dict, seperator):
             if ix > 0:
                 sql += seperator
             if isinstance(value, tuple):
-                op = value[1]
-                v = value[0]
+                op = value[0]
+                v = value[1]
             else:
                 op = '='
                 v = value
-            sql += key + op + '?'
-            values.append(v)
+            if isinstance(v, AttributeName):
+                sql += key + op + v.name
+            else:
+                sql += key + op + '?'
+                values.append(v)
     return sql, values
 
 def dict_to_sql_flds(source_dict):
@@ -71,11 +90,14 @@ class EzSqlite:
     Sqlite3 api with dictionary support and python methods
     that create all sql.
     """
-    __slots__ = ('db_conn', 'db_cursor', 'db_dict', 'debug', 'sql_create')
+    __slots__ = ('db_conn', 'db_cursor', 'db_dict', 'debug',
+                 'detailed_exceptions', 'sql_create')
 
-    def __init__(self, path, db_dict=None, sql_create=None, debug=0):
+    def __init__(self, path, db_dict=None, sql_create=None,
+                 detailed_exceptions=True, debug=0):
         self.db_dict = db_dict
         self.sql_create = sql_create
+        self.detailed_exceptions = detailed_exceptions
         self.debug = debug
         self.db_conn = sqlite3.connect(path)
         self.db_conn.row_factory = sqlite3.Row
@@ -94,7 +116,8 @@ class EzSqlite:
         """
         if self.db_dict is not None:
             self.sql_create = self.db_dict.sql_list()
-            print(self.sql_create)
+            if self.debug > 0:
+                print(self.sql_create)
         if self.sql_create is not None:
             for this in self.sql_create:
                 self.db_cursor.execute(this)
@@ -114,13 +137,27 @@ class EzSqlite:
             print("SQL {} {}".format(sql, where_values))
         self.db_cursor.execute(sql, tuple(where_values))
 
+    def execute(self, sql, flds_values=None):
+        try:
+            self.db_cursor.execute(sql, tuple(flds_values))
+        except:
+            if self.detailed_exceptions:
+                # sqlite3 exceptions like sqlite3.IntegrityError
+                # don't print enough information to identify error.
+                # This just prints some context before letting the
+                # exception process continue normally.
+                print("EzSqlite exception for {}".format(sql))
+                if flds_values is not None:
+                    print("EzSqlite values: {}".format(flds_values))
+            raise
+
     def insert(self, table, flds):
         """Perform SQL insert command."""
         flds_sql_list, flds_value_str, flds_values = dict_to_sql_flds(flds)
         sql = 'INSERT INTO {} ({}) VALUES ({});'.format(table, flds_sql_list, flds_value_str)
         if self.debug > 0:
             print("SQL {} {}".format(sql, flds_values))
-        self.db_cursor.execute(sql, tuple(flds_values))
+        self.execute(sql, tuple(flds_values))
         self.db_conn.commit()
 
     def lookup(self, table, flds='*', where=None):
@@ -156,17 +193,37 @@ class EzSqlite:
         """
         Perform SQL insert or update command depending
         on whether or not a match is found for where clause.
+        This methon only supports cases where the where
+        clause identifies a single row / record.
+
+        flds are the fields that we want to update for an existing
+        row / record.
+
+        where is assumed to be a simple dictionary and its values
+        are inserted into the new row / record if no match is found.
+        That assures that there is a match the next time that where
+        clause is used. Despite that, this method can be used to
+        change the columns / fields mentioned in the where clause by
+        having the new values in the flds dictionary.
+
+        defaults is a dictionary of column / field names and values that are
+        inserted when a new row / record is inserted and are not specified
+        by flds and where. These are only
+        needed where they differ from column defaults specified when the
+        sqlite3 table was created.
         """
         sql_data = self.select(table, '*', where=where)
-        if len(sql_data) == 0:
-            if defaults is None:
-                uflds = flds
-            else:
-                uflds = defaults.copy()
-                uflds.update(flds)
-            self.insert(table, uflds)
-        else:
+        if len(sql_data) > 1:
+            raise KeyError('Duplicate matches for {} in table {}'.format(where, table))
+        if len(sql_data) == 1:
             self.update(table, flds, where=where)
+            return
+        uflds = {}
+        if defaults is not None:
+            uuflds.update(defaults)
+        uflds.update(where)
+        uflds.update(flds)
+        self.insert(table, uflds)
 
     def update(self, table, flds, where=None):
         """Perform SQL update command."""

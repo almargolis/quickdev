@@ -27,10 +27,16 @@ from ezcore import ezsite
 # Command line flags commonly used by EzDev utilities.
 # These functions help assure consistency.
 #
+def command_line_loc(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('l',
+                  help="Location of conf file or database.",
+                  value_type=cli.PARAMETER_STRING
+                  ))
+
 def command_line_no_conf(menu):
     menu.add_item(cli.CliCommandLineParameterItem('n',
                   default_value=False,
-                  help="Stand-alone operation. No conf file.",
+                  help="Stand-alone operation. No conf file or database.",
                   value_type=cli.PARAMETER_BOOLEAN
                   ))
 

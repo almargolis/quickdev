@@ -24,6 +24,12 @@ EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
 EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
 EZCORE_PATH = os.path.join(EZDEV_PATH, 'ezcore')
 RESERVED_MODULE_NAMES = ['xlocal']
+XSYNTH_TARGET_EXT = ['js', 'py']
+XSYNTH_SOURCE_EXT = ['x'+x for x in XSYNTH_TARGET_EXT]
+IGNORE_FILE_NAMES = ['.DS_Store']
+IGNORE_FILE_EXTENSIONS = ['pyc']
+IGNORE_DIRECTORY_NAMES = ['.git', '.pytest_cache']
+IGNORE_DIRECTORY_EXTENSIONS = ['venv']
 
 """
 The first import from ezcore has exception processing in
@@ -32,8 +38,6 @@ This is a bootstrap issue initializing an EZDev application
 before the virtual environment has been fully configured.
 """
 
-xsynth_target_ext = ['js', 'py']
-xsynth_source_ext = ['x'+x for x in xsynth_target_ext]
 
 import ezstart
 
@@ -99,8 +103,21 @@ class FileInfo:  # pylint: disable=too-few-public-methods
 
         ext should not include a leading period. e.g.: "py"
         """
-        return os.path.join(self.dir_name, self.module_name + '.' + ext)
+        if ext in ['', None]:
+            fn = self.module_name
+        else:
+            fn = self.module_name + '.' + ext
+        return os.path.join(self.dir_name, fn)
 
+#
+# Permutations of processing to consider:
+# - Build new database where no synthesised code is in directories.
+# - Build new database where some synthesised code is in directories.
+# - Existing database where
+# - - file moved between subdirectories
+# - - file no longer exists (it has been deleted or renamed)
+# - - a non-synthesised file has been changed to sysnthesized or vice-versa
+#
 class XSynth:
     """ Main XSynth implementation class."""
     __slots__ = ('base_dir', 'db', 'debug',
@@ -110,7 +127,8 @@ class XSynth:
                     'site', 'sources', 'stand_alone',
                     'xpy_files', 'xpy_files_changed')
 
-    def __init__(self, site=None, sources=[], stand_alone=False, quiet=False, debug=0):
+    def __init__(self, site=None, db_location=None, stand_alone=False,
+                 reset_db=False, sources=[], quiet=False, debug=0):
         if debug > 0:
             print("XSynth(site={}, sources={}, stand_alone={}, quiet={}, debug={})".format(
                   site, sources, stand_alone, quiet, debug))
@@ -118,15 +136,22 @@ class XSynth:
         self.conf_dir_path = None
         self.debug = debug
         self.quiet = quiet
+        if (ezconst is None) or (inifile is None):
+            # EzDev is not configured, can't be a site.
+            site = None
+        else:
+            if (site is None) and (db_location is None) and (not stand_alone):
+                # no operating mode specified, guess
+                site = ezsite.identify_cwd_site()
         self.site = site
-        if ezconst is None:
-            stand_alone = True
-        if inifile is None:
-            stand_alone = True
+        #if site is None
         self.stand_alone = stand_alone
         if self.stand_alone:
             self.base_dir = None
-            self.sources = sources
+            if sources is None:
+                self.sources = [os.getcwd()]
+            else:
+                self.sources = sources
             self.project_db_path = ezsqlite.SQLITE_IN_MEMORY_FN
         else:
             if (sources is None) or (len(sources) < 1):
@@ -135,8 +160,13 @@ class XSynth:
                 self.base_dir = args.site_path[0]
             if not self.init_ezdev(args):
                 return
+        if debug > 0:
+            print("XSynth(site={}, sources={}, stand_alone={}, quiet={}, debug={})".format(
+                  self.site, self.sources, self.stand_alone, self.quiet, self.debug))
+
         self.db = ezsqlite.EzSqlite(self.project_db_path,
-                                     db_dict=xsource.xdb_dict, debug=0)
+                                     db_dict=xsource.xdb_dict,
+                                     detailed_exceptions=True, debug=0)
         self.process_xpy_files()
 
     def init_ezdev(self, args):
@@ -169,18 +199,56 @@ class XSynth:
         self.sources = self.conf_info['site.sources']
         return True
 
+    def scan_all_directories(self):
+        self.db.update(xsource.XDB_MODULES,
+                {
+                'module_type': xsource.MODULE_TYPE_UNKNOWN,
+                'is_synthesised': 'N',
+                'source_found': 'N',
+                'target_found': 'N'
+                })
+        self.db.update(xsource.XDB_FILES,
+                {'found': 'N'})
+        ### >>> scan directories
+        self.db.update(xsource.XDB_MODULES,
+                {'module_type': xsource.MODULE_TYPE_SYNTH},
+                where={'source_found': 'Y'})
+        self.db.update(xsource.XDB_MODULES,
+                {'module_type': xsource.MODULE_TYPE_NO_SYNTH},
+                where={'source_found': 'N', 'target_found': 'Y'})
+        self.db.update(xsource.XDB_MODULES,
+                {'is_synthesised': 'Y'},
+                where={'module_type': 'MODULE_TYPE_SYNTH',
+                'target_modification_time':
+                ('>', ezsqlite.AttributeName('source_modification_time'))})
+
     def scan_directory(self, search_dir, recursive=False):
         """
-        Scan a direcory and update the sources database.
+        Scan a direcory tree and update the sources database.
         """
+        if self.debug > 0:
+            print("XSynth.scan_directory({}, recursive={}).".format(
+                  search_dir, recursive
+            ))
         dir_all = os.listdir(search_dir)
         dir_dir = []
         for this_file_name in dir_all:
             this_path = os.path.join(search_dir, this_file_name)
+            if os.path.islink(this_path):
+                continue
+            file_info = FileInfo(this_path)
             if os.path.isdir(this_path):
+                if this_file_name in IGNORE_DIRECTORY_NAMES:
+                    continue
+                if file_info.file_ext in IGNORE_DIRECTORY_EXTENSIONS:
+                    continue
                 dir_dir.append(this_path)
             else:
-                self.post_sources_table(this_path)
+                if this_file_name in IGNORE_FILE_NAMES:
+                    continue
+                if file_info.file_ext in IGNORE_FILE_EXTENSIONS:
+                    continue
+                self.post_files_table(file_info)
         if recursive:
             for this_subdir in dir_dir:
                 self.scan_directory(this_subdir, recursive=True)
@@ -190,60 +258,76 @@ class XSynth:
         Scan directories to locate source files. Update the
         sources table and then process them.
         """
-        self.db.update(xsource.XDB_MODULES,
-                       {'source_path': '',
-                        'source_ext': '',
-                        'output_path': '',
-                        'output_ext': '',
-                        'is_xsource': 'N',
-                        'is_translated': 'N'})
-        self.db.update(xsource.XDB_SOURCES, {'found': 0})
         for this in self.sources:
             if os.path.isfile(this):
-                self.post_sources_table(this)
+                self.post_files_table(this)
             else:
-                self.scan_directory(this_directory,
+                self.scan_directory(this,
                                 recursive=True)
-        self.db.update(xsource.XDB_MODULES, {'is_xsource': 'Y'},
-                       where={'source_path': ('', '!=')})
 
         while True:
             # We re-select for each source because XSource
             # may process multiple sources recursively.
             # The to-do list is not static.
-            sql_data = self.db.select(xsource.XDB_SOURCES, '*',
-                                       where={'status': xsource.SOURCE_STATUS_READY},
+            sql_data = self.db.select(xsource.XDB_MODULES, '*',
+                                       where={'source_path': ('!=', ''),
+                                       'source_modification_time': ('<',
+                                       ezsqlite.AttributeName('target_modification_time'))},
                                        limit=1)
             if len(sql_data) < 1:
                 break
             xsource.XSource(module_name=sql_data[0]['module_name'],
-                            src_ext='xpy', dest_ext='py',
-                            dir_path=os.path.dirname(sql_data[0]['path']), db=self.db)
+                            source_ext=sql_data[0]['source_ext'], target_ext='py',
+                            dir_path=os.path.dirname(sql_data[0]['source_path']), db=self.db)
 
-    def post_sources_table(self, path):
-        "Updates the modules and sources tables for a file."
-        file_info = FileInfo(path)
-        if file_info.module_name in RESERVED_MODULE_NAMES:
-            abend("Reserved module name {}".format(file_info.module_name))
-        if file_info.file_ext in xsynth_source_ext:
-            is_source=True
-        elif file_info.file_ext == xsynth_target_ext:
-            is_source=False
+    def post_module_table(self, file_info, file_mode):
+        if file_mode == xsource.FILE_MODE_SOURCE:
+            uflds = {}
+            uflds['source_path'] = file_info.path
+            uflds['source_ext'] = file_info.file_ext
+            uflds['source_modification_time'] = file_info.modification_time
+            uflds['source_found'] = 'Y'
         else:
-            abend("Unsuported file type {}".format(file_info.path))
-        sql_data = self.db.select(xsource.XDB_SOURCES, '*',
-                                      where={'module_name':
-                                             file_info.module_name})
-        if len(sql_data) < 1:
-            self.db.insert(xsource.XDB_SOURCES, {
+            uflds = {}
+            uflds['target_path'] = file_info.path
+            uflds['target_ext'] = file_info.file_ext
+            uflds['target_modification_time'] = file_info.modification_time
+            uflds['target_found'] = 'Y'
+        self.db.update_insert(xsource.XDB_MODULES, uflds,
+                              where={'module_name': file_info.module_name})
+
+    def post_files_table(self, file_info):
+        "Updates the modules and files tables for a file."
+        if self.stand_alone:
+            sql_data = []
+        else:
+            sql_data = self.db.select(xsource.XDB_FILES, where={'path', file_info.path})
+            if len(sql_data) > 0:
+                if sql_data[0]['modification_time'] == file_info.modification_time:
+                    # Don't bother with unchanged file
+                    return
+        if file_info.file_ext in XSYNTH_SOURCE_EXT:
+            file_mode = xsource.FILE_MODE_SOURCE
+            if file_info.module_name in RESERVED_MODULE_NAMES:
+                abend("Reserved module name {}".format(file_info.module_name))
+            is_module = True
+        elif file_info.file_ext == XSYNTH_TARGET_EXT:
+            file_mode = xsource.FILE_MODE_TARGET
+            is_module = True
+        else:
+            file_mode = xsource.FILE_MODE_OTHER
+            is_module = False
+        self.post_module_table(file_info, file_mode)
+        self.db.update_insert(xsource.XDB_FILES, {
                             'module_name': file_info.module_name,
                             'ext': file_info.file_ext,
                             'path': file_info.path,
-                            'status': xsource.SOURCE_STATUS_READY,
-                            'found': 1,
-                            'modification_time': file_info.modification_time
-                            })
-            return
+                            'mode': file_mode,
+                            'modification_time': file_info.modification_time,
+                            'found': 'Y'
+                            },
+                            {'path': file_info.path})
+        return
         if len(sql_data) != 1:
                 abend("Duplicate module name {}".format(this.module_name))
         flds = {'found': 1}
@@ -254,16 +338,17 @@ class XSynth:
             # mark it for processing
             flds['path'] = file_info.path
             flds['modification_time'] = file_info.modification_time
-            flds['status'] = xsource.SOURCE_STATUS_READY
+            flds['status'] = xsource.FILE_STATUS_READY
         # mark source as found, possibly modified
-        self.db.update(xsource.XDB_SOURCES, flds,
+        self.db.update(xsource.XDB_FILES, flds,
                                where={'module_name': file_info.module_name})
         sql_data = self.db.delete(xsource.XDB_MODULE_USES,
                                       where={'source_module_name':
                                              file_info.module_name})
 
-def synth_site(site=None, sources=None, stand_alone=None, quiet=False):
-    XSynth(site=site, sources=sources, stand_alone=stand_alone, quiet=quiet, debug=0)
+def synth_site(site=None, db_location=None, stand_alone=None, sources=None, quiet=False):
+    XSynth(site=site, db_location=db_location, stand_alone=stand_alone,
+           sources=sources, quiet=quiet, debug=0)
 
 
 if __name__ == '__main__':
@@ -284,9 +369,10 @@ if __name__ == '__main__':
     or the cwd and all subdirectories (-n mode).
     """
     menu = cli.CliCommandLine()
-    exenv.command_line_quiet(menu)
     exenv.command_line_site(menu)
+    exenv.command_line_loc(menu)
     exenv.command_line_no_conf(menu)
+    exenv.command_line_quiet(menu)
     menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                   help="Specify files or directory to synthesise in stand-alone mode.",
                   value_type=cli.PARAMETER_STRING
@@ -295,13 +381,13 @@ if __name__ == '__main__':
     m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
                                                    synth_site,
                                                    help="Synthesize directory."))
-    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
-                                                    is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='stand_alone',
                                                     default_value=False,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+    m.add_parameter(cli.CliCommandLineParameterItem('l', parameter_name='db_location',
                                                     default_value=None,
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
                                                     is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                                                     parameter_name='sources',

@@ -107,7 +107,7 @@ class VirtFile(object):
                     'funcResult',
                     'lock_file', 'lock_retries', 'lock_wait_secs',
                     'logForceDetail', 'logPriority', 'logSummary',
-                    'make_backup',
+                    'make_backup', 'print_source',
                     'readAheadMode', 'recno',
                     'srcLineCt', 'strip_eol',
                     'swap_output_file', 'tFile', 'writeResult', 'writeSize'
@@ -145,6 +145,7 @@ class VirtFile(object):
         self.bufSize = BLOCKSIZE
         self.EOF = True
         self.funcResult = 0
+        self.print_source = False
         self.recno = 0
         self.srcLineCt = 0
         self.swap_output_file = None
@@ -285,7 +286,8 @@ class VirtFile(object):
         return False
 
     def open(self, file_name=None, mode=None, dir=None, source=None,
-             backup=False, lock=False, no_wait=False, swap=False):
+             backup=False, lock=False, no_wait=False,
+             print_source=False, swap=False):
         """ Open file. Return True or False to indicate result. """
         self.make_backup = backup
         path = None
@@ -312,6 +314,7 @@ class VirtFile(object):
         if lock:
             if not self.lock_set(path, no_wait=no_wait):
                 return False
+        self.print_source = print_source
         if swap:
             if not self.create_swap_output(path):
                 if lock:
@@ -513,7 +516,7 @@ class VirtFile(object):
             if self.debug >= 2:
                 print("VirtFile.readline(fd:%d) past EOF." % (self.driver.fd))
             return None
-        wsEolLen			= len(self.eol_bytes)
+        eol_len			= len(self.eol_bytes)
 
         wsLine				= b""
         while True:
@@ -522,13 +525,13 @@ class VirtFile(object):
             if wsEOL_ix >= 0:
                 wsEndIx			= wsEOL_ix
                 if not self.strip_eol:
-                    wsEndIx		+= wsEolLen
-                self.bufIx		= wsEOL_ix + wsEolLen
+                    wsEndIx		+= eol_len
+                self.bufIx		= wsEOL_ix + eol_len
                 wsLine			+= self.buf[wsStartIx:wsEndIx]
                 break
             wsEndIx			= self.bufLen
             wsLine			+= self.buf[wsStartIx:wsEndIx]
-            if (self.buf[wsEndIx-1] == self.eol_bytes[0]) and (wsEolLen > 1):
+            if (self.buf[wsEndIx-1] == self.eol_bytes[0]) and (eol_len > 1):
                 # The last character in the previous block was the first
                 # character of EOL.  Check if the first character of the
                 # next block is the final character.  This logic assumes
@@ -555,7 +558,7 @@ class VirtFile(object):
         # We get here after break from while loop at end of line.
         # wsLine is still a bytes class object.
         self.srcLineCt += 1
-        if self.printSrc: print("%3d %s" % (self.srcLineCt, wsLine))
+        if self.print_source: print("%3d %s" % (self.srcLineCt, wsLine))
         if self.readAheadMode:
             # Can't read ahead if a socket because it blocks instead
             # of returning null buffer.  Sockets need other mechanism
@@ -569,9 +572,9 @@ class VirtFile(object):
             # This is only needed for the last line of the filei which is often missing EOL.
             # Insert an EOL if its not there, so the last line isn't
             # a special case where EOL may be missing.
-            wsEolLen			= len(self.EOL)
+            eol_len			= len(self.EOL)
             if wsLine:
-                if wsLine[-wsEolLen:] != self.EOLi_bytes:
+                if wsLine[-eol_len:] != self.eol_bytes:
                     wsLine		+= self.eol_bytes
         return wsLine.decode('utf-8')					# return as string
 

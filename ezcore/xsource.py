@@ -8,6 +8,7 @@ features.
 """
 
 import os
+import sqlite3
 import stat
 
 from ezcore import pdict
@@ -21,6 +22,21 @@ Tables should be referenced by using the XDB_XXXXX constants instead
 of literals in order to make it easier to locate table references in
 the source code.
 """
+FILE_STATUS_UPDATED = 0
+FILE_STATUS_PROCESSING = 1
+FILE_STATUS_COMPLETE = 2
+FILE_STATUS_ERROR = 3
+
+FILE_MODE_SOURCE ='s'
+FILE_MODE_TARGET ='t'
+FILE_MODE_OTHER ='o'
+
+MODULE_TYPE_SYNTH = 's'
+MODULE_TYPE_NO_SYNTH = 'n'
+MODULE_TYPE_UNKNOWN = 'u'
+
+NO_INDENT = -1
+
 
 XDB_ACTIONS = 'actions'
 XDB_CLASSES = 'classes'
@@ -29,31 +45,43 @@ XDB_DEFS = 'defs'
 XDB_MODULES = 'modules'
 XDB_MODULE_USES = 'module_uses'
 XDB_PROGS = 'progs'
-XDB_SOURCES = 'sources'
+XDB_FILES = 'files'
 
 xdb_dict = pdict.DbDict()
 
-# XDB_MODULES contains one entry for each module
+# XDB_MODULES contains one entry for each module.
+# A module is generally the basename of a file
+# of a type that xsource supports, such as python
+# or javascript files. Such files are represented
+# in the modules table even if they are not actually
+# synthesized (i.e. a *.py file with no corresponding
+# *.xpy file). Module names are globally unique
+# regardless of language or directory.
 d = xdb_dict.add_table(pdict.DbTableDict(XDB_MODULES))
 d.add_column(pdict.Text('module_name'))
-d.add_column(pdict.Text('is_translated'))
-d.add_column(pdict.Text('is_xsource'))
-d.add_column(pdict.Text('source_path'))
-d.add_column(pdict.Text('source_ext'))
-d.add_column(pdict.Text('output_path'))
-d.add_column(pdict.Text('output_ext'))
+d.add_column(pdict.Text('module_type', default_value=MODULE_TYPE_UNKNOWN))
+d.add_column(pdict.Text('is_synthesised', default_value='N'))
+d.add_column(pdict.Text('source_path', default_value=''))
+d.add_column(pdict.Text('source_ext', default_value=''))
+d.add_column(pdict.Number('source_modification_time', default_value=0))
+d.add_column(pdict.Text('source_found', default_value='N'))
+d.add_column(pdict.Text('target_path', default_value=''))
+d.add_column(pdict.Text('target_ext', default_value=''))
+d.add_column(pdict.Number('target_modification_time', default_value=0))
+d.add_column(pdict.Text('target_found', default_value='N'))
 d.add_index('ix_modules', 'module_name')
 
-# XDB_SOURCES contains one entry for each supported file
-# in the project directories.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_SOURCES))
+# XDB_FILES contains one entry for each file
+# in the project directories except for explicitly
+# ignored files.
+d = xdb_dict.add_table(pdict.DbTableDict(XDB_FILES))
 d.add_column(pdict.Text('module_name'))
 d.add_column(pdict.Text('ext'))
 d.add_column(pdict.Text('path'))
-d.add_column(pdict.Number('status'))
-d.add_column(pdict.Number('found'))
+d.add_column(pdict.Text('mode'))
 d.add_column(pdict.Number('modification_time'))
-d.add_index('ix_sources', ['module_name', 'ext'])
+d.add_column(pdict.Text('found'))
+d.add_index('ix_sources', ['module_name', 'ext'], is_unique=False)
 d.add_index('ix_paths', 'path')
 
 d = xdb_dict.add_table(pdict.DbTableDict(XDB_MODULE_USES))
@@ -93,13 +121,6 @@ d.add_column(pdict.Text('action_name'))
 d.add_column(pdict.Text('trigger_name'))
 d.add_index('ix_progs', 'prog_name')
 
-SOURCE_STATUS_READY = 0
-SOURCE_STATUS_PROCESSING = 1
-SOURCE_STATUS_COMPLETE = 2
-SOURCE_STATUS_ERROR = 3
-
-NO_INDENT = -1
-
 class PythonParse:
     """ Class to parse python. """
     ___slots___ = ('class_indent', 'class_name',
@@ -132,7 +153,10 @@ class PythonParse:
         fld_values = {'module_name': self.source_obj.module_name,
                 'class_name': self.class_name,
                 'base_class': base_class}
-        self.source_obj.db.insert(XDB_CLASSES, fld_values)
+        try:
+            self.source_obj.db.insert(XDB_CLASSES, fld_values)
+        except sqlite3.IntegrityError:
+            self.source_obj.syntax_error('Duplicate class ' + repr(fld_values))
         self.decorator = ''
 
     def end_class(self):
@@ -190,36 +214,39 @@ class XSource:
     That is many steps away but slowly the code is migrating from hard-coded
     python expectations to something more general.
 
-    src_ext and dest_ext are the extensions for the source and destination files,
+    source_ext and target_ext are the extensions for the source and destination files,
     including the dot (ex: .py).
 
     """
-    __slots__ = ('built_ins', 'db', 'defines_only', 'dest_ext', 'dir_path',
+    __slots__ = ('built_ins', 'db', 'defines_only', 'target_ext', 'dir_path',
                  'err_ct', 'lex', 'module_name',
                  'output_file_path', 'python_parser',
-                 'py_out', 'src_ext', 'src_line_ct')
+                 'py_out', 'source_ext', 'src_line_ct')
 
-    def __init__(self, module_name, dir_path=None, src_ext='', dest_ext='',
+    def __init__(self, module_name, dir_path=None, source_ext='', target_ext=None,
                  db=None, source_lines=None, defines_only=False):
         self.built_ins = {}
         self.lex = simplelex.SimpleLex()
         self.python_parser = PythonParse(self)
         self.db = db
         self.dir_path = dir_path
-        self.dest_ext = dest_ext
         self.module_name = module_name
         self.defines_only = defines_only
-        self.src_ext = src_ext
+        self.source_ext = source_ext
+        if target_ext is None:
+            self.target_ext = source_ext[1:]
+        else:
+            self.target_ext = target_ext
         print("Processing {}".format(self.module_name))
-        self.db.update(XDB_SOURCES,
-                     {'status': SOURCE_STATUS_PROCESSING},
+        self.db.update(XDB_FILES,
+                     {'status': FILE_STATUS_PROCESSING},
                      where={'module_name': self.module_name})
         self.py_out = []                # output python lines
         self.err_ct = 0
         self.src_line_ct = 0
-        self.output_file_path = os.path.join(self.dir_path, self.module_name + '.' + self.dest_ext)
+        self.output_file_path = os.path.join(self.dir_path, self.module_name + '.' + self.target_ext)
         if source_lines is None:
-            xp_input_file_path = os.path.join(self.dir_path, self.module_name + '.' + self.src_ext)
+            xp_input_file_path = os.path.join(self.dir_path, self.module_name + '.' + self.source_ext)
             f = open(xp_input_file_path, 'r')
             source_lines = f.read().splitlines()
         for this_line in source_lines:
@@ -230,10 +257,10 @@ class XSource:
                 if self.defines_only: pass
                 else: self.xsynth_python(this_line)
         if self.err_ct == 0:
-            status = SOURCE_STATUS_COMPLETE
+            status = FILE_STATUS_COMPLETE
         else:
-            status = SOURCE_STATUS_ERROR
-        self.db.update(XDB_SOURCES,
+            status = FILE_STATUS_ERROR
+        self.db.update(XDB_FILES,
                              {'status': status},
                              where={'module_name': self.module_name})
         if self.defines_only: pass
@@ -264,16 +291,16 @@ class XSource:
                         })
 
     def get_module(self, module_name):
-        sql_data = self.db.select(XDB_SOURCES,
+        sql_data = self.db.select(XDB_FILES,
                                   '*', where={'module_name': module_name})
         if len(sql_data) < 1:
             self.syntax_error("Unknown module '{}'.".format(module_name))
             return
-        if sql_data[0]['status'] == SOURCE_STATUS_READY:
+        if sql_data[0]['status'] == FILE_STATUS_READY:
             XSource(module_name=sql_data[0]['module_name'],
-                    src_ext='xpy', dest_ext='py',
+                    source_ext='xpy', target_ext='py',
                     dir_path=os.path.dirname(sql_data[0]['path']), db=self.db)
-        elif sql_data[0]['status'] == SOURCE_STATUS_PROCESSING:
+        elif sql_data[0]['status'] == FILE_STATUS_PROCESSING:
             self.syntax_error("Recursive loop with module '{}'.".format(module_name))
 
     def xsynth_lookup_subst(self, key):

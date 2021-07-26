@@ -7,6 +7,8 @@ use XPython features.
 
 """
 
+import numbers
+ 
 class DbDict:
     """
     Database dictionary primarily for use with sqlite_ez.
@@ -74,6 +76,13 @@ class DbTableDict:
         self.indexes[name] = index
         return index
 
+    def defaults(self, all=False):
+        d = {}
+        for this in self.columns.values():
+            if all or (this.default_value is not None):
+                d[this.name] = default_value
+        return d
+
     def sql(self, eol='\n'):
         """Create an sql create table command for this table."""
         table_def = "CREATE TABLE {} ({}".format(self.name, eol)
@@ -119,12 +128,15 @@ class Index: # pylint: disable=too-few-public-methods
 
 class Column: # pylint: disable=too-few-public-methods
     """Base class for table columns."""
-    __slots__ = ('allow_nulls', 'column_type', 'is_primary_key', 'name')
+    __slots__ = ('allow_nulls', 'column_type', 'default_value',
+                 'is_primary_key', 'name')
 
-    def __init__(self, name, column_type, allow_nulls=False):
+    def __init__(self, name, column_type,
+                 allow_nulls=False, default_value=None):
         self.name = name
         self.column_type = column_type
         self.allow_nulls = allow_nulls
+        self.default_value = default_value
         self.is_primary_key = False
 
     def sql(self):
@@ -134,20 +146,28 @@ class Column: # pylint: disable=too-few-public-methods
             col_def += ' NOT NULL'
         if self.is_primary_key:
             col_def += ' PRIMARY KEY'
+        if self.default_value is not None:
+            col_def += ' DEFAULT '
+            if isinstance(self.default_value, numbers.Number):
+                col_def += str(self.default_value)
+            else:
+                col_def += "'" + self.default_value + "'"
         return col_def
 
 class Number(Column): # pylint: disable=too-few-public-methods
     """Numeric column class."""
     __slots__ = ()
 
-    def __init__(self, name, allow_nulls=False):
+    def __init__(self, name, allow_nulls=False, default_value=None):
         # sqlite recognize int as an alias for INTEGER but
         # not for the aliasing of rowid.
-        super().__init__(name, 'INTEGER', allow_nulls=allow_nulls)
+        super().__init__(name, 'INTEGER', allow_nulls=allow_nulls,
+                         default_value=default_value)
 
 class Text(Column): # pylint: disable=too-few-public-methods
     """Text column class."""
     __slots__ = ('allow_nulls',)
 
-    def __init__(self, name, allow_nulls=False):
-        super().__init__(name, 'TEXT', allow_nulls=allow_nulls)
+    def __init__(self, name, allow_nulls=False, default_value=None):
+        super().__init__(name, 'TEXT', allow_nulls=allow_nulls,
+                         default_value=default_value)
