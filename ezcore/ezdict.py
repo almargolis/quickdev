@@ -147,14 +147,14 @@ class EzDict():
             ExeController=None,
             is_case_sensitive=False,
             is_hierarchy=True,
-            hierarchy_separator=None,
+            HierarchySeparator=None,
             Name=None):
         self.exeController = ExeController
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
         self._source_file_path = None
-        self._hierarchy_separator = hierarchy_separator
+        self._hierarchy_separator = HierarchySeparator
         self._isCaseSensitive = is_case_sensitive
         self._is_directory = False
         self._name = Name
@@ -310,16 +310,16 @@ class EzDict():
 
     def ConfigureAsHierarchy(
             self,
-            HierarchySeperator='.'):
+            hierarchy_separator='.'):
         if self._hierarchy_separator is None:
-            self._hierarchy_separator = hierarchy_separator
+            self._hierarchy_separator = HierarchySeparator
 
-    def MakeChildTuple(self, parmKey, hierarchy_separator=None):
+    def MakeChildTuple(self, parmKey, HierarchySeparator=None):
         wsValue = self.__class__(Name=parmKey)
         self.AppendDatum(
             parmKey,
             wsValue,
-            hierarchy_separator=hierarchy_separator)
+            HierarchySeparator=HierarchySeparator)
         return wsValue
 
     @property

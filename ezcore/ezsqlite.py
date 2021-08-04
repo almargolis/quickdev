@@ -100,6 +100,8 @@ class EzSqlite:
         self.detailed_exceptions = detailed_exceptions
         self.debug = debug
         self.db_conn = sqlite3.connect(path)
+        if self.debug > 0:
+            self.db_conn.set_trace_callback(print)
         self.db_conn.row_factory = sqlite3.Row
         self.db_cursor = self.db_conn.cursor()
         self.db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -161,6 +163,15 @@ class EzSqlite:
         self.db_conn.commit()
 
     def lookup(self, table, flds='*', where=None):
+        select = self.select(table, flds=flds, where=where)
+        if len(select) > 1:
+            raise KeyError('duplicate "{}" found in table {}'.format(where, table))
+        if len(select) == 1:
+            return select[0]
+        else:
+            return None
+
+    def require(self, table, flds='*', where=None):
         select = self.select(table, flds=flds, where=where)
         if len(select) != 1:
             raise KeyError('"{}" not found in table {}'.format(where, table))

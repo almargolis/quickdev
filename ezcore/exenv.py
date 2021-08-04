@@ -21,7 +21,13 @@ import pwd
 import sys
 
 from ezcore import cli
-from ezcore import ezsite
+
+try:
+    from ezcore import ezsite
+except SyntaxError:
+    # exenv must always be importable because it is used
+    # by xsynth. ezsite capabiliites are not required.
+    ezsite = None
 
 #
 # Command line flags commonly used by EzDev utilities.
@@ -217,7 +223,10 @@ class ExecutionEnvironment():
         self.ezdev_dir = '/etc/ezdev'
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
-        self.execution_site = ezsite.EzSite()
+        if ezsite is None:
+            self.execution_site = None
+        else:
+            self.execution_site = ezsite.EzSite()
         self.main_module_name = None            # file name of python module running
         self.main_module_object = None          # imported object of this module
         self.main_module_package = None         # package object containing this module

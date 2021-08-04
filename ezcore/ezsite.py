@@ -11,13 +11,40 @@ CONF_ETC_ORG = 'etc_org'
 
 CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
 
-def identify_cwd_site():
+def identify_site(site=None):
     """
-    Returns site name if the current working directory is the
-    root of a site. Otherwise returns None
+    Returns EzSite() object if a site can be identified using the site
+    parameter or the current working directory.
     """
-    cwd = os.path.cwd()
+    cwd = os.getcwd()
     return None
+
+class hold():
+    def init_ezdev(self, args):
+        if ezconst is None:
+            print('EzDev not inintialied. Run {}. (E1)'.format(ezstart.EZSTART_PATH))
+            return False
+
+        self.conf_dir_path = os.path.join(self.base_dir,
+                                                  ezconst.SITE_CONF_DIR_NAME)
+        self.project_db_path = os.path.join(self.conf_dir_path,
+                                            ezconst.PROJECT_DB_FN)
+        if not os.path.isdir(self.conf_dir_path):
+            print('EzDev not inintialied. Run {}. (E2)'.format(ezstart.EZSTART_PATH))
+            return False
+        if not self.load_conf():
+            print('XSynth source files not processed.')
+            return False
+        return True
+
+    def load_conf(self):
+        self.conf_info = inifile.read_ini_directory(dir=self.conf_dir_path,
+                                                    ext=ezconst.CONF_EXT)
+        if self.conf_info is None:
+            return False
+        self.sources = self.conf_info['site.sources']
+        return True
+
 
 class EzSite():
     """
@@ -48,3 +75,7 @@ class EzSite():
 
     def write_site_ini(self):
         inifile.write_ini_file(source=self.ini_info, path=self.ini_path)
+
+    @property
+    def synthesis_db_path(self):
+        return None

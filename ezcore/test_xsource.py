@@ -20,9 +20,13 @@ def test_xsource_action(tmpdir):
     db = ezsqlite.EzSqlite(db_path, db_dict=xsource.xdb_dict, debug=0)
     assert db is not None
     print(db_path)
-    x = xsource.XSource('test', dir_path=tmpdir, db=db, source_lines=test_data.example_x)
-    print(x.output_file_path)
-    with open(x.output_file_path) as outf:
+    x = xsource.XSource('test', db=db,
+                        source_ext='.xpy',
+                        source_lines=test_data.example_x,
+                        target_dir=tmpdir
+                        )
+    print(x.target_path)
+    with open(x.target_path) as outf:
         out_lines = outf.readlines()
     for ix, this_line in enumerate(out_lines):
         if this_line[-1] == '\n':

@@ -160,7 +160,7 @@ class EzDict():
         self._name = Name
         if is_hierarchy:
             if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
-                self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = $'ezconst.hierarchy_separator$
+                self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = $'ezconst.HIERARCHY_SEPARATOR_CHARACTER$
         self.Clear()
 #  __lt__, __gt__, __le__, __ge__, __eq__, and __ne__
     def __eq__(self, other):
@@ -310,7 +310,7 @@ class EzDict():
 
     def ConfigureAsHierarchy(
             self,
-            hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR$):
+            hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$):
         if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
             self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = HierarchySeparator
 
