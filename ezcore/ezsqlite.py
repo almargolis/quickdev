@@ -162,6 +162,13 @@ class EzSqlite:
         self.execute(sql, tuple(flds_values))
         self.db_conn.commit()
 
+    def insert_unique(self, table, flds, where):
+        """Perform SQL insert command if no existing records satisfy where."""
+        select = self.select(table, '*', where=where)
+        if len(select) > 0:
+            raise KeyError('duplicate "{}" found in table {}'.format(where, table))
+        self.insert(table, flds)
+
     def lookup(self, table, flds='*', where=None):
         select = self.select(table, flds=flds, where=where)
         if len(select) > 1:

@@ -8,7 +8,7 @@ use XPython features.
 """
 
 import numbers
- 
+
 class DbDict:
     """
     Database dictionary primarily for use with sqlite_ez.
@@ -63,15 +63,10 @@ class DbTableDict:
     def add_index(self, name, columns, is_unique=True):
         """
             Add an index to the table.
-
-            columns can be either a single column name or a list of
-            column names.
         """
         if name in self.indexes:
             raise Exception("Duplicate index name '{}' in table '{}'".format(
                                 name, self.name))
-        if not isinstance(columns, list):
-            columns = [columns]
         index = Index(name, columns, self, is_unique=is_unique)
         self.indexes[name] = index
         return index
@@ -96,13 +91,21 @@ class DbTableDict:
         return table_def
 
 class Index: # pylint: disable=too-few-public-methods
-    """Represents an index for a table."""
+    """
+    Represents an index for a table.
+    """
     __slots__ = ('name', 'columns', 'is_unique', 'table_dict')
 
     def __init__(self, name, columns, table_dict, is_unique=True):
+        """
+        columns can be either a single column name or a list of
+        column names.
+        """
         self.name = name
         self.columns = []
         self.table_dict = table_dict
+        if not isinstance(columns, (list, tuple)):
+            columns = (columns,)
         for this in columns:
             if this not in table_dict.columns:
                 raise Exception("Invalid index column '{}' for index {}.{}".format(

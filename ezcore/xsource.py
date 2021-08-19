@@ -44,15 +44,18 @@ XDB_ACTIONS = 'actions'
 XDB_CLASSES = 'classes'
 XDB_DEFINES = 'defines'
 XDB_DEFS = 'defs'
+XDB_DICTS = 'dicts'
+XDB_DICT_ELEMENTS = 'dict_elements'
 XDB_MODULES = 'modules'
 XDB_MODULE_USES = 'module_uses'
 XDB_PROGS = 'progs'
 XDB_FILES = 'files'
 XDB_DIRS = 'dirs'
 
-XSOURCE_TARGET_EXT = ['.js', '.py']
+XSOURCE_TARGET_EXT = ['.html', '.js', '.py']
 XSOURCE_SOURCE_EXT = ['.x'+e[1:] for e in XSOURCE_TARGET_EXT]
-RESERVED_MODULE_NAMES = ['xlocal']
+PSUEDO_MODULE_QDICT = 'qdict'
+RESERVED_MODULE_NAMES = ['xlocal', PSUEDO_MODULE_QDICT]
 
 xdb_dict = pdict.DbDict()
 
@@ -133,6 +136,21 @@ d.add_column(pdict.Text('prog_type'))
 d.add_column(pdict.Text('action_name'))
 d.add_column(pdict.Text('trigger_name'))
 d.add_index('ix_progs', 'prog_name')
+
+# XDB_DICTS contains one entry for each project dictionary.
+d = xdb_dict.add_table(pdict.DbTableDict(XDB_DICTS))
+d.add_column(pdict.Text('module_name'))
+d.add_column(pdict.Text('dict_name'))
+d.add_index('ix_dict_names', 'dict_name')
+
+# XDB_DICT_ELEMENTS contains one entry for each dictionary element`.
+d = xdb_dict.add_table(pdict.DbTableDict(XDB_DICT_ELEMENTS))
+d.add_column(pdict.Text('module_name'))
+d.add_column(pdict.Text('dict_name'))
+d.add_column(pdict.Text('element_name'))
+d.add_column(pdict.Text('ptype'))
+d.add_index('ix_element_names', ('dict_name', 'element_name'))
+
 
 class FileInfo:  # pylint: disable=too-few-public-methods
     """
@@ -312,6 +330,29 @@ class PythonParse:
             self.new_def(lex)
             return
 
+class CodeBlock:
+    __slots__ = ('block_type', 'block_name',
+                 'dictionary_name', 'dictionary_data',
+                 'loop_flags','loop_items',
+                 'loop_ix','loop_variable', 'xsource')
+    def __init__(self, xsource, block_type):
+        self.block_type = block_type
+        self.block_name = None
+        self.dictionary_name = None
+        self.dictionary_data = None
+        self.loop_flags = None
+        self.loop_items = None
+        self.loop_ix = None
+        self.loop_variable = None
+        self.xsource = None
+
+    def initialize_loop(self):
+        self.dictionary_data = self.xsource.db.require(XDB_DICTS,
+                               where={'dict_name': self.dictionary_name})
+        self.loop_items = self.xsource.db.select(XDB_DICT_ELEMENTS,
+                               where={'dict_name': self.dictionary_name})
+        self.loop_ix = 0
+
 class XSource:
     """
     Class to process one XSynth source file.
@@ -331,7 +372,8 @@ class XSource:
     including the dot (ex: .py).
 
     """
-    __slots__ = ('built_ins', 'db', 'debug', 'defines_only', 'dir_path',
+    __slots__ = ('blocks', 'built_ins',
+                 'db', 'debug', 'defines_only', 'dir_path',
                  'err_ct', 'lex', 'module_name',
                  'python_parser',
                  'source_ext', 'source_line_ct', 'source_path',
@@ -346,6 +388,7 @@ class XSource:
             print("XSource: {} {} '{}' {} '{}'".format(module_name,
                                                source_path, source_ext,
                                                target_path, target_ext))
+        self.blocks = []
         self.built_ins = {}
         self.lex = simplelex.SimpleLex()
         self.module_name = module_name
@@ -389,6 +432,12 @@ class XSource:
             else:
                 if self.defines_only: pass
                 else: self.xsynth_python(this_line)
+        while len(self.blocks) > 0:
+            this = self.blocks.pop()
+            err_msg = "Missing 'end' for {} block".format(this.block_type)
+            if this.block_name is not None:
+                err_msg += ' ' + this.block_name
+            self.syntax_error(err_msg)
         if self.err_ct == 0:
             status = MODULE_STATUS_SYNTHESIZED
         else:
@@ -452,10 +501,57 @@ class XSource:
                              module_data['status'], module_name
             ))
 
+    def xsynth_lookup_qdict(self, parts):
+        try:
+            sql_data = self.db.select(XDB_DICT_ELEMENTS, where={'dict_name': parts[1]})
+        except KeyError:
+            self.syntax_error('Unknown dictionary {}'.format(parts[1]))
+            return None
+        # If the qdict were a real object, parts[2] would be a property.
+        # If this gets too long, making it an object is the solution.
+        ix = parts[2].find('(')
+        if ix < 0:
+            property = parts[2]
+            parms = []
+        else:
+            if parts[2][-1] != ')':
+                self.syntax_error("Missing ')'")
+                return
+            property = parts[2][:ix]
+            parm_str = parts[2][ix+1:-1]
+            parm_parts = [p.strip() for p in parm_str.split(',')]
+            parms = []
+            for this in parm_parts:
+                # This puts values into parms. At this point
+                # it just removes quotes. At some point it may
+                # obtain values of symbols.
+                if this[0] in ['"', "'"]:
+                    parms.append(this[1:-1])
+        if property == 'as_comma_list':
+            flds = []
+            for this in sql_data:
+                flds.append(this['element_name'])
+            return ', '.join(flds)
+        elif property == 'as_subst_list':
+            flds = ['%s' for x in range(len(sql_data))]
+            return ', '.join(flds)
+        elif property == 'as_dict_extract_list':
+            flds = []
+            for this in sql_data:
+                fld_str = "{}['{}']".format(parms[0], this['element_name'])
+                if this['ptype'] == 'int':
+                    fld_str = 'int(' + fld_str + ')'
+                flds.append(fld_str)
+            return ', '.join(flds)
+        self.syntax_error("Unknown qdict property {}".format(property))
+        return None
+
     def xsynth_lookup_subst(self, key):
         if key in self.built_ins:
             return self.built_ins[key]
         parts = key.split('.')
+        if parts[0] == PSUEDO_MODULE_QDICT:
+            return self.xsynth_lookup_qdict(parts)
         if len(parts) == 1:
             fld_values = {
                 'module_name': self.module_name,
@@ -518,50 +614,139 @@ class XSource:
         self.err_ct += 1
         print("{} Line {}: {}".format(self.module_name, self.source_line_ct, msg))
 
+    def xsynth_action(self, parts):
+        if len(parts) < 2:
+            self.syntax_error('Missing action_name')
+            return
+        if len(parts) < 3:
+            self.syntax_error('Missing action_type')
+            return
+        fld_values = {
+            'module_name': self.module_name,
+            'action_name': parts[1],
+            'action_type': parts[2]
+        }
+        self.db.insert(XDB_ACTIONS, fld_values)
+        self.xsynth_python('class {}({}):'.format(parts[1], parts[2]))
+        self.xsynth_python('    def __init__(self):')
+        self.xsynth_python('        super().__init__()')
+        return
+
+    def xsynth_define(self, parts):
+        if parts[1] in RESERVED_MODULE_NAMES:
+            # Using these module names as define variable names
+            # potentially results in ambiguous syntax.
+            # It's probably never helpful so its not allowed.
+            self.syntax_error('Reserved define name {}'.format(parts[1]))
+            return
+        where_values = {
+            'module_name': self.module_name,
+            'define_name': parts[1]
+        }
+        fld_values = {
+            'module_name': self.module_name,
+            'define_name': parts[1],
+            'value': parts[2]
+        }
+        try:
+            self.db.insert_unique(XDB_DEFINES, fld_values, where=where_values)
+        except KeyError:
+            self.syntax_error('Duplicate define {}'.format(parts[1]))
+
+    def xsynth_dict(self, parts):
+        where_values = {
+            'dict_name': parts[1]
+        }
+        fld_values = {
+            'module_name': self.module_name,
+            'dict_name': parts[1],
+        }
+        try:
+            self.db.insert_unique(XDB_DICTS, fld_values, where=where_values)
+        except KeyError:
+            self.syntax_error('Duplicate dict {}'.format(parts[1]))
+        block = CodeBlock(self, 'dict')
+        block.block_name = parts[1]
+        self.blocks.append(block)
+
+    def xsynth_element(self, parts):
+        if (len(self.blocks) < 1) or (self.blocks[-1].block_type != 'dict'):
+            self.syntax_error("XSynth directive 'element' outside of 'dict'")
+            return
+        where_values = {
+            'dict_name': self.blocks[-1].block_name,
+            'element_name': parts[1]
+        }
+        fld_values = {
+            'module_name': self.module_name,
+            'dict_name': self.blocks[-1].block_name,
+            'element_name': parts[1],
+        }
+        for this in parts[2:]:
+            parm = this.split('=')
+            fld_values[parm[0]] = parm[1]
+        try:
+            self.db.insert_unique(XDB_DICT_ELEMENTS, fld_values, where=where_values)
+        except KeyError:
+            self.syntax_error('Duplicate dict element {}'.format(parts[1]))
+
+    def xsynth_end(self, parts):
+        if (len(self.blocks) > 0) and (self.blocks[-1].block_type == parts[1]):
+            # this might need clean-up code. maybe a method of the block.
+            self.blocks.pop()
+            return
+        self.syntax_error("Unmatched 'end' directive.")
+
+    def xsynth_for(self, parts):
+        """
+        for x in dict[flag]
+        """
+        block = CodeBlock(self, 'for')
+        block.loop_variable = parts[1]
+        if parts[2] != 'in':
+            self.syntax_error("missing keyword 'in'")
+            return
+        open_bracket_ix = parts[3].find('[')
+        if open_bracket_ix < 0:
+            self.dictionary_name = parts[3]
+            self.loop_flags = None
+        else:
+            if parts[3][-1] != ']':
+                self.syntax_error("missing closing bracket ']'")
+                return
+            self.dictionary_name = parts[3][:open_bracket_ix]
+            self.loop_flags = parts[3][open_bracket_ix+1:-1]
+        block.initialize_loop()
+        self.blocks.append(block)
+        return
+
+    def xsynth_prog(self, parts):
+        fld_values = {
+            'prog_name': parts[1],
+            'prog_type': 'p',
+            'action_name': parts[2],
+            'trigger_name': parts[3]
+        }
+        self.db.insert(XDB_PROGS, fld_values)
+        return
+
     def xsynth_parse(self, src_line):
         """Parse and process an XSynth directive line."""
         parts = [x.strip() for x in src_line.split()]
-        print(parts)
+        if self.debug > 0:
+            print('xsynth_parse:', parts)
         if len(parts) < 1:
             return
         if parts[0] == 'define':
-            fld_values = {
-                'module_name': self.module_name,
-                'define_name': parts[1],
-            }
-            sql_data = self.db.select(XDB_DEFINES, '*', where=fld_values)
-            if len(sql_data) > 0:
-                self.syntax_error('Duplicate define {}'.format(parts[1]))
-                return
-            fld_values['value'] = parts[2]
-            self.db.insert(XDB_DEFINES, fld_values)
+            self.xsynth_define(parts)
             return
         if self.defines_only:
             self.syntax_error('Output command in defines-only module')
             return
-        if parts[0] == 'action':
-            if len(parts) < 2:
-                self.syntax_error('Missing action_name')
-                return
-            if len(parts) < 3:
-                self.syntax_error('Missing action_type')
-                return
-            fld_values = {
-                'module_name': self.module_name,
-                'action_name': parts[1],
-                'action_type': parts[2]
-            }
-            self.db.insert(XDB_ACTIONS, fld_values)
-            self.xsynth_python('class {}({}):'.format(parts[1], parts[2]))
-            self.xsynth_python('    def __init__(self):')
-            self.xsynth_python('        super().__init__()')
-            return
-        if parts[0] == 'prog':
-            fld_values = {
-                'prog_name': parts[1],
-                'prog_type': 'p',
-                'action_name': parts[2],
-                'trigger_name': parts[3]
-            }
-            self.db.insert(XDB_PROGS, fld_values)
-            return
+        if parts[0] == 'action': self.xsynth_action(parts)
+        elif parts[0] == 'dict': self.xsynth_dict(parts)
+        elif parts[0] == 'element': self.xsynth_element(parts)
+        elif parts[0]  == 'end': self.xsynth_end(parts)
+        elif parts[0]  == 'for': self.xsynth_for(parts)
+        elif parts[0] == 'prog': self.xsynth_prog(parts)
+        else: self.syntax_error("Unknown XSynth directive '{}'".format(parts[0]))
