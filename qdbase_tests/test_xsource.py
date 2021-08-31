@@ -1,5 +1,5 @@
-from ezcore import ezsqlite
-from ezcore import xsource
+import qdbase.qdsqlite as qdsqlite
+import qdbase.xsource as xsource
 
 ex1_src = []
 ex1_src.append("#$ dict sample")
@@ -51,7 +51,7 @@ def test_xsource_action(tmpdir):
 
 def run_and_test(tmpdir, test_src, expected_out):
     db_path = tmpdir.join("db.sql")
-    db = ezsqlite.EzSqlite(db_path, db_dict=xsource.xdb_dict, debug=0)
+    db = qdsqlite.QdSqlite(db_path, db_dict=xsource.xdb_dict, debug=0)
     assert db is not None
     print(db_path)
     x = xsource.XSource('test', db=db,

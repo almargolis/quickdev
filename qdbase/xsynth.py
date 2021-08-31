@@ -15,22 +15,22 @@ import os
 import stat
 import sys
 
-# These paths and the ezcore import exception logic below are
-# required for when xpython is run before ezstart has
+# These paths and the qdcore import exception logic below are
+# required for when xpython is run before qdstart has
 # has configured the python virtual environment.
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
 EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
 EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
-EZCORE_PATH = os.path.join(EZDEV_PATH, 'ezcore')
+EZCORE_PATH = os.path.join(EZDEV_PATH, 'qdcore')
 IGNORE_FILE_NAMES = ['.DS_Store']
 IGNORE_FILE_EXTENSIONS = ['pyc']
 IGNORE_DIRECTORY_NAMES = ['.git', '.pytest_cache', '__pycache__']
 IGNORE_DIRECTORY_EXTENSIONS = ['venv']
 
 """
-The first import from ezcore has exception processing in
-case ezcore is not yet in the python package search path.
+The first import from qdcore has exception processing in
+case qdcore is not yet in the python package search path.
 This is a bootstrap issue initializing an EZDev application
 before the virtual environment has been fully configured.
 
@@ -40,28 +40,31 @@ being fully configured.
 """
 
 BOOTSTRAP_MODE = False
+
+from . import qdsqlite
+"""
 try:
-    from ezcore import ezsqlite
+    from qdcore import qdsqlite
 except ModuleNotFoundError:
-    ezsqlite = None
-if ezsqlite is None:
+    qdsqlite = None
+if qdsqlite is None:
     sys.path.append(EZCORE_PATH)
-    from ezcore import ezsqlite
-
-from ezcore import cli
-from ezcore import exenv
-from ezcore import xsource
+    from qdcore import qdsqlite
+"""
+from . import cli
+from . import exenv
+from . import xsource
 
 try:
-    from ezcore import ezconst
-    from ezcore import ezsite
-    from ezcore import inifile
+    from qdcore import qdconst
+    from qdcore import qdsite
+    from qdcore import inifile
 except (ModuleNotFoundError, SyntaxError):
     # May not be found because its an xpy that might not
     # have been gen'd.
     BOOTSTRAP_MODE = True
-    ezconst = None
-    ezsite = None
+    qdconst = None
+    qdsite = None
     inifile = None
 
 #
@@ -100,7 +103,7 @@ class XSynth:
         if BOOTSTRAP_MODE or no_site:
             self.site = None
         else:
-            self.site = ezsite.identify_site(site)
+            self.site = qdsite.identify_site(site)
         #
         # Open synthesis database
         #
@@ -112,7 +115,7 @@ class XSynth:
 
             self.synthesis_db_path = os.path.abspath(db_location)
         elif no_site:
-            self.synthesis_db_path = ezsqlite.SQLITE_IN_MEMORY_FN
+            self.synthesis_db_path = qdsqlite.SQLITE_IN_MEMORY_FN
         else:
             self.synthesis_db_path = site.synthesis_db_path
         db_debug = self.debug
@@ -183,7 +186,7 @@ class XSynth:
                 {'status': xsource.MODULE_STATUS_SYNTHESIZED},
                 where={'module_type': 'MODULE_TYPE_SYNTH',
                 'target_modification_time':
-                ('>', ezsqlite.AttributeName('source_modification_time'))})
+                ('>', qdsqlite.AttributeName('source_modification_time'))})
 
     def scan_directory(self, search_dir, recursive=False):
         """
@@ -246,16 +249,16 @@ def synth_site(site=None, db_location=None, no_site=None, sources=None,
 
 if __name__ == '__main__':
     """
-    XSynth can operate in either ezdev or stand-alone mode.
+    XSynth can operate in either qddev or stand-alone mode.
 
     If -n is specified, xsynth operates in stand-alone mode, not looking for
-    an ezdev site configuration and using a temporary xsynth database.
+    an qddev site configuration and using a temporary xsynth database.
 
-    If -s is specified, xsynth processes that ezdev site, regardless of the current
+    If -s is specified, xsynth processes that qddev site, regardless of the current
     working directory (cwd).
 
-    If neither is specified, xsynth checks if the cwd seems to be an ezdev site.
-    If so, it processes that ezdev site as if it were specified with -s.
+    If neither is specified, xsynth checks if the cwd seems to be an qddev site.
+    If so, it processes that qddev site as if it were specified with -s.
     If not, it behaves as if -n was specified.
 
     If no file list is provided, xsynth processes either the entire site (-s mode)

@@ -1,5 +1,5 @@
 import sys
-from . import cli
+import qdbase.cli as cli
 
 SOME_FILE_NAMES = ['file1', 'dir1/', 'something_else']
 

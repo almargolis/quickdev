@@ -12,9 +12,9 @@ import sqlite3
 import stat
 import sys
 
-from ezcore import ezsqlite
-from ezcore import pdict
-from ezcore import simplelex
+from . import qdsqlite
+from . import pdict
+from . import simplelex
 
 
 """
@@ -187,12 +187,12 @@ def abend(msg):
     sys.exit(-1)
 
 def open_xdb(db_path, db_reset=False, debug=0):
-    if db_reset and (db_path != ezsqlite.SQLITE_IN_MEMORY_FN):
+    if db_reset and (db_path != qdsqlite.SQLITE_IN_MEMORY_FN):
         try:
             os.unlink(db_path)
         except FileNotFoundError:
             pass
-    return ezsqlite.EzSqlite(db_path,
+    return qdsqlite.QdSqlite(db_path,
                              db_dict=xdb_dict,
                              detailed_exceptions=True,
                              debug=debug)

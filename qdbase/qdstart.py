@@ -1,58 +1,70 @@
 #!python
 """
-    Create, repair or update the configuration of an EzDev site.
+    Create, repair or update the configuration of an QuickDev site.
 
-    The EzDev system uses EzDev features, which creates a
-    bootstraping challenge for EzDev development.
-    This impacts EzDev core developers, not application
-    developers using EzDev.
-    *XPython has a stand-alone mode which can be used to
-     translate the ezutils directory without any pre-configuration.
-     It only uses non-xpy modules and only EzDev modules which are
-     in the ezutils directory.
-    *EzStart for an EzDev core development site may run before
+    The QuickDev system uses QuickDev features, which creates a
+    bootstraping challenge for QuickDev development.
+    This impacts QuickDev core developers, not application
+    developers using QuickDev.
+    *XSynth has a stand-alone mode which can be used to
+     translate the qdutils directory without any pre-configuration.
+     It only uses non-xpy modules and only QuickDev modules which are
+     in the qdutils directory.
+    *QdStart for an QuickDev core development site may run before
      the virtual environment has been established. It has code
      to locate required packages if not visible.
 
 """
 
-import argparse
 import os
 import subprocess
 import sys
 
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
-EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
-EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
-EZCORE_DIR_NAME = 'ezcore'
-EZCORE_PATH = os.path.join(EZDEV_PATH, EZCORE_DIR_NAME)
-EZSTART_PATH = os.path.join(EZUTILS_PATH, 'ezstart.py')
+QDBASE_PATH = os.path.dirname(THIS_MODULE_PATH)
+QDDEV_PATH = os.path.dirname(QDBASE_PATH)
+QDBASE_DIR_NAME = 'qdbase'
+QDBASE_PATH = os.path.join(QDDEV_PATH, QDBASE_DIR_NAME)
+QDSTART_PATH = os.path.join(QDBASE_PATH, 'qdstart.py')
 
 try:
-    from ezcore import ezconst
+    from qdbase import qdconst
 except ModuleNotFoundError:
-    ezconst = None
-if ezconst is None:
-    sys.path.append(EZDEV_PATH)
-    from ezcore import ezconst
+    qdconst = None
+if qdconst is None:
+    sys.path.append(QDDEV_PATH)
+    from qdbase import qdconst
 
-from ezcore import cli
-from ezcore import inifile
-from ezcore import ezsite
+from qdbase import cli
+from qdbase import inifile
+from qdbase import qdsite
 
-class EzStart():
-    """Create or repair an EzDev site. """
+def check_directory(name, path, quiet=False):
+    """Create a directory if it doesn't exist. """
+    if os.path.exists(path):
+        if not os.path.isdir(path):
+            self.error("'{}' is not a directory.".format(path))
+            return False
+    else:
+        if cli.cli_input_yn("Create directory '{}'?".format(path)):
+            os.mkdir(path)
+        else:
+            return False
+    if not quiet:
+        print("{} directory: {}.".format(name, path))
+    return True
+
+
+class QdStart():
+    """Create or repair an QuickDev site. """
     __slots__ = ('conf_path',
-                 'err_ct', 'ezdev_path', 'ezutils_path',
+                 'err_ct',
                  'quiet', 'site_info')
 
     def __init__(self, args):
-        module_path = os.path.abspath(__file__)
         self.err_ct = 0
-        self.ezutils_path = os.path.dirname(module_path)
-        self.ezdev_path = os.path.dirname(self.ezutils_path)
-        self.site_info = ezsite.EzSite(site_path=args.site_path)
+        self.site_info = qdsite.EzSite(site_path=args.site_path)
         self.quiet = args.quiet
         if not self.check_site_path():
             return
@@ -66,32 +78,17 @@ class EzStart():
             return
         self.site_info.write_site_ini()
 
-    def check_directory(self, name, path):
-        """Create a directory if it doesn't exist. """
-        if os.path.exists(path):
-            if not os.path.isdir(path):
-                self.error("'{}' is not a directory.".format(path))
-                return False
-        else:
-            if cli.cli_input_yn("Create directory '{}'?".format(path)):
-                os.mkdir(path)
-            else:
-                return False
-        if not self.quiet:
-            print("{} directory: {}.".format(name, path))
-        return True
-
     def check_site_path(self):
         """Create site directory if it doesn't exist. """
-        return self.check_directory('Site', self.site_info.site_path)
+        return check_directory('Site', self.site_info.site_path, quiet=self.quiet)
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        if not self.check_directory('Conf', self.site_info.conf_path):
+        if not check_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
             return False
-        for this in ezsite.CONF_SUBDIRECTORIES:
+        for this in qdsite.CONF_SUBDIRECTORIES:
             this_path = os.path.join(self.site_info.conf_path, this)
-            if not self.check_directory('Conf', this_path):
+            if not check_directory('Conf', this_path, quiet=self.quiet):
                 return False
         return True
 
@@ -145,9 +142,9 @@ class EzStart():
             self.error("{} is not a valid venv.".format(venv_path))
             return False
         packages_path = os.path.join(lib_path, python_lib, 'site-packages')
-        ezcore_path = os.path.join(packages_path, EZCORE_DIR_NAME)
-        if not os.path.islink(ezcore_path):
-            os.symlink(EZCORE_PATH, ezcore_path)
+        qdbase_path = os.path.join(packages_path, QDBASE_DIR_NAME)
+        if not os.path.islink(qdbase_path):
+            os.symlink(QDBASE_PATH, qdbase_path)
         return True
 
     def error(self, msg):
@@ -156,15 +153,18 @@ class EzStart():
         print(msg)
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('site_path',
-                            action='store',
-                            nargs='?',
-                            default=None,
-                            help='Path of site root directory.')
-    arg_parser.add_argument('-q',
-                            action='store_true',
-                            dest='quiet',
-                            help='Display as few messages as possible.')
-    run_args = arg_parser.parse_args()
-    ez = EzStart(run_args)
+    menu = cli.CliCommandLine()
+    exenv.command_line_site(menu)
+    exenv.command_line_loc(menu)
+    exenv.command_line_no_conf(menu)
+    exenv.command_line_quiet(menu)
+    exenv.command_line_verbose(menu)
+
+    m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
+                                                   synth_site,
+                                                   help="Synthesize directory."))
+    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='no_site',
+                                                    default_value=False,
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
+                                                    is_positional=False))

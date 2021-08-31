@@ -85,7 +85,7 @@ def row_repr(row):
         result += '{}{}: {}'.format(sep, key, value)
     return '{' + result + '}'
 
-class EzSqlite:
+class QdSqlite:
     """
     Sqlite3 api with dictionary support and python methods
     that create all sql.

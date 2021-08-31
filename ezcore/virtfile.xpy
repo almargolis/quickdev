@@ -401,7 +401,7 @@ class VirtFile(object):
         self.swap_output_file.close()
         if abandon:
             os.unlink(self.swap_output_file.path)
-            self.swap_output_file = None
+            self.swap_output_file = None    
             return
         if self.make_backup:
             backup_file_path = utils.ChangeFileNameExtension(self.driver.path, 'bak')

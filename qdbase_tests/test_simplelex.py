@@ -1,4 +1,4 @@
-from ezcore import simplelex
+import qdbase.simplelex as simplelex
 
 def test_lex():
     lex = simplelex.SimpleLex()

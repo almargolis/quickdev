@@ -20,11 +20,11 @@ import os
 import pwd
 import sys
 
-from ezcore import cli
+from . import cli
 
 try:
     from ezcore import ezsite
-except SyntaxError:
+except:
     # exenv must always be importable because it is used
     # by xsynth. ezsite capabiliites are not required.
     ezsite = None

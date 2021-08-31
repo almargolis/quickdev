@@ -1,10 +1,9 @@
 import os
 import stat
 
-import xsynth
-
-from ezcore import xsource
-from ezcore import ezsqlite
+import qdbase.qdsqlite as qdsqlite
+import qdbase.xsource as xsource
+import qdbase.xsynth as xsynth
 
 test_xpy = []
 test_xpy.append("class thing:")
@@ -22,7 +21,7 @@ def print_db_table(db, table_name):
     data = db.select(table_name)
     print("<<< {} {} processed.".format(len(data), table_name))
     for ix, this in enumerate(data):
-        print("{} >>> {}".format(ix, ezsqlite.row_repr(this)))
+        print("{} >>> {}".format(ix, qdsqlite.row_repr(this)))
 
 def set_file_time(older, newer, interval=5):
     older_stats_obj = os.stat(older)
