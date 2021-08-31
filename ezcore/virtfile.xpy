@@ -159,6 +159,11 @@ class VirtFile(object):
     def __repr__(self):
          return '[VirtFile {}:{}]'.format(self.fd, self.path)
 
+    def close(self):
+        if self.swap_output_file is not None:
+            raise Exception("Simple close not supported with swap file")
+        self.safe_close()
+
     def drop(self):
         self.safe_close(abandon=True)
 

@@ -79,16 +79,19 @@ class XSynth:
                     'synthesis_db_path', 'quiet',
                     'site',
                     'sources', 'source_dirs', 'source_files', 'no_site',
+                    'verbose',
                     'xpy_files', 'xpy_files_changed')
 
     def __init__(self, site=None, db_location=None, db_reset=False,
                  scan_all_dirs=True, no_site=False,
                  synth_all=False,
-                 sources=[], quiet=False, debug=0):
-        if debug > 0:
-            print("XSynth(site={}, sources={}, no_site={}, quiet={}, debug={})".format(
-                  site, sources, no_site, quiet, debug))
+                 sources=[], quiet=False, verbose=False, debug=0):
         self.debug = debug
+        self.verbose = verbose
+        if self.debug > 0:
+            self.verbose = True
+            print("XSynth.__init__[start](site={}, sources={}, no_site={}, quiet={}, debug={})".format(
+                  site, sources, no_site, quiet, debug))
         self.no_site = no_site
         self.quiet = quiet
         #
@@ -120,8 +123,9 @@ class XSynth:
         #
         # Handle CLI directory / file list
         #
+        # if self.no_site:
         if sources is None:
-            self.sources = []
+            self.sources = [os.getcwd()]
         else:
             self.sources = sources
         self.source_dirs = []
@@ -132,20 +136,11 @@ class XSynth:
                 self.source_dirs.append(this_path)
             else:
                 self.source_files.append(this_path)
-        if self.no_site:
-            if sources is None:
-                self.sources = [os.getcwd()]
-            else:
-                self.sources = sources
-        else:
-            pass
-            #if not self.init_ezdev(args):
-            #    return
         if scan_all_dirs:
             self.prepare_db_to_scan_all_directories()
         if debug > 0:
-            print("XSynth(site={}, sources={}, no_site={}, quiet={}, debug={})".format(
-                  self.site, self.sources, self.no_site, self.quiet, self.debug))
+            print("XSynth.__init__[end](site={}, dirs={}. sources={}, no_site={}, quiet={}, debug={})".format(
+                  self.site, self.sources, self.no_site, self.source_dirs, self.quiet, self.debug))
         for this in self.source_files:
             xsource.post_files_table(self.db, xsource.FileInfo(this))
         for this in self.source_dirs:
@@ -194,7 +189,7 @@ class XSynth:
         """
         Scan a direcory tree and update the sources database.
         """
-        if self.debug > 0:
+        if self.verbose:
             print("XSynth.scan_directory({}, recursive={}).".format(
                   search_dir, recursive
             ))
@@ -242,7 +237,8 @@ class XSynth:
                             )
 
 
-def synth_site(site=None, db_location=None, no_site=None, sources=None, quiet=False):
+def synth_site(site=None, db_location=None, no_site=None, sources=None,
+               quiet=False, verbose=False):
     XSynth(site=site, db_location=db_location, no_site=no_site, db_reset=True,
            sources=sources, synth_all=True, quiet=quiet, debug=1)
     print("Execution Complete")
@@ -270,6 +266,8 @@ if __name__ == '__main__':
     exenv.command_line_loc(menu)
     exenv.command_line_no_conf(menu)
     exenv.command_line_quiet(menu)
+    exenv.command_line_verbose(menu)
+
     menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
                   help="Specify files or directory to synthesise in stand-alone mode.",
                   value_type=cli.PARAMETER_STRING

@@ -59,6 +59,12 @@ def command_line_site(menu):
                   value_type=cli.PARAMETER_STRING
                   ))
 
+def command_line_verbose(menu):
+    menu.add_item(cli.CliCommandLineParameterItem('v',
+                  help="Display more detailed messages than minimally needed.",
+                  value_type=cli.PARAMETER_BOOLEAN
+                  ))
+
 def command_line_website(menu):
     menu.add_item(cli.CliCommandLineParameterItem('w',
                   help="Specify website to configure.",
@@ -223,10 +229,20 @@ class ExecutionEnvironment():
         self.ezdev_dir = '/etc/ezdev'
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
-        if ezsite is None:
-            self.execution_site = None
-        else:
+        try:
             self.execution_site = ezsite.EzSite()
+        except:
+            """
+            This non-specific except clause silently hides all sorts of
+            errors. This is necessary during bootstrapping because ezsite
+            or one of its imports may have errors that require XSynth for
+            correction. A bug in virtfile.py once stopped XSynth from running
+            but since virtfile.py is synthesised, that had to be handled
+            here to fix the problem. Maybe this should be conditional on
+            the state of the site.
+            """
+            self.execution_site = None
+
         self.main_module_name = None            # file name of python module running
         self.main_module_object = None          # imported object of this module
         self.main_module_package = None         # package object containing this module
