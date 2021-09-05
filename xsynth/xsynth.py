@@ -20,9 +20,7 @@ import sys
 # has configured the python virtual environment.
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
-EZUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
-EZDEV_PATH = os.path.dirname(EZUTILS_PATH)
-EZCORE_PATH = os.path.join(EZDEV_PATH, 'qdcore')
+XSYNTH_DIR = os.path.dirname(THIS_MODULE_PATH)
 IGNORE_FILE_NAMES = ['.DS_Store']
 IGNORE_FILE_EXTENSIONS = ['pyc']
 IGNORE_DIRECTORY_NAMES = ['.git', '.pytest_cache', '__pycache__']
@@ -41,7 +39,7 @@ being fully configured.
 
 BOOTSTRAP_MODE = False
 
-from . import qdsqlite
+import qdbase.qdsqlite as qdsqlite
 """
 try:
     from qdcore import qdsqlite
@@ -51,8 +49,8 @@ if qdsqlite is None:
     sys.path.append(EZCORE_PATH)
     from qdcore import qdsqlite
 """
-from . import cli
-from . import exenv
+import qdbase.cli as cli
+import qdbase.exenv as exenv
 from . import xsource
 
 try:
@@ -107,6 +105,7 @@ class XSynth:
         #
         # Open synthesis database
         #
+        site = exenv.execution_env.execution_site
         self.synthesis_db_path = None
         if db_location is not None:
             if os.path.isdir(db_location):
@@ -114,7 +113,7 @@ class XSynth:
                                            xsource.XDB_DATABASE_FN)
 
             self.synthesis_db_path = os.path.abspath(db_location)
-        elif no_site:
+        elif no_site or (site is None):
             self.synthesis_db_path = qdsqlite.SQLITE_IN_MEMORY_FN
         else:
             self.synthesis_db_path = site.synthesis_db_path
@@ -246,8 +245,7 @@ def synth_site(site=None, db_location=None, no_site=None, sources=None,
            sources=sources, synth_all=True, quiet=quiet, debug=1)
     print("Execution Complete")
 
-
-if __name__ == '__main__':
+def main():
     """
     XSynth can operate in either qddev or stand-alone mode.
 
@@ -295,3 +293,6 @@ if __name__ == '__main__':
 
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()
+
+if __name__ == '__main__':
+    main()

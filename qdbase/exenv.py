@@ -9,10 +9,10 @@
 
     The global execution_env object created at the bottom
     of this module provide a standardized way for an
-    EzDev program to know how it is running and where to
+    QuickDev program to know how it is running and where to
     find things. This module is obviously Python specific.
-    When EzDev is extended to support other languages a
-    similar structure will be created so all EzDev programs
+    When QuickDev is extended to support other languages a
+    similar structure will be created so all QuickDev programs
     can have a similar structure regardless of language.
 """
 
@@ -23,14 +23,14 @@ import sys
 from . import cli
 
 try:
-    from ezcore import ezsite
+    from qdcore import qdsite
 except:
     # exenv must always be importable because it is used
-    # by xsynth. ezsite capabiliites are not required.
-    ezsite = None
+    # by xsynth. qdsite capabiliites are not required.
+    qdsite = None
 
 #
-# Command line flags commonly used by EzDev utilities.
+# Command line flags commonly used by QuickDev utilities.
 # These functions help assure consistency.
 #
 def command_line_loc(menu):
@@ -82,7 +82,7 @@ def make_directory(dir_name):
     return True
 
 #
-# sys.platform recognized by ezdev
+# sys.platform recognized by qddev
 #
 PLATFORM_DARWIN = 'darwin'
 PLATFORM_LINUX = 'linux'
@@ -218,7 +218,7 @@ class ExecutionEnvironment():
     slots = (
                     'debug', 'error_ct',
                     'execution_cwd', 'execution_site', 'execution_user',
-                    'ezdev_dir',
+                    'qddev_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
                     'main_module_path', 'platform',
                     'package_parent_directory', 'python_version'
@@ -226,15 +226,15 @@ class ExecutionEnvironment():
     def __init__(self):
         self.debug = 0                          # mainly used for pytest
         self.error_ct = 0
-        self.ezdev_dir = '/etc/ezdev'
+        self.qddev_dir = '/etc/qddev'
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
         try:
-            self.execution_site = ezsite.EzSite()
+            self.execution_site = qdsite.QdSite()
         except:
             """
             This non-specific except clause silently hides all sorts of
-            errors. This is necessary during bootstrapping because ezsite
+            errors. This is necessary during bootstrapping because qdsite
             or one of its imports may have errors that require XSynth for
             correction. A bug in virtfile.py once stopped XSynth from running
             but since virtfile.py is synthesised, that had to be handled

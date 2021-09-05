@@ -2,8 +2,8 @@ import os
 import stat
 
 import qdbase.qdsqlite as qdsqlite
-import qdbase.xsource as xsource
-import qdbase.xsynth as xsynth
+import xsynth.xsource as xsource
+import xsynth.xsynth as xsynth
 
 test_xpy = []
 test_xpy.append("class thing:")
@@ -59,3 +59,8 @@ def test_xsynth(tmpdir):
         target2_lines = targetf.readlines()
     assert target2_lines[2] == 'thing\n'
     assert target2_lines[3] == 'inner\n'
+
+def test_main(tmpdir):
+    # This makes sure XSynth() initializes, which was failing.
+    xsynth.main()
+

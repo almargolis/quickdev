@@ -1,5 +1,5 @@
 import qdbase.qdsqlite as qdsqlite
-import qdbase.xsource as xsource
+import xsynth.xsource as xsource
 
 ex1_src = []
 ex1_src.append("#$ dict sample")
