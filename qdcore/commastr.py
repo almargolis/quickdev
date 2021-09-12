@@ -19,8 +19,8 @@
 import string
 import sys
 
-from ezcore import ezdict
-from ezcore import utils
+from . import ezdict
+from . import utils
 
 
 def AsList(parmData):

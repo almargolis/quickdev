@@ -36,7 +36,7 @@
 # the minimal number of dependencies and none outside the development
 # directory.
 #
-from ezcore import utils
+from . import utils
 
 def MakeClassTDict_For_EzDict(ExeController=None, InstanceClassName=None):
     from . import bafErTypes
@@ -56,7 +56,7 @@ def MakeClassTDict_For_EzDict(ExeController=None, InstanceClassName=None):
     wsTDict.AddScalarElement('_defaultValue')
     wsTDict.AddScalarElementBoolean('_defaultValueAssigned')
     wsTDict.AddScalarElement('_exportFilePath')
-    wsTDict.AddScalarElement('$ezconst.HIERARCHY_SEPARATOR_ATTR$')
+    wsTDict.AddScalarElement('_hierarchy_separator')
     wsTDict.AddScalarElementBoolean('_isCaseSensitive')
     wsTDict.AddScalarElementReference(
         '_lastElementModified',
@@ -133,9 +133,9 @@ class EzDict():
     """
     __slots__ = ('exeAction', 'exeController',
                  '_data', '_defaultValue', '_defaultValueAssigned',
-                          $'ezconst.SOURCE_FILE_PATH_ATTR$,
-                          $'ezconst.HIERARCHY_SEPARATOR_ATTR$,
-                          $'ezconst.IS_DIRECTORY_ATTR$,
+                          '_source_file_path',
+                          '_hierarchy_separator',
+                          '_is_directory',
                           '_isCaseSensitive',
                           '_lastElementModified', '_name',
                           '_upper_keys'
@@ -153,14 +153,14 @@ class EzDict():
         self.AssignExeAction(ExeAction)
         self._defaultValue = None
         self._defaultValueAssigned = False
-        self.$ezconst.SOURCE_FILE_PATH_ATTR$ = None
-        self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = HierarchySeparator
+        self._source_file_path = None
+        self._hierarchy_separator = HierarchySeparator
         self._isCaseSensitive = is_case_sensitive
-        self.$ezconst.IS_DIRECTORY_ATTR$ = False
+        self._is_directory = False
         self._name = Name
         if is_hierarchy:
-            if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
-                self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = $'ezconst.HIERARCHY_SEPARATOR_CHARACTER$
+            if self._hierarchy_separator is None:
+                self._hierarchy_separator = '.'
         self.Clear()
 #  __lt__, __gt__, __le__, __ge__, __eq__, and __ne__
     def __eq__(self, other):
@@ -194,8 +194,8 @@ class EzDict():
         return key
 
     def __getitem__(self, key, allow_default=True):
-        if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is not None:
-            pos = key.find(self.$ezconst.HIERARCHY_SEPARATOR_ATTR$)
+        if self._hierarchy_separator is not None:
+            pos = key.find(self._hierarchy_separator)
             if pos > 0:
                 local_key = self._translate_key(key[:pos])
                 child_key = key[pos + 1:]
@@ -227,8 +227,8 @@ class EzDict():
         return repr(self._data)
 
     def __setitem__(self, key, value, hierarchy_separator=None):
-        if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is not None:
-            pos = key.find(self.$ezconst.HIERARCHY_SEPARATOR_ATTR$)
+        if self._hierarchy_separator is not None:
+            pos = key.find(self._hierarchy_separator)
             if pos > 0:
                 # Set value further down the tree.
                 local_key = self._translate_key(key[:pos])
@@ -242,9 +242,9 @@ class EzDict():
                 # Since a hierarchy is enabled, treat this as part of the
                 # hierarchy, not as a value that happens to be an EzDict.
                 if hierarchy_separator is not None:
-                    value.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = hierarchy_separator
-                if value.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
-                    value.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = self.$ezconst.HIERARCHY_SEPARATOR_ATTR$
+                    value._hierarchy_separator = hierarchy_separator
+                if value._hierarchy_separator is None:
+                    value._hierarchy_separator = self._hierarchy_separator
                 if value.exeAction is None:
                     value.exeAction = self.exeAction
                 if value.exeController is None:
@@ -310,9 +310,9 @@ class EzDict():
 
     def ConfigureAsHierarchy(
             self,
-            hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$):
-        if self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ is None:
-            self.$ezconst.HIERARCHY_SEPARATOR_ATTR$ = HierarchySeparator
+            hierarchy_separator='.'):
+        if self._hierarchy_separator is None:
+            self._hierarchy_separator = HierarchySeparator
 
     def MakeChildTuple(self, parmKey, HierarchySeparator=None):
         wsValue = self.__class__(Name=parmKey)

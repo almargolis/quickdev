@@ -79,12 +79,11 @@
 # directory.
 #
 
-from ezcore import ertypes
-from ezcore import tupledict
-from ezcore import vcomputer
-from ezcore import ezdict
-
-from ezcore import utils
+from . import ertypes
+from . import tupledict
+from . import vcomputer
+from . import ezdict
+from . import utils
 
 
 def FullyQualifiedName(parmSelf):

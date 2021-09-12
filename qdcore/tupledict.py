@@ -9,11 +9,11 @@ import inspect
 import os
 import types
 
-from ezcore import ertypes
-from ezcore import ezdict
+from . import ertypes
+from . import ezdict
 
-from ezcore import commastr
-from ezcore import utils
+from . import commastr
+from . import utils
 
 #
 # TupleDictionary should probably be descendant from bafDataStoreObject

@@ -89,14 +89,13 @@
 #
 #############################################
 
-import MySQLdb
+import MySQLdb      # from pip install mysqlclient
 import os
 import string
 import sys
 import sqlite3
 from . import datastore
 from . import tupledict
-from . import tupledata
 
 from . import commastr
 from . import ertypes
@@ -384,7 +383,7 @@ class RdbmsTable(datastore.DataStoreObject):
             sql += ' CHARACTER SET ' + character_set
         if collation is not None:
             sql += ' COLLATE ' + collation_name
-         sql += ';'
+        sql += ';'
 
     def add_user(self):
         pass
@@ -406,7 +405,7 @@ class RdbmsTable(datastore.DataStoreObject):
         mysqldump -u{backup_user} -p{backup_password}
         from_db_name table_to_backup > backup_file.sql
         """
-        
+
     #
     # Utf8: Sqlite stores all text as UTF8. MySql has many options. I support ASCII for transitional
     # convenience. In the long run, everything should be stored as UTF8. I might want to use an
@@ -973,13 +972,13 @@ class RdbmsTable(datastore.DataStoreObject):
 #
 
 class RdbmsConnector(object):
-  __slots__ = ('exeController', 'db', 'dbPath', 'dbType', 'tables', 'hostName', 'dbName', 'refname', 'userName', 'paramcode', 'paramstyle', 'password', 'debug')
-  def __init__(self, Refname="DB", Path=None, DbType=DbTypeUnknown, Host=None, Db=None, User=None, Password=None, Debug=0, ExeController=None):
+  __slots__ = ('exeController', 'db', 'db_path', 'dbType', 'tables', 'hostName', 'dbName', 'refname', 'userName', 'paramcode', 'paramstyle', 'password', 'debug')
+  def __init__(self, Refname="DB", path=None, DbType=DbTypeUnknown, Host=None, Db=None, User=None, Password=None, Debug=0, ExeController=None):
     self.exeController				= ExeController
     self.db			      			= None
-    self.dbPath						= Path
+    self.db_path						= path
     self.dbType						= DbType
-    self.tables						= tupledata.TupleData()
+    self.tables						= {}
     self.hostName					= Host
     self.dbName						= Db
     self.userName					= User
@@ -1021,11 +1020,11 @@ class RdbmsConnector(object):
     if Password is not None:
       self.password					= Password
     if Path is not None:
-      self.dbPath					= Path
+      self.db_path					= Path
     return self.OpenDb()
 
   def OpenDb(self):
-    self.tables						= tupledata.TupleData()	# clear since we are reconnecting
+    self.tables						= {}	# clear since we are reconnecting
     if self.debug > 0:
       print(("Connect(%s, %s, %s, %s)" % (
 			repr(self.hostName), repr(self.dbName),
@@ -1250,7 +1249,7 @@ class RdbmsSqLite(RdbmsConnector):
     super(RdbmsSqLite, self).__init__(DbType=DbTypeSqLite, **kwargs)
 
   def DoConnect(self):
-    self.db						= sqlite3.connect(self.dbPath)
+    self.db						= sqlite3.connect(self.db_path)
     self.db.text_factory				= sqlite3.OptimizedUnicode
     self.paramstyle					= sqlite3.paramstyle
 
@@ -1359,7 +1358,7 @@ class RdbmsFiles(RdbmsConnector):
       # Not implemented. This is a do-nothing action
       return []
     else:
-      return [os.path.basename(self.dbPath)]
+      return [os.path.basename(self.db_path)]
 
 def BasicTest(parmArgs):
         wsDebug = parmArgs.data['d']
