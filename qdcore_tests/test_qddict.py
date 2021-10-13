@@ -1,15 +1,15 @@
-from ezcore import ezdict
+from qdcore import qddict
 
 def test_basic():
-    ez = ezdict.EzDict()
+    ez = qddict.EzDict()
     ez['z'] = 1
     ez['Z'] = 2
     assert ez['z'] == 2
 
 def test_equivalence_to_dict():
-    ez = ezdict.EzDict()
+    ez = qddict.EzDict()
     ez['A'] = 100
-    ez2 = ezdict.EzDict()
+    ez2 = qddict.EzDict()
     ez2['a'] = 1
     ez2['b'] = 2
     ez['sub1'] = ez2

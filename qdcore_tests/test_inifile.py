@@ -1,6 +1,6 @@
 import os
 
-from ezcore import inifile
+from qdcore import inifile
 
 def test_write_ini_file(tmpdir):
     f = tmpdir.join("config.ini")

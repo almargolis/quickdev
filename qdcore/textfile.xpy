@@ -76,12 +76,12 @@ import sys
 import time
 from contextlib import contextmanager
 
-from ezcore import commastr
-from ezcore import filedriver
-from ezcore import datastore
-from ezcore import tupledict
-from ezcore import virtfile
-from ezcore import utils
+from . import commastr
+from . import filedriver
+from . import datastore
+from . import tupledict
+from . import virtfile
+from . import utils
 
 RANDOM_NAME_MAX_ATTEMPTS = 10
 

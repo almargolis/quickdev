@@ -9,8 +9,8 @@ for development workstations and CLI applications.
 import os
 import sys
 
-from ezcore import exenv
-from ezcore import cli
+from qdbase import exenv
+from qdbase import cli
 import apache
 
 #

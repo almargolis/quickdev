@@ -8,9 +8,9 @@ importing is configured by the virtual environment.
 
 import os
 
-from ezcore import ezconst
-from ezcore import ezdict
-from ezcore import textfile
+from . import qdconst
+from . import qddict
+from . import textfile
 
 #
 # INI File Support
@@ -59,7 +59,7 @@ def read_ini_directory(dir, ext='conf', target=None, debug=0):
     just a section within an ini file.
     """
     if target is None:
-        target = ezdict.EzDict()
+        target = qddict.EzDict()
     if debug >= 1:
         print(read_ini_directory, ext, target)
     dir = os.path.abspath(dir)
@@ -88,7 +88,7 @@ def read_ini_file(file_name=None, dir=None, target=None,
                   exe_controller=None, debug=0):
     """ Load an ini text file into a hierarchy of map type objects. """
     if target is None:
-        target = ezdict.EzDict()
+        target = qddict.EzDict()
     ini_reader = IniReader(file_name=file_name, dir=dir, target=target,
                            hierarchy_separator=hierarchy_separator,
                            exe_controller=exe_controller, debug=debug)
@@ -132,7 +132,7 @@ class IniReader:
         if target is not None:
             self.target = target
         if self.target is None:
-            self.target = ezdict.EzDict()
+            self.target = qddict.EzDict()
         if self.debug >= 1:
             print('IniReader', 'load', self.file_name, self.dir)
         f = textfile.open_read(file_name=self.file_name, dir=self.dir, source=self.target)

@@ -1,13 +1,13 @@
 import os
 import sys
 
-import ezstart
+from qdbase import qdstart
 
-from ezcore import cli
-from ezcore import exenv
-from ezcore import filedriver
-from ezcore import virtfile
-from ezcore import utils
+from qdbase import cli
+from qdbase import exenv
+from qdcore import filedriver
+from qdcore import virtfile
+from qdcore import utils
 
 #
 # These are good guides for apache on macos:
@@ -304,7 +304,7 @@ def init_hosting():
     if not os.path.isfile(a.apache_config_file_path):
         raise ValueError("Unsupported Apache configuration, missing '{}'.".format(
                          a.apache_config_file_path))
-    ez = ezstart.EzStart()
+    ez = qdstart.EzStart()
     ez.save_org(a.apache_config_file_path)
     a.load_host_conf_file()
     available_sites_selector = so.path.join(a.sites_available_dir_path, '*.conf')

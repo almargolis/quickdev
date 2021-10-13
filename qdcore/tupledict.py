@@ -10,7 +10,7 @@ import os
 import types
 
 from . import ertypes
-from . import ezdict
+from . import qddict
 
 from . import commastr
 from . import utils
@@ -78,14 +78,14 @@ from . import utils
 # The TDict association is identifed in _superiorTDict. This is
 # essentially the foreign key of the parent.
 #
-TaElementNamePrefix = 'TaE_'
-TaAssociationNamePrefix = 'TaA_'
-TaAssociationNameConnector = '_Of_'
-FIELD_ARRAY_CT = '_IX'
+TaElementNamePrefix = "TaE_"
+TaAssociationNamePrefix = "TaA_"
+TaAssociationNameConnector = "_Of_"
+FIELD_ARRAY_CT = "_IX"
 
 
 def GetAttributeNames(parmObject):
-    """ Return a list of keys of data attributes of an object, similar to what dict.keys() does. """
+    """Return a list of keys of data attributes of an object, similar to what dict.keys() does."""
     wsDir = []
     wsAttributeNames = dir(parmObject)
     try:
@@ -99,11 +99,11 @@ def GetAttributeNames(parmObject):
         # This is very fragile. It works for my simple property
         # definitions but is not a broad solution
         for (wsThisLineNo, wsThisLine) in enumerate(wsSource):
-            if wsThisLine.find('@property') >= 0:
+            if wsThisLine.find("@property") >= 0:
                 wsPropDefLine = wsSource[wsThisLineNo + 1]
-                wsDefPos = wsPropDefLine.find('def')
-                wsParmPos = wsPropDefLine.find('(')
-                wsPropName = wsPropDefLine[wsDefPos + 4:wsParmPos]
+                wsDefPos = wsPropDefLine.find("def")
+                wsParmPos = wsPropDefLine.find("(")
+                wsPropName = wsPropDefLine[wsDefPos + 4 : wsParmPos]
                 wsProperties.append(wsPropName)
     for wsThisAttribName in wsAttributeNames:
         if wsThisAttribName[:2] == "__":
@@ -121,89 +121,82 @@ def GetAttributeNames(parmObject):
     return wsDir
 
 
-def MakeClassTDict_For_bafTupleAssociation(
-        ExeController=None, InstanceClassName=None):
+def MakeClassTDict_For_bafTupleAssociation(ExeController=None, InstanceClassName=None):
     wsTDict = TupleDictionary(
         InstanceClassName=InstanceClassName,
         PrimaryDataPhysicalType=ertypes.Core_ObjectTypeCode,
-        ExeController=ExeController)
+        ExeController=ExeController,
+    )
 
-    wsTDict.AddScalarElementBoolean('isHierarchical')
-    wsTDict.AddScalarElement('_name')
+    wsTDict.AddScalarElementBoolean("isHierarchical")
+    wsTDict.AddScalarElement("_name")
     wsTDict.AddScalarElementReference(
-        'primaryParticipantTDict',
-        AssociatedClassRefname='TupleDictionary')
+        "primaryParticipantTDict", AssociatedClassRefname="TupleDictionary"
+    )
     wsTDict.AddScalarElementReference(
-        'primaryParticipantElement',
-        AssociatedClassRefname='TupleDictionaryElement')
+        "primaryParticipantElement", AssociatedClassRefname="TupleDictionaryElement"
+    )
     wsTDict.AddScalarElementReference(
-        'secondaryParticipantTDict',
-        AssociatedClassRefname='TupleDictionary')
+        "secondaryParticipantTDict", AssociatedClassRefname="TupleDictionary"
+    )
     wsTDict.CompleteDictionary()
     return wsTDict
 
 
 class bafTupleAssociation(object):
     __slots__ = (
-        'isHierarchical',
-        '_name',
-        'primaryParticipantTDict',
-        'primaryParticipantElement',
-        'secondaryParticipantTDict'
+        "isHierarchical",
+        "_name",
+        "primaryParticipantTDict",
+        "primaryParticipantElement",
+        "secondaryParticipantTDict",
     )
 
-    def __init__(
-            self,
-            Name=None,
-            PrimaryParticipant=None,
-            SecondaryParticipant=None):
-        self.isHierarchical = True			# This is implemntation detail
+    def __init__(self, Name=None, PrimaryParticipant=None, SecondaryParticipant=None):
+        self.isHierarchical = True  # This is implemntation detail
         self._name = Name
         self.primaryParticipantTDict = PrimaryParticipant
-        self.primaryParticipantElement = None			# If hierarchical, the container
+        self.primaryParticipantElement = None  # If hierarchical, the container
         self.secondaryParticipantTDict = SecondaryParticipant
 
     def __repr__(self):
         wsResult = "ASSOC: %s %s->%s" % (
             self._name,
             self.primaryParticipantTDict._name,
-            self.secondaryParticipantTDict._name
+            self.secondaryParticipantTDict._name,
         )
         return wsResult
 
 
-def MakeClassTDict_For_bafTupleSchema(
-        ExeController=None,
-        InstanceClassName=None):
+def MakeClassTDict_For_bafTupleSchema(ExeController=None, InstanceClassName=None):
     wsTDict = TupleDictionary(
         InstanceClassName=InstanceClassName,
         PrimaryDataPhysicalType=ertypes.Core_ObjectTypeCode,
-        ExeController=ExeController)
+        ExeController=ExeController,
+    )
 
     wsAssociationTDict = MakeClassTDict_For_bafTupleAssociation(
-        ExeController=ExeController)
-    wsDictionaryTDict = MakeClassTDict_For_TupleDictionary(
-        ExeController=ExeController)
+        ExeController=ExeController
+    )
+    wsDictionaryTDict = MakeClassTDict_For_TupleDictionary(ExeController=ExeController)
     wsTDict.AddContainerElement(
-        'associations',
+        "associations",
         RoleType=ertypes.Core_PrimaryParticipantRoleCode,
         PhysicalType=ertypes.Core_MapBafTypeCode,
-        CollectionItemTDict=wsAssociationTDict)
+        CollectionItemTDict=wsAssociationTDict,
+    )
     wsTDict.AddContainerElement(
-        'dictionaries',
+        "dictionaries",
         RoleType=ertypes.Core_PrimaryParticipantRoleCode,
         PhysicalType=ertypes.Core_MapBafTypeCode,
-        CollectionItemTDict=wsDictionaryTDict)
-    wsTDict.AddScalarElement('_name')
+        CollectionItemTDict=wsDictionaryTDict,
+    )
+    wsTDict.AddScalarElement("_name")
     wsTDict.CompleteDictionary()
     return wsTDict
 
 
-def MakeTDictForObject(
-        parmObject,
-        ExeController=None,
-        Name=None,
-        Register=False):
+def MakeTDictForObject(parmObject, ExeController=None, Name=None, Register=False):
     if Register:
         # if registering, only go thorugh this process once
         wsTDict = ExeController.GetTDictByObject(parmContainer)
@@ -254,36 +247,35 @@ def MakeTDict(parmTDict, Name=None):
                 wsValue = None
             wsDict.AddScalarElement(wsFieldName, Sample=wsValue)
         return wsDict
-    return None								# This is an unknown type
+    return None  # This is an unknown type
 
 
 class bafTupleSchema(object):
-    __slots__ = ('associations', 'dictionaries', '_name')
+    __slots__ = ("associations", "dictionaries", "_name")
 
     def __init__(self, Name=None):
         self._name = Name
-        self.dictionaries = ezdict.EzDict(Name='dictionaries')
-        self.associations = ezdict.EzDict(Name='associations')
+        self.dictionaries = qddict.EzDict(Name="dictionaries")
+        self.associations = qddict.EzDict(Name="associations")
 
     def __repr__(self):
-        return "SCHEMA: %s %s" % (
-            repr(self.associations), repr(self.dictionaries))
+        return "SCHEMA: %s %s" % (repr(self.associations), repr(self.dictionaries))
 
     def MakeAssociation(
-            self,
-            parmPrimaryParticipant,
-            parmSecondaryParticipant,
-            Name=None):
+        self, parmPrimaryParticipant, parmSecondaryParticipant, Name=None
+    ):
         if Name is None:
-            wsName = parmSecondaryParticipant._name \
-                + TaAssociationNameConnector \
+            wsName = (
+                parmSecondaryParticipant._name
+                + TaAssociationNameConnector
                 + parmPrimaryParticipant._name
+            )
         else:
             wsName = Name
         wsAssociation = bafTupleAssociation(
             Name=wsName,
             PrimaryParticipant=parmPrimaryParticipant,
-            SecondaryParticipant=parmSecondaryParticipant
+            SecondaryParticipant=parmSecondaryParticipant,
         )
         self.associations.AppendDatum(wsName, wsAssociation)
         return wsAssociation
@@ -295,8 +287,9 @@ class bafTupleSchema(object):
             else:
                 wsPhysicalTableName = parmSubjectTDict._name
             self.exeController.errs.AddDevCriticalMessage(
-                "TupleDictionary.CompareTDict() %s: %s" %
-                (self._name, parmMessage))
+                "TupleDictionary.CompareTDict() %s: %s" % (self._name, parmMessage)
+            )
+
 
 #
 # Query Support Actions
@@ -308,111 +301,112 @@ class bafTupleSchema(object):
 # The dictionary includes internal validation and record set validation rules for the data.
 #
 # Internal validation rules are are validated by looking at that tuple
-#	and not any other information. One edge case is code validation.
-#	That is generally modeled as an external dependency (association / relation)
-#	but often implemented as a short code list. A code list can be included
-#	as part of the internal validation rules.
+# 	and not any other information. One edge case is code validation.
+# 	That is generally modeled as an external dependency (association / relation)
+# 	but often implemented as a short code list. A code list can be included
+# 	as part of the internal validation rules.
 #
 # Record set rules are validated by considering other tuples in the same record set.
-#	This primarily identifies unique _indices.
+# 	This primarily identifies unique _indices.
 #
 # There are at least 3 mode of dictionary usage:
 #
 # 1. Dictionary Mode: Only name and _ix are populated. This mode is basically the
-#	same as a native Python dictionary object, except for the capability to be
-#	case insensitive.
+# 	same as a native Python dictionary object, except for the capability to be
+# 	case insensitive.
 #
 # 2. DTD Control Mode: Dictionary data format attibutes are populated and
-#	used to validate data before it is stored in the record. This might be used
-#	for conventional, structured data processing applications.
+# 	used to validate data before it is stored in the record. This might be used
+# 	for conventional, structured data processing applications.
 #
 # 3. DTD Disovery Mode: Dictionary data format attibutes are populated as data
-#	is stored so we end up with both the data and a corresponding dictionary.
-#	This mode might be used when loading an interchange XML, JSON or CSV file.
-#	The dictionary can be used for ad-hoc processing or used to generate
-#	initial models for MVC development.
+# 	is stored so we end up with both the data and a corresponding dictionary.
+# 	This mode might be used when loading an interchange XML, JSON or CSV file.
+# 	The dictionary can be used for ad-hoc processing or used to generate
+# 	initial models for MVC development.
 #
 
 
-def MakeClassTDict_For_TupleDictionary(
-        ExeController=None, InstanceClassName=None):
+def MakeClassTDict_For_TupleDictionary(ExeController=None, InstanceClassName=None):
     wsTDict = TupleDictionary(
         InstanceClassName=InstanceClassName,
         PrimaryDataPhysicalType=ertypes.Core_ObjectTypeCode,
-        ExeController=ExeController)
+        ExeController=ExeController,
+    )
 
     wsElementTDict = MakeClassTDict_For_TupleDictionaryElement(
-        ExeController=ExeController)
-    wsTDict.AddScalarElement('associations')
-    wsTDict.AddScalarElementNumber('binderUdi')
+        ExeController=ExeController
+    )
+    wsTDict.AddScalarElement("associations")
+    wsTDict.AddScalarElementNumber("binderUdi")
     wsTDict.AddScalarElementReference(
-        'exeController',
-        PhysicalType=ertypes.Core_ProcessPtrTypeCode)
-    wsTDict.AddScalarElement('choosingFields')
-    wsTDict.AddScalarElementReference('createTimestamp')
-    wsTDict.AddScalarElement('primaryDataPhysicalType')
-    wsTDict.AddScalarElement('instanceClassName')
-    wsTDict.AddScalarElement('instancePhysicalType')
-    wsTDict.AddScalarElement('dbmsFieldNames')
+        "exeController", PhysicalType=ertypes.Core_ProcessPtrTypeCode
+    )
+    wsTDict.AddScalarElement("choosingFields")
+    wsTDict.AddScalarElementReference("createTimestamp")
+    wsTDict.AddScalarElement("primaryDataPhysicalType")
+    wsTDict.AddScalarElement("instanceClassName")
+    wsTDict.AddScalarElement("instancePhysicalType")
+    wsTDict.AddScalarElement("dbmsFieldNames")
     wsTDict.AddContainerElement(
-        'dbmsTableIndices',
+        "dbmsTableIndices",
         RoleType=ertypes.Core_PrimaryParticipantRoleCode,
         PhysicalType=ertypes.Core_ListTypeCode,
-        CollectionItemPhysicalType=ertypes.Core_StringTypeCode)
-    wsTDict.AddScalarElement('debug')
+        CollectionItemPhysicalType=ertypes.Core_StringTypeCode,
+    )
+    wsTDict.AddScalarElement("debug")
     wsTDict.AddScalarElementReference(
-        'dictionaryElementClass',
+        "dictionaryElementClass",
         PhysicalType=ertypes.Core_ClassPtrTypeCode,
-        InstanceOfClassRefname='TupleDictionaryElement')
+        InstanceOfClassRefname="TupleDictionaryElement",
+    )
     wsTDict.AddContainerElement(
-        'elements',
+        "elements",
         RoleType=ertypes.Core_PrimaryParticipantRoleCode,
         PhysicalType=ertypes.Core_MapBafTypeCode,
-        CollectionItemTDict=wsElementTDict)
-    wsTDict.AddScalarElement('filesDbExtension')
-    wsTDict.AddScalarElement('filesDbPath')
-    wsTDict.AddScalarElementNumber('formCt')
-    wsTDict.AddScalarElementBoolean('isStaticCollection')
-    wsTDict.AddScalarElementBoolean('hasSubmit')
-    wsTDict.AddScalarElement('indexDefs')
-    wsTDict.AddScalarElementBoolean('isMddl')
-    wsTDict.AddScalarElementNumber('ixCtr')
-    wsTDict.AddScalarElement('_name')
-    wsTDict.AddScalarElement('_path')
-    wsTDict.AddScalarElement('physicalTableName')
-    wsTDict.AddScalarElementBoolean('recordLocatorFieldsDone')
-    wsTDict.AddScalarElementNumber('recordLocatorFieldCt')
-    wsTDict.AddScalarElementNumber('recordDisplayRowCt')
-    wsTDict.AddScalarElementNumber('recordDisplayCurColCt')
-    wsTDict.AddScalarElementNumber('recordDisplayMaxColCt')
+        CollectionItemTDict=wsElementTDict,
+    )
+    wsTDict.AddScalarElement("filesDbExtension")
+    wsTDict.AddScalarElement("filesDbPath")
+    wsTDict.AddScalarElementNumber("formCt")
+    wsTDict.AddScalarElementBoolean("isStaticCollection")
+    wsTDict.AddScalarElementBoolean("hasSubmit")
+    wsTDict.AddScalarElement("indexDefs")
+    wsTDict.AddScalarElementBoolean("isMddl")
+    wsTDict.AddScalarElementNumber("ixCtr")
+    wsTDict.AddScalarElement("_name")
+    wsTDict.AddScalarElement("_path")
+    wsTDict.AddScalarElement("physicalTableName")
+    wsTDict.AddScalarElementBoolean("recordLocatorFieldsDone")
+    wsTDict.AddScalarElementNumber("recordLocatorFieldCt")
+    wsTDict.AddScalarElementNumber("recordDisplayRowCt")
+    wsTDict.AddScalarElementNumber("recordDisplayCurColCt")
+    wsTDict.AddScalarElementNumber("recordDisplayMaxColCt")
     wsTDict.AddContainerElement(
-        'recordHeadings',
+        "recordHeadings",
         RoleType=ertypes.Core_PrimaryParticipantRoleCode,
         PhysicalType=ertypes.Core_ListTypeCode,
-        CollectionItemPhysicalType=ertypes.Core_StringTypeCode)
-    wsTDict.AddScalarElement('recordHtmlTable')
-    wsTDict.AddScalarElementReference('rsf')
-    wsTDict.AddScalarElementReference('schema')
-    wsTDict.AddScalarElement('singularName')
-    wsTDict.AddScalarElementReference('_superiorTDict')
-    wsTDict.AddScalarElement('tabSelectionFieldReferenceName')
-    wsTDict.AddScalarElement('tabSelectionValue')
-    wsTDict.AddScalarElement('tabBinderReferenceName')
-    wsTDict.AddScalarElement('tabTabReferenceNameList')
-    wsTDict.AddScalarElementReference('udi', BlankAllowed=True)
-    wsTDict.AddScalarElementReference('uii')
-    wsTDict.AddScalarElementReference('updateTimestamp')
+        CollectionItemPhysicalType=ertypes.Core_StringTypeCode,
+    )
+    wsTDict.AddScalarElement("recordHtmlTable")
+    wsTDict.AddScalarElementReference("rsf")
+    wsTDict.AddScalarElementReference("schema")
+    wsTDict.AddScalarElement("singularName")
+    wsTDict.AddScalarElementReference("_superiorTDict")
+    wsTDict.AddScalarElement("tabSelectionFieldReferenceName")
+    wsTDict.AddScalarElement("tabSelectionValue")
+    wsTDict.AddScalarElement("tabBinderReferenceName")
+    wsTDict.AddScalarElement("tabTabReferenceNameList")
+    wsTDict.AddScalarElementReference("udi", BlankAllowed=True)
+    wsTDict.AddScalarElementReference("uii")
+    wsTDict.AddScalarElementReference("updateTimestamp")
 
     wsTDict.CompleteDictionary()
     return wsTDict
 
 
 class bafTupleIndexDefinition(object):
-    __slots__ = (
-        'fieldNames',
-        'isUnique',
-        '_name'
-    )
+    __slots__ = ("fieldNames", "isUnique", "_name")
 
     def __init__(self, parmName, parmFieldNames, IsUnique=True):
         self.fieldNames = parmFieldNames
@@ -421,7 +415,7 @@ class bafTupleIndexDefinition(object):
 
 
 class TupleDictionaryIterator(object):
-    __slots__ = ('dictionary', 'elementNames', 'ix')
+    __slots__ = ("dictionary", "elementNames", "ix")
 
     def __init__(self, parmDictionary):
         self.dictionary = parmDictionary
@@ -441,73 +435,78 @@ class TupleDictionaryIterator(object):
 
 class TupleDict(object):
     __slots__ = (
-        'associations',
-        'binderUdi',
-        'createTimestamp',
-        'exeController',
-        'primaryDataPhysicalType',
-        'choosingFields',
-        'dbmsFieldNames',
-        'dbmsTableIndices',
-        'debug',
-        'dictionaryElementClass',
-        'elements',
-        'filesDbExtension',
-        'filesDbPath',
-        'formCt',
-        'isStaticCollection',
-        'hasSubmit',
-        'indexDefs',
-        'instanceClassName',
-        'instancePhysicalType',
-        'isMddl',
-        'ixCtr',
-        '_name',
-        '_path',
-        'physicalTableName',
-        'recordLocatorFieldsDone',
-        'recordLocatorFieldCt',
-        'recordDisplayRowCt',
-        'recordDisplayCurColCt',
-        'recordDisplayMaxColCt',
-        'recordHeadings',
-        'recordHtmlTable',
-        'rsf',
-        'schema',
-        'singularName',
-        '_superiorTDict',
-        'tabSelectionFieldReferenceName',
-        'tabSelectionValue',
-        'tabBinderReferenceName',
-        'tabTabReferenceNameList',
-        'udi',
-        'uii',
-        'updateTimestamp')
+        "associations",
+        "binderUdi",
+        "createTimestamp",
+        "exeController",
+        "primaryDataPhysicalType",
+        "choosingFields",
+        "dbmsFieldNames",
+        "dbmsTableIndices",
+        "debug",
+        "dictionaryElementClass",
+        "elements",
+        "filesDbExtension",
+        "filesDbPath",
+        "formCt",
+        "isStaticCollection",
+        "hasSubmit",
+        "indexDefs",
+        "instanceClassName",
+        "instancePhysicalType",
+        "isMddl",
+        "ixCtr",
+        "_name",
+        "_path",
+        "physicalTableName",
+        "recordLocatorFieldsDone",
+        "recordLocatorFieldCt",
+        "recordDisplayRowCt",
+        "recordDisplayCurColCt",
+        "recordDisplayMaxColCt",
+        "recordHeadings",
+        "recordHtmlTable",
+        "rsf",
+        "schema",
+        "singularName",
+        "_superiorTDict",
+        "tabSelectionFieldReferenceName",
+        "tabSelectionValue",
+        "tabBinderReferenceName",
+        "tabTabReferenceNameList",
+        "udi",
+        "uii",
+        "updateTimestamp",
+    )
 
-    def __init__(self,
-                 ExeController=None,
-                 Name=None,
-                 PrimaryDataPhysicalType=ertypes.Core_MapBafTypeCode,
-                 InstanceClassName=None,
-                 InstancePhysicalType=ertypes.Core_MapBafTypeCode,
-                 FormCt=None,
-                 IsStaticCollection=True,
-                 BinderUdi=0,
-                 Schema=None):
-        self.associations = ezdict.EzDict()
-        self.binderUdi = BinderUdi			# Source definition (documentation only)
+    def __init__(
+        self,
+        ExeController=None,
+        Name=None,
+        PrimaryDataPhysicalType=ertypes.Core_MapBafTypeCode,
+        InstanceClassName=None,
+        InstancePhysicalType=ertypes.Core_MapBafTypeCode,
+        FormCt=None,
+        IsStaticCollection=True,
+        BinderUdi=0,
+        Schema=None,
+    ):
+        self.associations = qddict.EzDict()
+        self.binderUdi = BinderUdi  # Source definition (documentation only)
         self.exeController = ExeController
         # ordered list of record choosing fields
-        self.choosingFields = ezdict.EzDict()
+        self.choosingFields = qddict.EzDict()
         # identifies how to access values / container type
         self.primaryDataPhysicalType = PrimaryDataPhysicalType
-        self.instanceClassName = InstanceClassName		# identifies class to create for new
-        self.instancePhysicalType = InstancePhysicalType		# identifies how to access data
-        self.dbmsFieldNames = ezdict.EzDict()
-        self.dbmsTableIndices = []				# list of bzDbmsTableIndex objects
+        self.instanceClassName = InstanceClassName  # identifies class to create for new
+        self.instancePhysicalType = (
+            InstancePhysicalType  # identifies how to access data
+        )
+        self.dbmsFieldNames = qddict.EzDict()
+        self.dbmsTableIndices = []  # list of bzDbmsTableIndex objects
         self.debug = 0
         self.dictionaryElementClass = TupleDictionaryElement
-        self.elements = None				# initialized by Clear()
+        self.elements = None  # initialized by Clear()
         self.filesDbExtension = ""
         self.filesDbPath = ""
         self.formCt = FormCt
@@ -518,7 +517,7 @@ class TupleDict(object):
             self._name = InstanceClassName
         self.physicalTableName = ""
         self._path = ""
-        self.rsf = None				# Record Status Field
+        self.rsf = None  # Record Status Field
         self.schema = Schema
         if self._name is None:
             self.singularName = None
@@ -529,13 +528,13 @@ class TupleDict(object):
                 self.singularName = self._name[:-1]
             else:
                 self.singularName = self._name
-        self._superiorTDict = None				# if a child dictionary
+        self._superiorTDict = None  # if a child dictionary
         self.tabSelectionFieldReferenceName = ""
         self.tabSelectionValue = ""
         self.tabBinderReferenceName = None
         self.tabTabReferenceNameList = None
-        self.udi = None				# Unique Data Identifier
-        self.uii = None				# Unique Information Identifier
+        self.udi = None  # Unique Data Identifier
+        self.uii = None  # Unique Information Identifier
         self.createTimestamp = None
         self.updateTimestamp = None
         #
@@ -560,11 +559,11 @@ class TupleDict(object):
         return TupleDictionaryIterator(self)
 
     def __repr__(self):
-        return 'TDICT ' + repr(self.elements)
+        return "TDICT " + repr(self.elements)
 
-    def MakeChildDictionary(self, Name=None,
-                            PhysicalType=ertypes.Core_MapBafTypeCode,
-                            FormCt=None):
+    def MakeChildDictionary(
+        self, Name=None, PhysicalType=ertypes.Core_MapBafTypeCode, FormCt=None
+    ):
         # uses __class__ so it creates proper object for descendent classes
         #
         # This properly starts a TDict for data that will be stored hierarchically.
@@ -585,7 +584,7 @@ class TupleDict(object):
             ExeController=self.exeController,
             Name=Name,
             Schema=self.schema,
-            FormCt=FormCt
+            FormCt=FormCt,
         )
         wsChildTDict.ConfigureAsChildDictionary(self)
         wsAssociation = self.schema.MakeAssociation(self, wsChildTDict)
@@ -595,7 +594,8 @@ class TupleDict(object):
             RoleType=ertypes.Core_PrimaryParticipantRoleCode,
             PhysicalType=PhysicalType,
             CollectionItemTDict=wsChildTDict,
-            FormCt=FormCt)
+            FormCt=FormCt,
+        )
         wsAssociation.isHierarchical = True
         wsAssociation.primaryParticipantElement = wsChildElement
         return wsChildTDict
@@ -604,57 +604,64 @@ class TupleDict(object):
         self.elements.AppendDatum(parmElement._name, parmElement)
         return parmElement
 
-    def _AddElement(self, parmElementPath,
-                    Caption=None,
-                    StaticCollectionTDict=None,
-                    CollectionItemPhysicalType=None,
-                    CollectionItemTDict=None,
-                    DisplayOrder=None,
-                    Encoding=ertypes.Encoding_Ascii,
-                    FormCt=None,
-                    IsCaseSensitive=False,
-                    IsLocatorField=False,
-                    IsProcessElement=False,
-                    MinLength=None, MaxLength=None,
-                    BlankAllowed=True,
-                    PhysicalType=None,
-                    Prompt=None,
-                    RoleType=None,
-                    Sample=None,
-                    SchemaFieldUdi=0,
-                    SchemaFieldRoleSourceUdi=0):
+    def _AddElement(
+        self,
+        parmElementPath,
+        Caption=None,
+        StaticCollectionTDict=None,
+        CollectionItemPhysicalType=None,
+        CollectionItemTDict=None,
+        DisplayOrder=None,
+        Encoding=ertypes.Encoding_Ascii,
+        FormCt=None,
+        IsCaseSensitive=False,
+        IsLocatorField=False,
+        IsProcessElement=False,
+        MinLength=None,
+        MaxLength=None,
+        BlankAllowed=True,
+        PhysicalType=None,
+        Prompt=None,
+        RoleType=None,
+        Sample=None,
+        SchemaFieldUdi=0,
+        SchemaFieldRoleSourceUdi=0,
+    ):
 
         if isinstance(parmElementPath, type([])):
             if len(parmElementPath) == 1:
                 wsElementName = parmElementPath[0]
             else:
                 wsContainer = self[parmElementPath[0]]
-                wsElement = wsContainer._AddElement(parmElementPath[1:],
-                                                    Caption=Caption,
-                                                    StaticCollectionTDict=StaticCollectionTDict,
-                                                    CollectionItemPhsicalType=CollectionItemPhysicalType,
-                                                    CollectionItemTDict=CollectionItemTDict,
-                                                    DisplayOrder=DisplayOrder,
-                                                    Encoding=Encoding,
-                                                    FormCt=FormCt,
-                                                    IsCaseSensitive=IsCaseSensitive,
-                                                    IsLocatorField=IsLocatorField,
-                                                    IsProcessElement=IsProcessElement,
-                                                    MinLength=MinLength, MaxLength=MaxLength,
-                                                    BlankAllowed=BlankAllowed,
-                                                    PhysicalType=PhysicalType,
-                                                    Prompt=Prompt,
-                                                    RoleType=RoleType,
-                                                    SchemaFieldUdi=SchemaFieldUdi,
-                                                    SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi)
+                wsElement = wsContainer._AddElement(
+                    parmElementPath[1:],
+                    Caption=Caption,
+                    StaticCollectionTDict=StaticCollectionTDict,
+                    CollectionItemPhsicalType=CollectionItemPhysicalType,
+                    CollectionItemTDict=CollectionItemTDict,
+                    DisplayOrder=DisplayOrder,
+                    Encoding=Encoding,
+                    FormCt=FormCt,
+                    IsCaseSensitive=IsCaseSensitive,
+                    IsLocatorField=IsLocatorField,
+                    IsProcessElement=IsProcessElement,
+                    MinLength=MinLength,
+                    MaxLength=MaxLength,
+                    BlankAllowed=BlankAllowed,
+                    PhysicalType=PhysicalType,
+                    Prompt=Prompt,
+                    RoleType=RoleType,
+                    SchemaFieldUdi=SchemaFieldUdi,
+                    SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi,
+                )
                 return wsElement
         else:
             if isinstance(parmElementPath, str):
                 wsElementName = parmElementPath
             else:
                 raise Exception(
-                    "Element name ''%s' is not a string." %
-                    (repr(parmElementPath)))
+                    "Element name ''%s' is not a string." % (repr(parmElementPath))
+                )
         #
         # Figure out the type and creation parameters that may be overwritten
         #
@@ -702,7 +709,8 @@ class TupleDict(object):
             MinLength=wsMinLength,
             MaxLength=wsMaxLength,
             PhysicalType=PhysicalType,
-            RoleType=RoleType)
+            RoleType=RoleType,
+        )
         self.ixCtr += 1
         self.StoreElement(wsElement)
         #
@@ -729,7 +737,7 @@ class TupleDict(object):
         return wsElement
 
     def AsPlythonClass(self):
-        wsClass = type(self._name, (), {'__slots__': self.ElementNames})
+        wsClass = type(self._name, (), {"__slots__": self.ElementNames})
 
     def Captions(self):
         # This is the best source for a CSV heading line
@@ -739,7 +747,7 @@ class TupleDict(object):
         return wsCaptions
 
     def Clear(self):
-        self.elements = ezdict.EzDict(Name=self._name)
+        self.elements = qddict.EzDict(Name=self._name)
         self.indexDefs = None
         self.ixCtr = 0
 
@@ -752,9 +760,11 @@ class TupleDict(object):
             wsPtr = getattr(self, parmAttr)
             if wsPtr is not None:
                 self.exeController.errs.AddDevCriticalMessage(
-                    "Duplicate %s definition @ %s.%s" %
-                    (parmAttr, self._name, wsThisElement._name))
+                    "Duplicate %s definition @ %s.%s"
+                    % (parmAttr, self._name, wsThisElement._name)
+                )
             setattr(self, parmAttr, parmElement)
+
         #
         self.udi = None
         self.uii = None
@@ -762,38 +772,42 @@ class TupleDict(object):
         self.updateTimestamp = None
         for wsThisElement in self.Elements():
             if wsThisElement.roleType == ertypes.Core_CreateTimestampRoleCode:
-                PostUniqueElement('createTimestamp', wsThisElement)
+                PostUniqueElement("createTimestamp", wsThisElement)
             elif wsThisElement.roleType == ertypes.Core_UdiRoleCode:
-                PostUniqueElement('udi', wsThisElement)
+                PostUniqueElement("udi", wsThisElement)
             elif wsThisElement.roleType == ertypes.Core_UiiRoleCode:
-                PostUniqueElement('uii', wsThisElement)
+                PostUniqueElement("uii", wsThisElement)
             elif wsThisElement.roleType == ertypes.Core_UpdateTimestampRoleCode:
-                PostUniqueElement('updateTimestamp', wsThisElement)
+                PostUniqueElement("updateTimestamp", wsThisElement)
 
     def ConfigureAsChildDictionary(self, parmDictionary):
         self._superiorTDict = parmDictionary
         if self._superiorTDict._superiorTDict is None:
             self._path = self._name
         else:
-            self._path = self._superiorTDict._path + \
-                ezdict.HierarchySeparatorCharacter + self._name
+            self._path = (
+                self._superiorTDict._path
+                + qddict.HierarchySeparatorCharacter
+                + self._name
+            )
 
     def DefineIndex(self, parmIndexFields, Name=None, IsUnique=True):
         # parmIndexFields is an array of field names. Each name must be defined for this
         # tuple. The combined values must be unique within the record set.
         if self.indexDefs is None:
-            self.indexDefs = ezdict.EzDict()
+            self.indexDefs = qddict.EzDict()
         if Name is None:
             # Default index name is field name(s) with dot separators
-            wsIndexName = ''
+            wsIndexName = ""
             for wsThisFieldName in parmIndexFields:
-                if wsIndexName != '':
-                    wsIndexName += '.'
+                if wsIndexName != "":
+                    wsIndexName += "."
                 wsIndexName += wsThisFieldName
         else:
             wsIndexName = Name
         wsIndexDefinition = bafTupleIndexDefinition(
-            wsIndexName, parmIndexFields, IsUnique=IsUnique)
+            wsIndexName, parmIndexFields, IsUnique=IsUnique
+        )
         self.indexDefs[wsIndexName] = wsIndexDefinition
 
     def ElementNamesByIx(self):
@@ -882,7 +896,7 @@ class TupleDict(object):
         for wsThisElement in list(self.elements.values()):
             if wsThisElement.isPositionalParameter:
                 wsElements.append(wsThisElement)
-        wsElements.sort(key=lambda a:a._ix)
+        wsElements.sort(key=lambda a: a._ix)
         return wsElements
 
     def cli_to_function_parms(self, parms):
@@ -898,11 +912,14 @@ class TupleDict(object):
                 args.append(parms[ix])
         return (args, kwargs)
 
-    def CompareObjects(self, parmData1, parmData2,
-                       ExeController=None,
-                       Instance1PhysicalType=None,
-                       Instance2PhysicalType=None
-                       ):
+    def CompareObjects(
+        self,
+        parmData1,
+        parmData2,
+        ExeController=None,
+        Instance1PhysicalType=None,
+        Instance2PhysicalType=None,
+    ):
         if ExeController is not None:
             # This is just a convenient way to set exeController in case it wasn't set before.
             # We need to accesss the environment in order to validate the data.
@@ -912,32 +929,34 @@ class TupleDict(object):
         except BaseException:
             wsRecord1Name = None
         if wsRecord1Name is None:
-            wsRecord1Name = 'Record1'
+            wsRecord1Name = "Record1"
         try:
             wsRecord2Name = parmData2._name
         except BaseException:
             wsRecord2Name = None
         if wsRecord2Name is None:
-            wsRecord2Name = 'Record2'
+            wsRecord2Name = "Record2"
 
         for wsThisElement in list(self.elements.values()):
             (wsDatum1Specified, wsDatum1) = wsThisElement.GetDatumAndState(
-                parmData1,
-                InstancePhysicalType=Instance1PhysicalType)
+                parmData1, InstancePhysicalType=Instance1PhysicalType
+            )
             (wsDatum2Specified, wsDatum2) = wsThisElement.GetDatumAndState(
-                parmData2,
-                InstancePhysicalType=Instance2PhysicalType)
+                parmData2, InstancePhysicalType=Instance2PhysicalType
+            )
             if not wsDatum1Specified:
                 if not wsDatum2Specified:
-                    continue							# missing from both -- not a mis-match
+                    continue  # missing from both -- not a mis-match
                 else:
                     self.exeController.errs.AddUserCriticalMessage(
-                        "Field %s missing from %s. %s value is '%s'." %
-                        (wsThisElement._name, wsRecord1Name, wsRecord2Name, wsDatum2))
+                        "Field %s missing from %s. %s value is '%s'."
+                        % (wsThisElement._name, wsRecord1Name, wsRecord2Name, wsDatum2)
+                    )
             if not wsDatum2Specified:
                 self.exeController.errs.AddUserCriticalMessage(
-                    "Field %s missing from %s. %s value is '%s'." %
-                    (wsThisElement._name, wsRecord2Name, wsRecord1Name, wsDatum1))
+                    "Field %s missing from %s. %s value is '%s'."
+                    % (wsThisElement._name, wsRecord2Name, wsRecord1Name, wsDatum1)
+                )
             wsMatch = True
             if wsThisElement.physicalType in ertypes.Core_PointerTypeCodes:
                 if wsDatum1 is not wsDatum2:
@@ -947,19 +966,23 @@ class TupleDict(object):
                     wsMatch = False
             if not wsMatch:
                 self.exeController.errs.AddUserCriticalMessage(
-                    "Field %s mismatch. %s value is '%s'. %s value is '%s'." %
-                    (wsThisElement._name, wsRecord1Name, wsDatum1, wsRecord2Name, wsDatum2))
+                    "Field %s mismatch. %s value is '%s'. %s value is '%s'."
+                    % (
+                        wsThisElement._name,
+                        wsRecord1Name,
+                        wsDatum1,
+                        wsRecord2Name,
+                        wsDatum2,
+                    )
+                )
 
-    def ValidateObject(self, parmData,
-                       ExeController=None,
-                       InstancePhysicalType=None
-                       ):
+    def ValidateObject(self, parmData, ExeController=None, InstancePhysicalType=None):
         if ExeController is not None:
             # This is just a convenient way to st exeController in case it wasn't set before.
             # We need to accesss the environment in order to validate the data.
             self.exeController = ExeController
         # This may be reduntent with ValidateTuple -- replace later
-        wsAssociatedRecords = ezdict.EzDict()
+        wsAssociatedRecords = qddict.EzDict()
 
         def GetAssociatedRecord(parmElement):
             # This can be accessees the record associated with parmElement.
@@ -968,12 +991,15 @@ class TupleDict(object):
             # reference.
             if parmElement.associationParticipantElement is None:
                 self.exeController.errs.AddDevCriticalMessage(
-                    "No association participant element for %s" % (parmElement._name))
+                    "No association participant element for %s" % (parmElement._name)
+                )
                 return None
             wsAssociationName = parmElement.associationParticipantElement._name
             if wsAssociationName in wsAssociatedRecords:
                 return wsAssociatedRecords[wsAssociationName]
-            wsForeignKeyElement = parmElement.associationParticipantElement.associationParticipationElement
+            wsForeignKeyElement = (
+                parmElement.associationParticipantElement.associationParticipationElement
+            )
             print("DDD", wsForeignKeyElement._name, parmData)
             wsForeignKeyValue = wsForeignKeyElement.GetDatum(parmData)
             if wsForeignKeyElement.physicalType in ertypes.Core_PointerTypeCodes:
@@ -981,31 +1007,38 @@ class TupleDict(object):
                 wsAssociatedRecords[wsAssociationName] = wsForeignKeyValue
                 return wsForeignKeyValue
             # Otherwise do an RDBMS lookup
-            wsAssociatedTableRefname = parmElement.associationParticipantElement.associatedTableRefname
+            wsAssociatedTableRefname = (
+                parmElement.associationParticipantElement.associatedTableRefname
+            )
             wsTable = self.exeController.OpenDbTable(wsAssociatedTableRefname)
             if wsTable is None:
                 self.exeController.errs.AddDevCriticalMessage(
-                    "Unable to open table '%s' for association %s (%s: %s) for element  %s" %
-                    (wsAssociatedTableRefname,
-                     wsAssociationName,
-                     wsForeignKeyElement.physicalType,
-                     wsForeignKeyElement._name,
-                     parmElement._name))
+                    "Unable to open table '%s' for association %s (%s: %s) for element  %s"
+                    % (
+                        wsAssociatedTableRefname,
+                        wsAssociationName,
+                        wsForeignKeyElement.physicalType,
+                        wsForeignKeyElement._name,
+                        parmElement._name,
+                    )
+                )
             wsAssociatedFieldName = wsForeignKeyElement.associatedElementName
             print(
                 "FFF",
                 wsAssociatedTableRefname,
                 wsAssociatedFieldName,
-                wsForeignKeyValue)
-            wsRecord = wsTable.LookupDict(
-                wsAssociatedFieldName, wsForeignKeyValue)
+                wsForeignKeyValue,
+            )
+            wsRecord = wsTable.LookupDict(wsAssociatedFieldName, wsForeignKeyValue)
             wsAssociatedRecords[wsAssociationName] = wsRecord
             return wsRecord
+
         #
 
         def Print(**args):
             # This localizes changse if I need to log instead of print
             print(args)
+
         #
         wsResult = True
         for wsThisElement in list(self.elements.values()):
@@ -1021,9 +1054,11 @@ class TupleDict(object):
                 # It will also generate an error if it is blank and tat isn't
                 # allowed.
                 (wsDatumSpecified, wsDatum) = wsThisElement.GetDatumAndState(
-                    parmData, InstancePhysicalType=InstancePhysicalType)
+                    parmData, InstancePhysicalType=InstancePhysicalType
+                )
                 (wsResult, wsValidatedValue) = wsThisElement.ValidateDatum(
-                    wsDatumSpecified, wsDatum)
+                    wsDatumSpecified, wsDatum
+                )
                 if wsResult:
                     wsThisElement.PutDatum(parmData, wsValidatedValue)
                 else:
@@ -1032,10 +1067,12 @@ class TupleDict(object):
                     wsRecord = GetAssociatedRecord(wsThisElement)
                     if wsRecord is None:
                         wsForeignKeyValue = wsThisElement.GetDatum(
-                            parmData, InstancePhysicalType=InstancePhysicalType)
+                            parmData, InstancePhysicalType=InstancePhysicalType
+                        )
                         self.exeController.errs.AddUserCriticalMessage(
-                            "Invalid Mirror UDI Role element %s value '%s'." %
-                            (wsThisElement._name, wsForeignKeyValue))
+                            "Invalid Mirror UDI Role element %s value '%s'."
+                            % (wsThisElement._name, wsForeignKeyValue)
+                        )
             elif wsThisElement.roleType == ertypes.Core_MirrorRoleCode:
                 wsRecord = GetAssociatedRecord(wsThisElement)
                 if wsRecord is not None:
@@ -1044,9 +1081,11 @@ class TupleDict(object):
                     wsThisElement.PutDatum(parmData, wsMirrorValue)
             else:
                 (wsDatumSpecified, wsDatum) = wsThisElement.GetDatumAndState(
-                    parmData, InstancePhysicalType=InstancePhysicalType)
+                    parmData, InstancePhysicalType=InstancePhysicalType
+                )
                 (wsResult, wsValidatedValue) = wsThisElement.ValidateDatum(
-                    wsDatumSpecified, wsDatum)
+                    wsDatumSpecified, wsDatum
+                )
                 if wsResult:
                     wsThisElement.PutDatum(parmData, wsValidatedValue)
                 else:
@@ -1066,24 +1105,28 @@ class TupleDict(object):
     # If moving to django, this is accomplished with the inline formset factory
     #
     def SafeCopy(
-            self,
-            parmDataStore,
-            parmSource1,
-            Source2=None,
-            Prefix=None,
-            Ix=None,
-            ExeController=None):
+        self,
+        parmDataStore,
+        parmSource1,
+        Source2=None,
+        Prefix=None,
+        Ix=None,
+        ExeController=None,
+    ):
         from . import bafDataStore
+
         for wsThisElement in list(self.elements.values()):
             if Prefix is None:
                 wsSourceFieldName = wsThisElement._name
             else:
                 wsSourceFieldName = "%s_%s_%s" % (
-                    Prefix, utils.Str(Ix), wsThisElement._name)
+                    Prefix,
+                    utils.Str(Ix),
+                    wsThisElement._name,
+                )
             if wsThisElement.physicalType == ertypes.Core_ListBafTypeCode:
                 wsArray = bafDataStore.bafDataStoreObject(
-                    Name=wsThisElement._name,
-                    TDict=wsThisElement.collectionItemTDict
+                    Name=wsThisElement._name, TDict=wsThisElement.collectionItemTDict
                 )
                 parmDataStore[wsThisElement._name] = wsArray
                 wsArrayLenFieldName = wsSourceFieldName + FIELD_ARRAY_CT
@@ -1094,7 +1137,8 @@ class TupleDict(object):
                 for wsIx in range(0, wsArrayLen):
                     wsTuple = wsArray.MakeChildTuple()
                     wsThisElement.collectionItemTDict.SafeCopy(
-                        wsTuple, parmSource1, Prefix=wsThisElement._name, Ix=wsIx)
+                        wsTuple, parmSource1, Prefix=wsThisElement._name, Ix=wsIx
+                    )
             else:
                 wsDatumSpecified = False
                 if wsSourceFieldName in parmSource1:
@@ -1106,11 +1150,7 @@ class TupleDict(object):
                 if wsDatumSpecified:
                     parmDataStore[wsThisElement._name] = wsValue
 
-    def ValidateTuple(
-            self,
-            parmData,
-            ExeController=None,
-            RoundExtraDigits=False):
+    def ValidateTuple(self, parmData, ExeController=None, RoundExtraDigits=False):
         if ExeController is not None:
             # This is just a convenient way to set exeController in case it wasn't set before.
             # We need to accesss the environment in order to validate the data.
@@ -1119,9 +1159,8 @@ class TupleDict(object):
         for wsThisElement in list(self.elements.values()):
             (wsDatumSpecified, wsDatum) = wsThisElement.GetDatumAndState(parmData)
             (wsResult, wsValidatedValue) = wsThisElement.ValidateDatum(
-                wsDatumSpecified,
-                wsDatum,
-                RoundExtraDigits=RoundExtraDigits)
+                wsDatumSpecified, wsDatum, RoundExtraDigits=RoundExtraDigits
+            )
             if wsResult:
                 wsThisElement.PutDatum(parmData, wsValidatedValue)
             else:
@@ -1132,39 +1171,45 @@ class TupleDict(object):
         wsElement = self.Element(parmElementName)
         return wsElement.GetDatum(parmSource)
 
-#
-# The following methods are the main way applications should add elements to a TDict
-#
-# The first group are for the most commomn data dictionaries. Following that are specific
-# methods for pararameter definintion dictionaries.
-#
-    def AddUdiElement(self, parmElementPath='Udi',
-                      PhysicalType=ertypes.Core_IntegerTypeCode,
-                      IsAutoIncrement=True
-                      ):
-        wsUdiElement = self._AddElement(parmElementPath,
-                                        PhysicalType=PhysicalType,
-                                        RoleType=ertypes.Core_UdiRoleCode
-                                        )
+    #
+    # The following methods are the main way applications should add elements to a TDict
+    #
+    # The first group are for the most commomn data dictionaries. Following that are specific
+    # methods for pararameter definintion dictionaries.
+    #
+    def AddUdiElement(
+        self,
+        parmElementPath="Udi",
+        PhysicalType=ertypes.Core_IntegerTypeCode,
+        IsAutoIncrement=True,
+    ):
+        wsUdiElement = self._AddElement(
+            parmElementPath,
+            PhysicalType=PhysicalType,
+            RoleType=ertypes.Core_UdiRoleCode,
+        )
         wsUdiElement.ConfigureAsUdiRole(IsAutoIncrement=IsAutoIncrement)
         return wsUdiElement
 
-    def AddUiiElement(self, parmElementPath='Name',
-                      PhysicalType=ertypes.Core_StringTypeCode,
-                      MaxLength=32):
-        wsUiiElement = self._AddElement(parmElementPath,
-                                        PhysicalType=PhysicalType,
-                                        MinLength=1,
-                                        MaxLength=MaxLength
-                                        )
+    def AddUiiElement(
+        self,
+        parmElementPath="Name",
+        PhysicalType=ertypes.Core_StringTypeCode,
+        MaxLength=32,
+    ):
+        wsUiiElement = self._AddElement(
+            parmElementPath, PhysicalType=PhysicalType, MinLength=1, MaxLength=MaxLength
+        )
         wsUiiElement.ConfigureAsUiiRole()
         return wsUiiElement
 
-    def AddPrimaryParticipant(self, parmElementPath,
-                              ParticipationElementName=None,
-                              ParticipationElementPhysicalType=None,
-                              ParticipationElementiRoleType=None
-                              ):
+    def AddPrimaryParticipant(
+        self,
+        parmElementPath,
+        ParticipationElementName=None,
+        ParticipationElementPhysicalType=None,
+        ParticipationElementiRoleType=None,
+    ):
         wsParticipantElement = self._AddElement(
             parmElementPath,
             PhysicalType=ertypes.Core_NoTypeCode,
@@ -1174,22 +1219,28 @@ class TupleDict(object):
             wsParticipationElement = self._AddElement(
                 parmElementPath,
                 PhysicalType=ParticipationElementPhysicalType,
-                RoleType=ParticipationElementRoleType)
+                RoleType=ParticipationElementRoleType,
+            )
             wsParticipationElement.associtaionParticipantElement = wsParticipantElement
-            wsParticipantElement.associationParticipationElement = wsParticipationElement
+            wsParticipantElement.associationParticipationElement = (
+                wsParticipationElement
+            )
         return wsParticipantElement
 
-    def AddSecondaryParticipant(self, parmElementPath,
-                                AssociatedClassRefname=None,
-                                AssociatedElementName=None,
-                                AssociatedTableRefname=None,
-                                ForeignKeyElementName=None,
-                                ForeignKeyPhysicalType=None
-                                ):
+    def AddSecondaryParticipant(
+        self,
+        parmElementPath,
+        AssociatedClassRefname=None,
+        AssociatedElementName=None,
+        AssociatedTableRefname=None,
+        ForeignKeyElementName=None,
+        ForeignKeyPhysicalType=None,
+    ):
         wsParticipantElement = self._AddElement(
             parmElementPath,
             PhysicalType=ertypes.Core_NoTypeCode,
-            RoleType=ertypes.Core_SecondaryParticipantRoleCode)
+            RoleType=ertypes.Core_SecondaryParticipantRoleCode,
+        )
         #
         # AssociatedTableRefname identifies the table where associated record is stored.
         # That leads us to an Associated Class. AssociatedClassRefname directly to the
@@ -1207,7 +1258,8 @@ class TupleDict(object):
             wsForeignKeyElement = self._AddElement(
                 ForeignKeyElementName,
                 PhysicalType=ForeignKeyPhysicalType,
-                RoleType=ertypes.Core_MirrorUdiRoleCode)
+                RoleType=ertypes.Core_MirrorUdiRoleCode,
+            )
             wsForeignKeyElement.associationParticipantElement = wsParticipantElement
             if AssociatedElementName is None:
                 # Most of the time the mirror field name is the same as the
@@ -1218,20 +1270,25 @@ class TupleDict(object):
             wsParticipantElement.associationParticipationElement = wsForeignKeyElement
         return wsParticipantElement
 
-    def AddScalarElement(self, parmElementPath,
-                         BlankAllowed=True,
-                         Encoding=ertypes.Encoding_Ascii,
-                         IsCaseSensitive=False,
-                         MinLength=None, MaxLength=None,
-                         PhysicalType=ertypes.Core_StringTypeCode,
-                         RoleType=None,
-                         Sample=None,
-                         SchemaFieldUdi=0, SchemaFieldRoleSourceUdi=0
-                         ):
+    def AddScalarElement(
+        self,
+        parmElementPath,
+        BlankAllowed=True,
+        Encoding=ertypes.Encoding_Ascii,
+        IsCaseSensitive=False,
+        MinLength=None,
+        MaxLength=None,
+        PhysicalType=ertypes.Core_StringTypeCode,
+        RoleType=None,
+        Sample=None,
+        SchemaFieldUdi=0,
+        SchemaFieldRoleSourceUdi=0,
+    ):
         if PhysicalType not in ertypes.Core_ScalarTypeCodes:
             self.exeController.errs.AddDevCriticalMessage(
-                "AddScalarElement(): Invalid type '%s' for element %s" %
-                (PhysicalType, parmElementPath))
+                "AddScalarElement(): Invalid type '%s' for element %s"
+                % (PhysicalType, parmElementPath)
+            )
             return None
         wsDataElement = self._AddElement(
             parmElementPath,
@@ -1244,17 +1301,21 @@ class TupleDict(object):
             RoleType=RoleType,
             Sample=Sample,
             SchemaFieldUdi=SchemaFieldUdi,
-            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi)
+            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi,
+        )
         if RoleType is None:
             wsDataElement.ConfigureAsDataRole()
         return wsDataElement
 
-    def AddScalarElementsFromList(self, parmElementList,
-                                  BlankAllowed=True,
-                                  Encoding=ertypes.Encoding_Ascii,
-                                  MinLength=None, MaxLength=None,
-                                  PhysicalType=ertypes.Core_StringTypeCode
-                                  ):
+    def AddScalarElementsFromList(
+        self,
+        parmElementList,
+        BlankAllowed=True,
+        Encoding=ertypes.Encoding_Ascii,
+        MinLength=None,
+        MaxLength=None,
+        PhysicalType=ertypes.Core_StringTypeCode,
+    ):
         for wsThis in parmElementList:
             wsDataElement = self._AddElement(
                 wsThis,
@@ -1262,29 +1323,36 @@ class TupleDict(object):
                 Encoding=Encoding,
                 MinLength=MinLength,
                 MaxLength=MaxLength,
-                PhysicalType=PhysicalType)
+                PhysicalType=PhysicalType,
+            )
             wsDataElement.ConfigureAsDataRole()
         return wsDataElement
 
     def AddScalarElementDate(self, parmElementPath):
         wsDataElement = self._AddElement(
-            parmElementPath, PhysicalType=ertypes.Core_DateTypeCode)
+            parmElementPath, PhysicalType=ertypes.Core_DateTypeCode
+        )
         wsDataElement.ConfigureAsDataRole()
         return wsDataElement
 
-    def AddScalarElementMirror(self, parmElementPath,
-                               AssociatedElementName=None,
-                               BlankAllowed=True,
-                               Encoding=ertypes.Encoding_Ascii,
-                               MinLength=None, MaxLength=None,
-                               ParticipantElement=None,
-                               PhysicalType=ertypes.Core_StringTypeCode,
-                               SchemaFieldUdi=0, SchemaFieldRoleSourceUdi=0
-                               ):
+    def AddScalarElementMirror(
+        self,
+        parmElementPath,
+        AssociatedElementName=None,
+        BlankAllowed=True,
+        Encoding=ertypes.Encoding_Ascii,
+        MinLength=None,
+        MaxLength=None,
+        ParticipantElement=None,
+        PhysicalType=ertypes.Core_StringTypeCode,
+        SchemaFieldUdi=0,
+        SchemaFieldRoleSourceUdi=0,
+    ):
         if PhysicalType not in ertypes.Core_ScalarTypeCodes:
             self.exeController.errs.AddDevCriticalMessage(
-                "AddScalarElement(): Invalid type '%s' for element %s" %
-                (PhysicalType, parmElementPath))
+                "AddScalarElement(): Invalid type '%s' for element %s"
+                % (PhysicalType, parmElementPath)
+            )
             return None
         wsDataElement = self._AddElement(
             parmElementPath,
@@ -1295,7 +1363,8 @@ class TupleDict(object):
             PhysicalType=PhysicalType,
             RoleType=ertypes.Core_MirrorRoleCode,
             SchemaFieldUdi=SchemaFieldUdi,
-            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi)
+            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi,
+        )
         wsDataElement.associationParticipantElement = ParticipantElement
         if AssociatedElementName is None:
             # Most of the time the mirror field name is the same as the source
@@ -1307,46 +1376,50 @@ class TupleDict(object):
 
     def AddScalarElementMoney(self, parmElementPath):
         wsDataElement = self._AddElement(
-            parmElementPath, PhysicalType=ertypes.Core_IntegerTypeCode)
+            parmElementPath, PhysicalType=ertypes.Core_IntegerTypeCode
+        )
         wsDataElement.impliedDecimals = 2
-        wsDataElement.unitsOfMeasure = 'USD'
+        wsDataElement.unitsOfMeasure = "USD"
         wsDataElement.ConfigureAsDataRole()
         return wsDataElement
 
-    def AddScalarElementNumber(self, parmElementPath,
-                               ImpliedDecimals=0
-                               ):
+    def AddScalarElementNumber(self, parmElementPath, ImpliedDecimals=0):
         wsDataElement = self._AddElement(
-            parmElementPath, PhysicalType=ertypes.Core_IntegerTypeCode)
+            parmElementPath, PhysicalType=ertypes.Core_IntegerTypeCode
+        )
         wsDataElement.impliedDecimals = ImpliedDecimals
         wsDataElement.ConfigureAsDataRole()
         return wsDataElement
 
     def AddScalarElementBoolean(
-            self,
-            parmElementPath,
-            Caption=None,
-            DisplayOrder=None,
-            FormCt=None,
-            RoleType=None):
+        self,
+        parmElementPath,
+        Caption=None,
+        DisplayOrder=None,
+        FormCt=None,
+        RoleType=None,
+    ):
         wsDataElement = self._AddElement(
             parmElementPath,
             PhysicalType=ertypes.Core_BooleanTypeCode,
             Caption=Caption,
             DisplayOrder=DisplayOrder,
             FormCt=FormCt,
-            RoleType=RoleType)
+            RoleType=RoleType,
+        )
         wsDataElement.ConfigureAsDataRole(RoleType=RoleType)
         return wsDataElement
 
-    def AddScalarElementReference(self, parmElementPath,
-                                  AssociatedClassRefname=None,
-                                  AssociatedTableRefname=None,
-                                  BlankAllowed=True,
-                                  InstanceOfClassRefname=None,
-                                  IsProcessElement=False,
-                                  PhysicalType=ertypes.Core_DataPtrTypeCode
-                                  ):
+    def AddScalarElementReference(
+        self,
+        parmElementPath,
+        AssociatedClassRefname=None,
+        AssociatedTableRefname=None,
+        BlankAllowed=True,
+        InstanceOfClassRefname=None,
+        IsProcessElement=False,
+        PhysicalType=ertypes.Core_DataPtrTypeCode,
+    ):
         # This implements an MDDL association secondary participation.
         # This is the child of a parent-child relationship.
         # This is a shortcut, creating a participation element without a participant element.
@@ -1356,7 +1429,7 @@ class TupleDict(object):
             BlankAllowed=BlankAllowed,
             IsProcessElement=IsProcessElement,
             PhysicalType=PhysicalType,
-            RoleType=ertypes.Core_MirrorUdiRoleCode
+            RoleType=ertypes.Core_MirrorUdiRoleCode,
         )
         wsDataElement.associationParticipantElement = wsDataElement
         wsDataElement.associationParticipationElement = wsDataElement
@@ -1365,10 +1438,10 @@ class TupleDict(object):
         wsDataElement.instanceOfClassRefname = InstanceOfClassRefname
         return wsDataElement
 
-    def AddScalarElementVirtual(self, parmElementPath, parmRpn,
-                                PhysicalType=ertypes.Core_StringTypeCode):
-        wsThisElement = self._AddElement(
-            parmElementPath, PhysicalType=PhysicalType)
+    def AddScalarElementVirtual(
+        self, parmElementPath, parmRpn, PhysicalType=ertypes.Core_StringTypeCode
+    ):
+        wsThisElement = self._AddElement(parmElementPath, PhysicalType=PhysicalType)
         wsThisElement.ConfigureCalculator(parmRpn)
         return wsThisElement
 
@@ -1376,20 +1449,24 @@ class TupleDict(object):
     # Containers are an ugly subject. My BAF Programming Philosophy paper attempts to define it.
     # This can be either one-dimensional, a map or a record, or two-dimensional, an array or table of records/tuples.
     #
-    def AddContainerElement(self, parmElementPath,
-                            RoleType=ertypes.Core_PrimaryParticipantRoleCode,
-                            PhysicalType=ertypes.Core_MapBafTypeCode,
-                            StaticCollectionTDict=None,
-                            CollectionItemPhysicalType=None,
-                            CollectionItemTDict=None,
-                            FormCt=None,
-                            IsProcessElement=False,
-                            SchemaFieldUdi=0, SchemaFieldRoleSourceUdi=0
-                            ):
+    def AddContainerElement(
+        self,
+        parmElementPath,
+        RoleType=ertypes.Core_PrimaryParticipantRoleCode,
+        PhysicalType=ertypes.Core_MapBafTypeCode,
+        StaticCollectionTDict=None,
+        CollectionItemPhysicalType=None,
+        CollectionItemTDict=None,
+        FormCt=None,
+        IsProcessElement=False,
+        SchemaFieldUdi=0,
+        SchemaFieldRoleSourceUdi=0,
+    ):
         if PhysicalType not in ertypes.Core_ContainerTypeCodes:
             self.exeController.errs.AddDevCriticalMessage(
-                "AddContainerElement(): Invalid type '%s' for element %s" %
-                (PhysicalType, parmElementPath))
+                "AddContainerElement(): Invalid type '%s' for element %s"
+                % (PhysicalType, parmElementPath)
+            )
             return None
         wsContainerElement = self._AddElement(
             parmElementPath,
@@ -1401,20 +1478,19 @@ class TupleDict(object):
             PhysicalType=PhysicalType,
             RoleType=RoleType,
             SchemaFieldUdi=SchemaFieldUdi,
-            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi)
+            SchemaFieldRoleSourceUdi=SchemaFieldRoleSourceUdi,
+        )
         # wsCollectionElement.ConfigureAsDataRole() should we call appropriate
         # ConfigureAsXxxx ????
         return wsContainerElement
 
     def AddContainerElementList(self, parmElementPath):
-        wsContainerElement = self._AddElement(parmElementPath,
-                                              ertypes.Core_ListTypeCode)
+        wsContainerElement = self._AddElement(
+            parmElementPath, ertypes.Core_ListTypeCode
+        )
         return wsContainerElement
 
-    def AddElementConfusion(
-            self,
-            parmElementPath,
-            parmConfusedElementNameList):
+    def AddElementConfusion(self, parmElementPath, parmConfusedElementNameList):
         wsPhysicalType = None
         wsMinLen = 0
         wsMaxLen = 0
@@ -1439,20 +1515,22 @@ class TupleDict(object):
                         wsMaxLen = wsElement.maxLength
             else:
                 self.exeController.errs.AddDevCriticalMessage(
-                    'Invalid confused element name %s for confusion %s' %
-                    (wsThisElementName, parmElementPath))
+                    "Invalid confused element name %s for confusion %s"
+                    % (wsThisElementName, parmElementPath)
+                )
                 return None
         wsConfusion = self._AddElement(
             parmElementPath,
             PhysicalType=wsPhysicalType,
             MinLen=wsMinLen,
-            MaxLen=wsMaxLen)
-        wsConfusion.ConfigureAsConfusion(
-            parmConfusedElementNameList, wsIsVirtual)
+            MaxLen=wsMaxLen,
+        )
+        wsConfusion.ConfigureAsConfusion(parmConfusedElementNameList, wsIsVirtual)
         return wsConfusion
-#
-# Add elements for parameter dictionaries
-#
+
+    #
+    # Add elements for parameter dictionaries
+    #
 
     def DefineKeywordParameter(self, parmKeyword, Prompt=None, Hint=None):
         wsElement = self._AddElement(parmKeyword, ertypes.Core_BooleanTypeCode)
@@ -1463,13 +1541,14 @@ class TupleDict(object):
         return wsElement
 
     def define_positional_parameter(
-            self,
-            parmKeyword,
-            PhysicalType=None,
-            UpperCase=False,
-            BlankAllowed=False,
-            IsIdentifier=False,
-            Hint=None):
+        self,
+        parmKeyword,
+        PhysicalType=None,
+        UpperCase=False,
+        BlankAllowed=False,
+        IsIdentifier=False,
+        Hint=None,
+    ):
         wsElement = self._AddElement(parmKeyword, PhysicalType=PhysicalType)
         wsElement.hint = Hint
         wsElement.isIdentifier = IsIdentifier
@@ -1478,22 +1557,28 @@ class TupleDict(object):
         wsElement.isUpperCaseOnly = UpperCase
         return wsElement
 
-    def DefineValueParameter(self, parmKeyword,
-                             Hint=None,
-                             BlankAllowed=True,
-                             IsIdentifier=False,
-                             PhysicalType=None,
-                             Encoding=ertypes.Encoding_Ascii,
-                             FormCt=None,
-                             MinLength=None, MaxLength=None,
-                             Prompt=None,
-                             UpperCase=False):
-        wsElement = self._AddElement(parmKeyword,
-                                     PhysicalType=PhysicalType,
-                                     Encoding=Encoding,
-                                     FormCt=FormCt,
-                                     MinLength=MinLength,
-                                     MaxLength=MaxLength)
+    def DefineValueParameter(
+        self,
+        parmKeyword,
+        Hint=None,
+        BlankAllowed=True,
+        IsIdentifier=False,
+        PhysicalType=None,
+        Encoding=ertypes.Encoding_Ascii,
+        FormCt=None,
+        MinLength=None,
+        MaxLength=None,
+        Prompt=None,
+        UpperCase=False,
+    ):
+        wsElement = self._AddElement(
+            parmKeyword,
+            PhysicalType=PhysicalType,
+            Encoding=Encoding,
+            FormCt=FormCt,
+            MinLength=MinLength,
+            MaxLength=MaxLength,
+        )
         wsElement.isUpperCaseOnly = UpperCase
         wsElement.isValueParameter = True
         if Prompt:
@@ -1503,12 +1588,13 @@ class TupleDict(object):
         wsElement.isBlankAllowed = BlankAllowed
         wsElement.isIdentifier = IsIdentifier
         return wsElement
-#
-#
-#
+
+    #
+    #
+    #
 
     def AddChoosingField(self, parmField):
-        # Nice and simple. No need to check for duplicates, ezdict maintains order.
+        # Nice and simple. No need to check for duplicates, qddict maintains order.
         # Duplicates happen because we add uii, udi, unique identifiers and then all fields.
         # First insertions put important felds first.
         # This method exists to keep this service centralized in case it needs to be
@@ -1518,8 +1604,7 @@ class TupleDict(object):
         self.choosingFields[parmField._name] = parmField
 
     def AddTableIndex(self, parmElementPath, parmFields, parmIsUnique):
-        wsTableIndex = bzDbmsTableIndex(
-            parmElementPath, parmFields, parmIsUnique)
+        wsTableIndex = bzDbmsTableIndex(parmElementPath, parmFields, parmIsUnique)
         self.dbmsTableIndices.append(wsTableIndex)
         return wsTableIndex
 
@@ -1534,15 +1619,12 @@ class TupleDict(object):
     def ConfigureAsMddl(self):
         self.isMddl = True
 
-    def ConfigureAsTab(
-            self,
-            parmBinder,
-            parmSelectionElementName,
-            parmSelectionValue):
+    def ConfigureAsTab(self, parmBinder, parmSelectionElementName, parmSelectionValue):
         if parmSelectionElementName not in parmBinder:
             self.exeController.errs.AddDevCriticalMessage(
-                "TupleDictionary.ConfigureAsTab() %s: Element %s not in binder %s" %
-                (self._name, parmSelectionElementName, parmBinder._name))
+                "TupleDictionary.ConfigureAsTab() %s: Element %s not in binder %s"
+                % (self._name, parmSelectionElementName, parmBinder._name)
+            )
         self.tabSelectionFieldReferenceName = parmSelectionElementName
         self.tabSelectionValue = parmSelectionValue
         self.tabBinderReferenceName = parmBinder._name
@@ -1558,8 +1640,8 @@ class TupleDict(object):
             else:
                 wsPhysicalTableName = parmSubjectTDict._name
             self.exeController.errs.AddDevCriticalMessage(
-                "TupleDictionary.CompareTDict() %s: %s" %
-                (self._name, parmMessage))
+                "TupleDictionary.CompareTDict() %s: %s" % (self._name, parmMessage)
+            )
 
         def Compare(parmFieldName):
             wsMyFieldValue = getattr(wsMyElement, parmFieldName)
@@ -1570,7 +1652,10 @@ class TupleDict(object):
                         Element=wsMyElement._name,
                         Field=parmFieldName,
                         MyVal=wsMyFieldValue,
-                        SubjectVal=wsPhysicalFieldValue))
+                        SubjectVal=wsPhysicalFieldValue,
+                    )
+                )
+
         #
         if parmSubjectTDict is None:
             ErrorMessage("Subject TDict not defined.")
@@ -1578,26 +1663,27 @@ class TupleDict(object):
         for wsThisSubjectElement in parmSubjectTDict.Elements():
             wsMyElement = self.Element(wsThisSubjectElement._name)
             if wsMyElement is None:
-                ErrorMessage("Subject field %s not in this TDict" % (
-                    wsThisSubjectElement._name))
+                ErrorMessage(
+                    "Subject field %s not in this TDict" % (wsThisSubjectElement._name)
+                )
             else:
                 if CompareNamesOnly:
                     continue
-                Compare('physicalType')
-                Compare('maxLength')
+                Compare("physicalType")
+                Compare("maxLength")
         for wsMyElement in self.Elements():
             wsSubjectElement = parmSubjectTDict.Element(wsMyElement._name)
             if wsSubjectElement is None:
-                ErrorMessage("My element %s not in Subject TDict" % (
-                    wsMyElement._name))
+                ErrorMessage("My element %s not in Subject TDict" % (wsMyElement._name))
 
     def CopyElement(
-            self,
-            SourceElement=None,
-            SourceTDict=None,
-            ElementName=None,
-            NewElementName=None,
-            NewDbmsFieldName=None):
+        self,
+        SourceElement=None,
+        SourceTDict=None,
+        ElementName=None,
+        NewElementName=None,
+        NewDbmsFieldName=None,
+    ):
         if SourceElement is None:
             SourceElement = SourceTDict.Element(ElementName)
         if NewElementName:
@@ -1613,21 +1699,22 @@ class TupleDict(object):
                 raise IndexError
             else:
                 self.exeController.errs.AddDevCriticalMessage(
-                    "TupleDictionary.CopyElement() adding duplicate '%s' to '%s'" %
-                    (wsNewElementName, self._name))
+                    "TupleDictionary.CopyElement() adding duplicate '%s' to '%s'"
+                    % (wsNewElementName, self._name)
+                )
         # This had ancient code starting with copy.copy(SourceElement) for a shallow
         # copy followed by a bunch of fixups.
         # The following is better but maybe should copy more attributes.
         # The ultimate solution should be fairly automatic, conttrolled by a well
         # formed TupleDictionary.
         wsNewElement = self._AddElement(
-            wsNewElementName,
-            PhysicalType=SourceElement.physicalType)
+            wsNewElementName, PhysicalType=SourceElement.physicalType
+        )
         wsNewElement.dbmsFieldName = wsNewDbmsFieldName
         return wsNewElement
 
     def DefinePhysicalTableName(self, parmPhysicalTableName):
-        #print "^^ ", self._name, parmPhysicalTableName
+        # print "^^ ", self._name, parmPhysicalTableName
         self.physicalTableName = parmPhysicalTableName
 
     def CompleteTableDefinition(self, DevelopmentMode=False):
@@ -1637,11 +1724,12 @@ class TupleDict(object):
         if self.exeController is None:
             return
         wsAssociationTypeCodes = self.exeController.GetCodeObject(
-            ertypes.TaAssociationTypesName)
-        wsDataRoleCodes = self.exeController.GetCodeObject(
-            ertypes.ErDataRolesName)
+            ertypes.TaAssociationTypesName
+        )
+        wsDataRoleCodes = self.exeController.GetCodeObject(ertypes.ErDataRolesName)
         wsDataTypeCodes = self.exeController.GetCodeObject(
-            ertypes.ErPhysicalDataTypesName)
+            ertypes.ErPhysicalDataTypesName
+        )
         if self.uii is None:
             for wsThisElement in self.Elements():
                 if wsThisElement.roleType == ertypes.Core_DataRoleCode:
@@ -1675,7 +1763,7 @@ class TupleDict(object):
         # Build Ordered List of Associations.
         # These are only associations where this table is secondary.
         # The names key in self.associations is the secondary field name, not the association name.
-        # self.associations is a ezdict, so the sorted insertion order is accessed when
+        # self.associations is a qddict, so the sorted insertion order is accessed when
         # stepping though the dictionary.
         #
         wsIndirectAssociations = []
@@ -1683,9 +1771,7 @@ class TupleDict(object):
             if wsThisElement.roleType == wsDataRoleCodes.SecondaryParticipantCode:
                 if wsThisElement.associationType == wsAssociationTypeCodes.PathCode:
                     wsIndirectAssociations.append(wsThisElement)
-        wsIndirectAssociations.sort(
-            key=lambda assoc: -
-            assoc.associationPathStep)
+        wsIndirectAssociations.sort(key=lambda assoc: -assoc.associationPathStep)
         for wsThisAssociation in wsIndirectAssociations:
             self.associations[wsThisAssociation._name] = wsThisAssociation
         #
@@ -1705,19 +1791,23 @@ class TupleDict(object):
             # Skipping them saves a few CPU cycles including the need to fill put the schema.
             #
             wsThisElement.associationMirrorUdiElementName = self.FixElementName(
-                wsThisElement.associationMirrorUdiElementName)
+                wsThisElement.associationMirrorUdiElementName
+            )
             if wsThisElement.associationMirrorUdiElementName != "":
                 self.FixMirrorElement(
                     wsThisElement.associationMirrorUdiElementName,
                     ertypes.Core_MirrorUdiRoleCode,
-                    wsThisElement)
+                    wsThisElement,
+                )
             wsThisElement.associationMirrorUiiElementName = self.FixElementName(
-                wsThisElement.associationMirrorUiiElementName)
+                wsThisElement.associationMirrorUiiElementName
+            )
             if wsThisElement.associationMirrorUiiElementName != "":
                 self.FixMirrorElement(
                     wsThisElement.associationMirrorUiiElementName,
                     ertypes.Core_MirrorUiiRoleCode,
-                    wsThisElement)
+                    wsThisElement,
+                )
 
     def FixElementName(self, parmElementName):
         # Make sure name is a string and case senstive spelling is correct
@@ -1727,11 +1817,7 @@ class TupleDict(object):
                 wsElementName = self[wsElementName]._name
         return wsElementName
 
-    def FixMirrorElement(
-            self,
-            parmElementName,
-            parmRole,
-            parmParticipantElement):
+    def FixMirrorElement(self, parmElementName, parmRole, parmParticipantElement):
         # This probably fails. I just changed to associatedTab from name, but I'm not sure what
         # to do with Binder reference. Need to finish definition of binders /
         # tabs / tabs
@@ -1740,26 +1826,35 @@ class TupleDict(object):
         if parmRole == ertypes.Core_MirrorUdiRoleCode:
             if wsAssociatedBinder.udi is None:
                 self.exeController.errs.AddUserCriticalMessage(
-                    "No UDI assigned for tab %s @ %s.%s" %
-                    (parmParticipantElement.associatedTab._name, self._name, parmElementName))
+                    "No UDI assigned for tab %s @ %s.%s"
+                    % (
+                        parmParticipantElement.associatedTab._name,
+                        self._name,
+                        parmElementName,
+                    )
+                )
                 return None
             else:
                 wsMirroredElementName = wsAssociatedBinder.udi._name
         elif parmRole == ertypes.Core_MirrorUiiRoleCode:
             if wsAssociatedBinder.uii is None:
                 self.exeController.errs.AddUserCriticalMessage(
-                    "No UII assigned for tab %s @ %s.%s" %
-                    (parmParticipantElement.associatedTab._name, self._name, parmElementName))
+                    "No UII assigned for tab %s @ %s.%s"
+                    % (
+                        parmParticipantElement.associatedTab._name,
+                        self._name,
+                        parmElementName,
+                    )
+                )
                 return None
             else:
                 wsMirroredElementName = wsAssociatedBinder.uii._name
         else:
-            wsMirroredElementName = ""			# ERROR??
+            wsMirroredElementName = ""  # ERROR??
         wsElement = self[parmElementName]
         wsElement.ConfigureAsMirrorRole(
-            parmRole,
-            parmParticipantElement._name,
-            wsMirroredElementName)
+            parmRole, parmParticipantElement._name, wsMirroredElementName
+        )
 
     def GetElementByDbmsFieldName(self, parmDbmsFieldName):
         if parmDbmsFieldName in self.dbmsFieldNames:
@@ -1767,94 +1862,98 @@ class TupleDict(object):
         else:
             return None
 
+
 #
 # TupleDictionaryElement
 #
 
 
 def MakeClassTDict_For_TupleDictionaryElement(
-        ExeController=None, InstanceClassName=None):
+    ExeController=None, InstanceClassName=None
+):
     wsTDict = TupleDictionary(
         InstanceClassName=InstanceClassName,
         PrimaryDataPhysicalType=ertypes.Core_ObjectTypeCode,
-        ExeController=ExeController)
-    wsTDict.AddScalarElement('allowedValues')
-    wsTDict.AddScalarElement('associatedClassRefname')
-    wsTDict.AddScalarElement('associatedElementName')
-    wsTDict.AddScalarElement('associatedTableRefname')
-    wsTDict.AddScalarElementReference('associationParticipantElement')
-    wsTDict.AddScalarElementReference('associationParticipationElement')
-    wsTDict.AddContainerElementList('confusedElementNameList')
-    wsTDict.AddScalarElementBoolean('confusedIsVirtual')
-    wsTDict.AddScalarElement('calculator')
-    wsTDict.AddScalarElement('_caption')
-    wsTDict.AddScalarElement('codeObjectName')
-    wsTDict.AddScalarElement('codeSetName')
+        ExeController=ExeController,
+    )
+    wsTDict.AddScalarElement("allowedValues")
+    wsTDict.AddScalarElement("associatedClassRefname")
+    wsTDict.AddScalarElement("associatedElementName")
+    wsTDict.AddScalarElement("associatedTableRefname")
+    wsTDict.AddScalarElementReference("associationParticipantElement")
+    wsTDict.AddScalarElementReference("associationParticipationElement")
+    wsTDict.AddContainerElementList("confusedElementNameList")
+    wsTDict.AddScalarElementBoolean("confusedIsVirtual")
+    wsTDict.AddScalarElement("calculator")
+    wsTDict.AddScalarElement("_caption")
+    wsTDict.AddScalarElement("codeObjectName")
+    wsTDict.AddScalarElement("codeSetName")
     # collections contains only items defined in TDict
-    wsTDict.AddScalarElementReference('staticCollectionTDict')
+    wsTDict.AddScalarElementReference("staticCollectionTDict")
     # if element describes a collection, type of its content
-    wsTDict.AddScalarElement('collectionItemPhysicalType')
+    wsTDict.AddScalarElement("collectionItemPhysicalType")
     # if element describes a collection, TDict of its content
-    wsTDict.AddScalarElementReference('collectionItemTDict')
-    wsTDict.AddScalarElement('combinedFieldSeparator')
-    wsTDict.AddScalarElement('combinedFieldName')
-    wsTDict.AddScalarElement('dbmsFieldName')
-    wsTDict.AddScalarElement('dbmsFieldType')
-    wsTDict.AddScalarElement('dbmsNull')
-    wsTDict.AddScalarElement('dbmsKey')
-    wsTDict.AddScalarElement('dbmsDefaultValue')
-    wsTDict.AddScalarElement('dbmsExtra')
-    wsTDict.AddScalarElement('dbmsPrivileges')
+    wsTDict.AddScalarElementReference("collectionItemTDict")
+    wsTDict.AddScalarElement("combinedFieldSeparator")
+    wsTDict.AddScalarElement("combinedFieldName")
+    wsTDict.AddScalarElement("dbmsFieldName")
+    wsTDict.AddScalarElement("dbmsFieldType")
+    wsTDict.AddScalarElement("dbmsNull")
+    wsTDict.AddScalarElement("dbmsKey")
+    wsTDict.AddScalarElement("dbmsDefaultValue")
+    wsTDict.AddScalarElement("dbmsExtra")
+    wsTDict.AddScalarElement("dbmsPrivileges")
     # TDict containing this element
-    wsTDict.AddScalarElementReference('parentTDict')
-    wsTDict.AddScalarElement('_defaultValue')
-    wsTDict.AddScalarElementBoolean('_defaultValueAssigned')
-    wsTDict.AddScalarElementNumber('displayColumn')
-    wsTDict.AddScalarElementNumber('displayLength')
-    wsTDict.AddScalarElementNumber('displayOrder')
-    wsTDict.AddScalarElementNumber('displayRow')
-    wsTDict.AddScalarElement('encoding')
-    wsTDict.AddScalarElementNumber('formCt')
-    wsTDict.AddScalarElement('formRole')
-    wsTDict.AddScalarElement('hint')
-    wsTDict.AddScalarElementNumber('impliedDecimals')
-    wsTDict.AddScalarElement('instanceOfClassRefname')
-    wsTDict.AddScalarElementBoolean('isAutoIncrement')
-    wsTDict.AddScalarElementBoolean('isCaseSensitive')
-    wsTDict.AddScalarElementBoolean('isDirectoryMustExist')
-    wsTDict.AddScalarElementBoolean('isDirectoryPath')
-    wsTDict.AddScalarElementBoolean('isIdentifier')
-    wsTDict.AddScalarElementBoolean('isIndex')
-    wsTDict.AddScalarElementBoolean('isBlankAllowed')
-    wsTDict.AddScalarElementBoolean('isPassword')
-    wsTDict.AddScalarElementBoolean('isPositionalParameter')
-    wsTDict.AddScalarElementBoolean('isProcessElement')
-    wsTDict.AddScalarElementBoolean('isReadOnly')
-    wsTDict.AddScalarElementBoolean('isRsf')
-    wsTDict.AddScalarElementBoolean('isUnique')
-    wsTDict.AddScalarElementBoolean('isUpperCaseOnly')
-    wsTDict.AddScalarElementBoolean('isValueParameter')
-    wsTDict.AddScalarElementBoolean('isVirtual')
-    wsTDict.AddScalarElement('_ix')
-    wsTDict.AddScalarElementNumber('minLength')
-    wsTDict.AddScalarElementNumber('maxLength')
-    wsTDict.AddScalarElementNumber('textAreaRows')
-    wsTDict.AddScalarElementNumber('textAreaCols')
-    wsTDict.AddScalarElement('_name')
-    wsTDict.AddScalarElement('_path')
-    wsTDict.AddScalarElement('physicalType')
-    wsTDict.AddScalarElement('processMethodName')
-    wsTDict.AddScalarElement('prompt')
-    wsTDict.AddScalarElement('roleType')
-    wsTDict.AddScalarElement('schemaFieldUdi')
-    wsTDict.AddScalarElement('schemaFieldRoleSourceUdi')
-    wsTDict.AddScalarElement('unitsOfMeasure')
+    wsTDict.AddScalarElementReference("parentTDict")
+    wsTDict.AddScalarElement("_defaultValue")
+    wsTDict.AddScalarElementBoolean("_defaultValueAssigned")
+    wsTDict.AddScalarElementNumber("displayColumn")
+    wsTDict.AddScalarElementNumber("displayLength")
+    wsTDict.AddScalarElementNumber("displayOrder")
+    wsTDict.AddScalarElementNumber("displayRow")
+    wsTDict.AddScalarElement("encoding")
+    wsTDict.AddScalarElementNumber("formCt")
+    wsTDict.AddScalarElement("formRole")
+    wsTDict.AddScalarElement("hint")
+    wsTDict.AddScalarElementNumber("impliedDecimals")
+    wsTDict.AddScalarElement("instanceOfClassRefname")
+    wsTDict.AddScalarElementBoolean("isAutoIncrement")
+    wsTDict.AddScalarElementBoolean("isCaseSensitive")
+    wsTDict.AddScalarElementBoolean("isDirectoryMustExist")
+    wsTDict.AddScalarElementBoolean("isDirectoryPath")
+    wsTDict.AddScalarElementBoolean("isIdentifier")
+    wsTDict.AddScalarElementBoolean("isIndex")
+    wsTDict.AddScalarElementBoolean("isBlankAllowed")
+    wsTDict.AddScalarElementBoolean("isPassword")
+    wsTDict.AddScalarElementBoolean("isPositionalParameter")
+    wsTDict.AddScalarElementBoolean("isProcessElement")
+    wsTDict.AddScalarElementBoolean("isReadOnly")
+    wsTDict.AddScalarElementBoolean("isRsf")
+    wsTDict.AddScalarElementBoolean("isUnique")
+    wsTDict.AddScalarElementBoolean("isUpperCaseOnly")
+    wsTDict.AddScalarElementBoolean("isValueParameter")
+    wsTDict.AddScalarElementBoolean("isVirtual")
+    wsTDict.AddScalarElement("_ix")
+    wsTDict.AddScalarElementNumber("minLength")
+    wsTDict.AddScalarElementNumber("maxLength")
+    wsTDict.AddScalarElementNumber("textAreaRows")
+    wsTDict.AddScalarElementNumber("textAreaCols")
+    wsTDict.AddScalarElement("_name")
+    wsTDict.AddScalarElement("_path")
+    wsTDict.AddScalarElement("physicalType")
+    wsTDict.AddScalarElement("processMethodName")
+    wsTDict.AddScalarElement("prompt")
+    wsTDict.AddScalarElement("roleType")
+    wsTDict.AddScalarElement("schemaFieldUdi")
+    wsTDict.AddScalarElement("schemaFieldRoleSourceUdi")
+    wsTDict.AddScalarElement("unitsOfMeasure")
     wsTDict.CompleteDictionary()
     return wsTDict
 
     # This __init__() must be be compatible with TupleDictionaryElement.__init__()
     # because it will get called by TupleDictionary.AddElement()
     #
+
 
 #
 # TDict Elements support meta values which distinguish between various cases of missing data.
@@ -1880,99 +1979,118 @@ def MakeClassTDict_For_TupleDictionaryElement(
 # not required, but if it is supplied it has to be exactly four digits long.
 #
 # isProcessElement identifies ephemeral data that is inherently created and managed while populating
-#	a data structure and as a resuit should not be loaded and restored in data sserialization /
-#	persistant operations.
+# 	a data structure and as a resuit should not be loaded and restored in data sserialization /
+# 	persistant operations.
 #
 
 
 class TupleDictionaryElement(object):
     __slots__ = (
-        'allowedValues',
-        'associatedClassRefname',
-        'associatedElementName',
-        'associatedTableRefname',
-        'associationParticipantElement',
-        'associationParticipationElement',
-        'calculator',
-        '_caption',
-        'codeObjectName', 'codeSetName',
-        'staticCollectionTDict',
-        'collectionItemPhysicalType',
-        'collectionItemTDict',
-        'combinedFieldSeparator', 'combinedFieldName',
-        'confusedElementNameList', 'confusedIsVirtual',
-        'dbmsFieldName',
-        'dbmsFieldType', 'dbmsNull', 'dbmsKey',
-        'dbmsDefaultValue',
-        'dbmsExtra', 'dbmsPrivileges',
-        'formCt',
-        'parentTDict',
-        '_defaultValue', '_defaultValueAssigned',
-        'displayColumn', 'displayLength', 'displayOrder', 'displayRow',
-        'encoding',
-        'formRole',
-        'hint',
-        'impliedDecimals',
-        'instanceOfClassRefname',
-        'isAutoIncrement',
-        'isCaseSensitive',
-        'isDirectoryMustExist',
-        'isDirectoryPath',
-        'isIdentifier', 'isIndex',
-        'isBlankAllowed',
-        'isPassword',
-        'isPositionalParameter',
-        'isProcessElement',
-        'isReadOnly',
-        'isRsf',
-        'isUnique', 'isUpperCaseOnly',
-        'isValueParameter',
-        'isVirtual',
-        '_ix',
-        'minLength', 'maxLength',
-        '_name',
-        '_path',
-        'physicalType',
-        'processMethodName',
-        'prompt',
-        'roleType',
-        'schemaFieldUdi',
-        'schemaFieldRoleSourceUdi',
-        'textAreaRows',
-        'textAreaCols',
-        'unitsOfMeasure')
+        "allowedValues",
+        "associatedClassRefname",
+        "associatedElementName",
+        "associatedTableRefname",
+        "associationParticipantElement",
+        "associationParticipationElement",
+        "calculator",
+        "_caption",
+        "codeObjectName",
+        "codeSetName",
+        "staticCollectionTDict",
+        "collectionItemPhysicalType",
+        "collectionItemTDict",
+        "combinedFieldSeparator",
+        "combinedFieldName",
+        "confusedElementNameList",
+        "confusedIsVirtual",
+        "dbmsFieldName",
+        "dbmsFieldType",
+        "dbmsNull",
+        "dbmsKey",
+        "dbmsDefaultValue",
+        "dbmsExtra",
+        "dbmsPrivileges",
+        "formCt",
+        "parentTDict",
+        "_defaultValue",
+        "_defaultValueAssigned",
+        "displayColumn",
+        "displayLength",
+        "displayOrder",
+        "displayRow",
+        "encoding",
+        "formRole",
+        "hint",
+        "impliedDecimals",
+        "instanceOfClassRefname",
+        "isAutoIncrement",
+        "isCaseSensitive",
+        "isDirectoryMustExist",
+        "isDirectoryPath",
+        "isIdentifier",
+        "isIndex",
+        "isBlankAllowed",
+        "isPassword",
+        "isPositionalParameter",
+        "isProcessElement",
+        "isReadOnly",
+        "isRsf",
+        "isUnique",
+        "isUpperCaseOnly",
+        "isValueParameter",
+        "isVirtual",
+        "_ix",
+        "minLength",
+        "maxLength",
+        "_name",
+        "_path",
+        "physicalType",
+        "processMethodName",
+        "prompt",
+        "roleType",
+        "schemaFieldUdi",
+        "schemaFieldRoleSourceUdi",
+        "textAreaRows",
+        "textAreaCols",
+        "unitsOfMeasure",
+    )
 
-    def __init__(self, Name=None, ParentTDict=None,
-                 Caption=None,
-                 StaticCollectionTDict=None,
-                 CollectionItemPhysicalType=None,
-                 CollectionItemTDict=None,
-                 DisplayOrder=None,
-                 Encoding=ertypes.Encoding_Ascii,
-                 FormCt=None,
-                 Ix=-1,
-                 IsCaseSensitive=False,
-                 IsProcessElement=False,
-                 MinLength=None, MaxLength=None,
-                 BlankAllowed=True,
-                 PhysicalType=ertypes.Core_StringTypeCode,
-                 RoleType=ertypes.Core_DataRoleCode,
-                 SchemaFieldUdi=0, SchemaFieldRoleSourceUdi=0
-                 ):
+    def __init__(
+        self,
+        Name=None,
+        ParentTDict=None,
+        Caption=None,
+        StaticCollectionTDict=None,
+        CollectionItemPhysicalType=None,
+        CollectionItemTDict=None,
+        DisplayOrder=None,
+        Encoding=ertypes.Encoding_Ascii,
+        FormCt=None,
+        Ix=-1,
+        IsCaseSensitive=False,
+        IsProcessElement=False,
+        MinLength=None,
+        MaxLength=None,
+        BlankAllowed=True,
+        PhysicalType=ertypes.Core_StringTypeCode,
+        RoleType=ertypes.Core_DataRoleCode,
+        SchemaFieldUdi=0,
+        SchemaFieldRoleSourceUdi=0,
+    ):
 
         #
         # These are the minimum set of fields needed for the dictionary of a bafDataTreeBranch() object.
         # Actually, _short name is far from essential.
         #
         self.parentTDict = ParentTDict
-        self._ix = Ix					# this is the position of field in data array (0 ...)
-        self._name = Name					# this variable name's formal, case sensitive spelling
-        if (self.parentTDict is None) or (
-                self.parentTDict._superiorTDict) is None:
+        self._ix = Ix  # this is the position of field in data array (0 ...)
+        self._name = Name  # this variable name's formal, case sensitive spelling
+        if (self.parentTDict is None) or (self.parentTDict._superiorTDict) is None:
             self._path = self._name
         else:
-            self._path = self.parentTDict._path + \
-                ezdict.HierarchySeparatorCharacter + self._name
+            self._path = (
+                self.parentTDict._path + qddict.HierarchySeparatorCharacter + self._name
+            )
         self.roleType = RoleType
         if self.roleType == ertypes.Core_TriggerRoleCode:
             # Triggers don't get handled like data fields on forms -- they
@@ -1999,7 +2117,7 @@ class TupleDictionaryElement(object):
         # Source definition (documentation only)
         self.schemaFieldRoleSourceUdi = SchemaFieldRoleSourceUdi
         #
-        self.associatedClassRefname = None					# if this is an object type
+        self.associatedClassRefname = None  # if this is an object type
         # Field name being mirrored (in associated binder)
         self.associatedElementName = None
         self.associatedTableRefname = None
@@ -2032,13 +2150,13 @@ class TupleDictionaryElement(object):
         self.confusedElementNameList = []
         self.confusedIsVirtual = False
         self._defaultValue = None
-        self._defaultValueAssigned = False			# allows defaultValue to be None
+        self._defaultValueAssigned = False  # allows defaultValue to be None
         self.displayColumn = 0
         self.displayLength = 0
         self.displayOrder = DisplayOrder
         self.displayRow = 0
         self.calculator = None
-        self._caption = Caption		# column heading, including CSV
+        self._caption = Caption  # column heading, including CSV
         self.codeObjectName = None
         self.codeSetName = None
         self.impliedDecimals = 0
@@ -2050,23 +2168,23 @@ class TupleDictionaryElement(object):
         self.isAutoIncrement = False
         # effects sorting/matching not how stored
         self.isCaseSensitive = IsCaseSensitive
-        self.isBlankAllowed = BlankAllowed		# isRequired (see META notes above)
+        self.isBlankAllowed = BlankAllowed  # isRequired (see META notes above)
         self.isDirectoryMustExist = False
         self.isDirectoryPath = False
         self.isIdentifier = False
-        self.isIndex = False			# ?? dbms specification / not for BAF
+        self.isIndex = False  # ?? dbms specification / not for BAF
         self.isPassword = False
         self.isPositionalParameter = False
         self.isProcessElement = IsProcessElement
         self.isReadOnly = False
         self.isRsf = False
         self.isUnique = False
-        self.isUpperCaseOnly = False			# effects how stored
+        self.isUpperCaseOnly = False  # effects how stored
         self.isValueParameter = False
-        self.isVirtual = False			# _ix will be -1
+        self.isVirtual = False  # _ix will be -1
         self.SetLength(MinLength=MinLength, MaxLength=MaxLength)
         self.processMethodName = None
-        self.prompt = self._name		# always have a basic prompt
+        self.prompt = self._name  # always have a basic prompt
         self.physicalType = PhysicalType
         self.textAreaCols = 0
         self.textAreaRows = 0
@@ -2076,7 +2194,8 @@ class TupleDictionaryElement(object):
 
     def ConfigureAsConfusion(self, parmConfusedElementNameList, parmIsVirtual):
         wsDataRoles = self.parentTDict.exeController.GetCodeObject(
-            ertypes.ErDataRolesName)
+            ertypes.ErDataRolesName
+        )
         self.roleType = wsDataRoles.ConfusionCode
         self.confusedElementNameList = parmConfusedElementNameList
         self.confusedIsVirtual = parmIsVirtual
@@ -2101,17 +2220,19 @@ class TupleDictionaryElement(object):
 
     def ConfigureAsCalculatedRole(self, parmCalculator):
         wsDataRoles = self.parentTDict.exeController.GetCodeObject(
-            ertypes.ErDataRolesName)
+            ertypes.ErDataRolesName
+        )
         self.roleType = wsDataRoles.CalculatedCode
         self.calculator = parmCalculator
 
     def ConfigureAsDataRole(
-            self,
-            MinLength=0,
-            MaxLength=0,
-            CodeObjectName=None,
-            CodeSetName=None,
-            RoleType=ertypes.Core_DataRoleCode):
+        self,
+        MinLength=0,
+        MaxLength=0,
+        CodeObjectName=None,
+        CodeSetName=None,
+        RoleType=ertypes.Core_DataRoleCode,
+    ):
         self.roleType = RoleType
         if MinLength > 0:
             self.minLength = MinLength
@@ -2147,7 +2268,7 @@ class TupleDictionaryElement(object):
 
     def ConfigureCalculator(self, parmRpn):
         self.calculator = parmRpn
-        self._ix = -1			# should already be -1
+        self._ix = -1  # should already be -1
 
     def ConfigureAsCombinedField(self, parmFieldName, Separator="/"):
         # parmFieldName cannot be validated here because it might not be defined.
@@ -2200,13 +2321,8 @@ class TupleDictionaryElement(object):
         self._defaultValueAssigned = True
 
     def SaveDbmsSpecs(
-            self,
-            DbmsFieldType,
-            Null,
-            Key,
-            DefaultValue,
-            Extra,
-            Privileges=None):
+        self, DbmsFieldType, Null, Key, DefaultValue, Extra, Privileges=None
+    ):
         self.dbmsFieldType = DbmsFieldType
         self.dbmsNull = Null
         self.dbmsKey = Key
@@ -2243,9 +2359,10 @@ class TupleDictionaryElement(object):
         wsSeparatorPosition = wsData.find(self.combinedFieldSeparator)
         if wsSeparatorPosition < 0:
             return (parmData, None)
-        return (wsData[:wsSeparatorPosition],
-                (self.combinedFieldName,
-                 wsData[wsSeparatorPosition + 1:]))
+        return (
+            wsData[:wsSeparatorPosition],
+            (self.combinedFieldName, wsData[wsSeparatorPosition + 1 :]),
+        )
 
     #
     # ValidateDatum() should be the only place that performs atomic validation
@@ -2293,12 +2410,14 @@ class TupleDictionaryElement(object):
             return (wsDatumSpecified, wsDatum)
         raise IndexError(
             "Unknown instance physical type '{PhysType}'for container '{Name'".form(
-                PhysType=wsInstancePhysicalType,
-                Name=self.parentTDict._name))
+                PhysType=wsInstancePhysicalType, Name=self.parentTDict._name
+            )
+        )
 
     def GetDatum(self, parmData, InstancePhysicalType=None):
         (wsDatumSpecified, wsDatum) = self.GetDatumAndState(
-            parmData, InstancePhysicalType=InstancePhysicalType)
+            parmData, InstancePhysicalType=InstancePhysicalType
+        )
         if wsDatumSpecified:
             return wsDatum
         if self._defaultValueAssigned:
@@ -2321,14 +2440,11 @@ class TupleDictionaryElement(object):
             return
         raise IndexError(
             "Unknown instance physical type '{PhysType}'for container '{Name'".form(
-                PhysType=wsInstancePhysicalType,
-                Name=self.parentTDict._name))
+                PhysType=wsInstancePhysicalType, Name=self.parentTDict._name
+            )
+        )
 
-    def ValidateDatum(
-            self,
-            parmDatumSpecified,
-            parmDatum,
-            RoundExtraDigits=False):
+    def ValidateDatum(self, parmDatumSpecified, parmDatum, RoundExtraDigits=False):
         # Some of the messages below are AddDevXxxMessage and other AddUserXxxMessages.
         # Invalid values are most likely a problem for users to fix.
         # Invalid dictionaries are likely a problem for developers.
@@ -2336,7 +2452,8 @@ class TupleDictionaryElement(object):
         if (not parmDatumSpecified) or (parmDatum is None):
             if not self.isBlankAllowed:
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "%s value required." % (self._name))
+                    "%s value required." % (self._name)
+                )
                 return (False, wsDatum)
             wsDatum = self.InitialValue()
         #
@@ -2347,21 +2464,25 @@ class TupleDictionaryElement(object):
                 wsDatum = utils.UnicodeToAscii(wsDatum)
             else:
                 try:
-                    wsDatum = wsDatum.encode('ascii')
+                    wsDatum = wsDatum.encode("ascii")
                 except UnicodeEncodeError:
                     self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                        "Invalid value '%s' for ascii field %s" % (repr(wsDatum), self._name))
+                        "Invalid value '%s' for ascii field %s"
+                        % (repr(wsDatum), self._name)
+                    )
         if self.physicalType == ertypes.Core_IntegerTypeCode:
             wsResult = utils.NumericToInt(
                 wsDatum,
                 ImpliedDecimals=self.impliedDecimals,
                 UnitsOfMeasure=self.unitsOfMeasure,
                 RoundExtraDigits=RoundExtraDigits,
-                Errs=self.parentTDict.exeController.errs)
+                Errs=self.parentTDict.exeController.errs,
+            )
             if wsResult is None:
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "Invalid value '%s' for integer field %s" %
-                    (repr(wsDatum), self._name))
+                    "Invalid value '%s' for integer field %s"
+                    % (repr(wsDatum), self._name)
+                )
             else:
                 wsDatum = wsResult
             wsDatum = utils.Int(wsDatum)
@@ -2371,11 +2492,12 @@ class TupleDictionaryElement(object):
             wsResult = utils.TestYMD(wsDatum)
             if wsResult is None:
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "Invalid value '%s' for date field %s" % (repr(wsDatum), self._name))
+                    "Invalid value '%s' for date field %s" % (repr(wsDatum), self._name)
+                )
             else:
                 wsDatum = wsResult
         elif self.physicalType in ertypes.Core_PointerTypeCodes:
-            pass							# leave as pointer. ?? check class ??
+            pass  # leave as pointer. ?? check class ??
         else:
             wsDatum = utils.Str(wsDatum)
         #
@@ -2384,26 +2506,30 @@ class TupleDictionaryElement(object):
         #
         if self.codeObjectName is not None:
             wsCodeObject = self.parentTDict.exeController.GetCodeObject(
-                self.codeObjectName)
+                self.codeObjectName
+            )
             if (wsCodeObject is None) or (
-                    not wsCodeObject.ValidateSet(self.codeSetName, wsDatum())):
+                not wsCodeObject.ValidateSet(self.codeSetName, wsDatum())
+            ):
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "Field value '%s' not in code set %s.%s for field %s" %
-                    (wsDatum, self.codeObjectName, self.codeSetName, self._name))
+                    "Field value '%s' not in code set %s.%s for field %s"
+                    % (wsDatum, self.codeObjectName, self.codeSetName, self._name)
+                )
                 return (False, wsDatum)
         #
         if self.isDirectoryMustExist:
             if not os.path.isdir(wsDatum):
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "Field value '%s' for field %s is not a valid directory" %
-                    (wsDatum, self._name))
+                    "Field value '%s' for field %s is not a valid directory"
+                    % (wsDatum, self._name)
+                )
                 return (False, wsDatum)
 
         if self.allowedValues is not None:
             if not (wsDatum in self.allowedValues):
                 self.parentTDict.exeController.errs.AddUserCriticalMessage(
-                    "%s value '%s' not in list %s." %
-                    (self._name, repr(wsDatum), repr(
-                        self.allowedValues)))
+                    "%s value '%s' not in list %s."
+                    % (self._name, repr(wsDatum), repr(self.allowedValues))
+                )
                 return (False, wsDatum)
         return (True, wsDatum)

@@ -8,9 +8,9 @@ importing is configured by the virtual environment.
 
 import os
 
-from ezcore import ezconst
-from ezcore import ezdict
-from ezcore import textfile
+from . import qdconst
+from . import qddict
+from . import textfile
 
 #
 # INI File Support
@@ -59,7 +59,7 @@ def read_ini_directory(dir, ext='conf', target=None, debug=0):
     just a section within an ini file.
     """
     if target is None:
-        target = ezdict.EzDict()
+        target = qddict.EzDict()
     if debug >= 1:
         print($__def_name__$, ext, target)
     dir = os.path.abspath(dir)
@@ -84,11 +84,11 @@ def read_ini_directory(dir, ext='conf', target=None, debug=0):
     return target
 
 def read_ini_file(file_name=None, dir=None, target=None,
-                  hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
+                  hierarchy_separator=$'qdconst.HIERARCHY_SEPARATOR_CHARACTER$,
                   exe_controller=None, debug=0):
     """ Load an ini text file into a hierarchy of map type objects. """
     if target is None:
-        target = ezdict.EzDict()
+        target = qddict.EzDict()
     ini_reader = IniReader(file_name=file_name, dir=dir, target=target,
                            hierarchy_separator=hierarchy_separator,
                            exe_controller=exe_controller, debug=debug)
@@ -98,10 +98,10 @@ def read_ini_file(file_name=None, dir=None, target=None,
         return None
 
 def set_target_path(target, is_dir, path):
-    if hasattr(target, $'ezconst.IS_DIRECTORY_ATTR$):
-        setattr(target, $'ezconst.IS_DIRECTORY_ATTR$, is_dir)
-    if hasattr(target, $'ezconst.SOURCE_FILE_PATH_ATTR$):
-        setattr(target, $'ezconst.SOURCE_FILE_PATH_ATTR$, path)
+    if hasattr(target, $'qdconst.IS_DIRECTORY_ATTR$):
+        setattr(target, $'qdconst.IS_DIRECTORY_ATTR$, is_dir)
+    if hasattr(target, $'qdconst.SOURCE_FILE_PATH_ATTR$):
+        setattr(target, $'qdconst.SOURCE_FILE_PATH_ATTR$, path)
 
 class IniReader:
     __slots__ = ('active_target', 'active_key', 'current_line',
@@ -110,7 +110,7 @@ class IniReader:
                  'state', 'target')
 
     def __init__(self, file_name=None, dir=None, target=None,
-                 hierarchy_separator=$'ezconst.HIERARCHY_SEPARATOR_CHARACTER$,
+                 hierarchy_separator=$'qdconst.HIERARCHY_SEPARATOR_CHARACTER$,
                  exe_controller=None, debug=0):
         self.active_target = target
         self.active_key = None
@@ -132,7 +132,7 @@ class IniReader:
         if target is not None:
             self.target = target
         if self.target is None:
-            self.target = ezdict.EzDict()
+            self.target = qddict.EzDict()
         if self.debug >= 1:
             print($'__class_name__$, $'__def_name__$, self.file_name, self.dir)
         f = textfile.open_read(file_name=self.file_name, dir=self.dir, source=self.target)
@@ -262,18 +262,18 @@ def write_ini_level(f, data, section_name=''):
             child_section_name = section_name + '.'
         write_ini_level(f, child_data, section_name=child_section_name)
 
-def write_ini_file(source, path=None, $ezconst.EXE_CONTROLLER$=None):
+def write_ini_file(source, path=None, $qdconst.EXE_CONTROLLER$=None):
       """ Write a hierarchy of dict-like data as an ini file. """
       if path is None:
-          path = getattr(source, $'ezconst.SOURCE_FILE_PATH_ATTR$, None)
+          path = getattr(source, $'qdconst.SOURCE_FILE_PATH_ATTR$, None)
       if path is None:
           raise ValueError("No path specified for output file.")
-      if $ezconst.EXE_CONTROLLER$ is None:
-          $ezconst.EXE_CONTROLLER$ = getattr(source, $'ezconst.EXE_CONTROLLER$, None)
+      if $qdconst.EXE_CONTROLLER$ is None:
+          $qdconst.EXE_CONTROLLER$ = getattr(source, $'qdconst.EXE_CONTROLLER$, None)
       f = textfile.open_write_with_swap_file(path, backup=True)
       if f is None:
-          if $ezconst.EXE_CONTROLLER$ is not None:
-              $ezconst.EXE_CONTROLLER$.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
+          if $qdconst.EXE_CONTROLLER$ is not None:
+              $qdconst.EXE_CONTROLLER$.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
           return False
       write_ini_level(f, source)
       f.keep()

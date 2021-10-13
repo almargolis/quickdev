@@ -1,6 +1,6 @@
 import os
 
-from ezcore import inifile
+from qdcore import inifile
 
 def test_write_ini_file(tmpdir):
     f = tmpdir.join("config.ini")
@@ -59,9 +59,9 @@ def test_read_ini_directory(tmpdir):
     assert db1_container['db1_3'] == 'c'
 
     # check path attributes
-    assert ini_tree.$ezconst.IS_DIRECTORY_ATTR$ is True
-    assert ini_tree.$ezconst.SOURCE_FILE_PATH_ATTR$ == tmpdir
-    print("Sub1", ini_tree['site.Sub1'].$ezconst.IS_DIRECTORY_ATTR$,
-          ini_tree['site.Sub1'].$ezconst.SOURCE_FILE_PATH_ATTR$)
-    assert ini_tree['site.Sub1'].$ezconst.IS_DIRECTORY_ATTR$ is False
-    assert ini_tree['site.Sub1'].$ezconst.SOURCE_FILE_PATH_ATTR$ == ''
+    assert ini_tree.$qdconst.IS_DIRECTORY_ATTR$ is True
+    assert ini_tree.$qdconst.SOURCE_FILE_PATH_ATTR$ == tmpdir
+    print("Sub1", ini_tree['site.Sub1'].$qdconst.IS_DIRECTORY_ATTR$,
+          ini_tree['site.Sub1'].$qdconst.SOURCE_FILE_PATH_ATTR$)
+    assert ini_tree['site.Sub1'].$qdconst.IS_DIRECTORY_ATTR$ is False
+    assert ini_tree['site.Sub1'].$qdconst.SOURCE_FILE_PATH_ATTR$ == ''

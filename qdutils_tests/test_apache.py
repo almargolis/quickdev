@@ -1,4 +1,4 @@
-import apache
+from qdutils import apache
 
 SITES_CONF_SELECTOR = '/etc/apache2/sites_available/*.conf'
 

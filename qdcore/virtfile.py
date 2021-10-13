@@ -62,8 +62,8 @@ import os
 import syslog
 import time
 
-from ezcore import filedriver
-from ezcore import utils
+from . import filedriver
+from . import utils
 
 STDIN = "__stdin__"
 STDOUT = "__stdout__"
@@ -83,7 +83,7 @@ def OpenBlobFile(parmBlob, debug=0):
     wsDriver = filedriver.bzBlobFileDriver(debug=debug)
     wsDriver.AddBlob(parmBlob)
     wsFile = VirtFile(driver=wsDriver, debug=debug)
-    wsFile.readAheadMode = False
+    wsFile.read_ahead_mode = False
     if wsFile.open("", "r"):
         return wsFile
     else: return None
@@ -102,13 +102,13 @@ class VirtFileException(Exception):
 
 class VirtFile(object):
     __slots__ = (
-                    'buf', 'bufIx', 'bufLen', 'bufSize',
+                    'buf', 'buf_ix', 'buf_len', 'buf_size',
                     'debug', 'dont_close', 'driver', 'EOF', 'eol_bytes',
-                    'funcResult',
+                    'err_code', 'funcResult',
                     'lock_file', 'lock_retries', 'lock_wait_secs',
                     'logForceDetail', 'logPriority', 'logSummary',
                     'make_backup', 'open_mode', 'print_source',
-                    'readAheadMode', 'recno',
+                    'read_ahead_mode', 'recno',
                     'source_line_ct', 'strip_eol',
                     'swap_output_file', 'tFile', 'writeResult', 'writeSize'
                 )
@@ -127,7 +127,8 @@ class VirtFile(object):
             self.driver = filedriver.FileDriver(self, debug=debug)
         self.debug = debug
         self.dont_close = False
-        self.eol_bytes = '\n'.encode('utf-8')
+        self.eol_bytes = bytes('\n', encoding='utf-8')
+        self.err_code = 0
         self.lock_file = None
         self.lock_retries = 10
         self.lock_wait_secs=0.01
@@ -137,14 +138,14 @@ class VirtFile(object):
         self.make_backup = False
         self.open_mode = None
         self.print_source = False
-        self.readAheadMode = True
+        self.read_ahead_mode = True
         self.strip_eol = False
         self.tFile = None
         # I/O State Properties
         self.buf = ""
-        self.bufIx = 0
-        self.bufLen = 0
-        self.bufSize = BLOCKSIZE
+        self.buf_ix = 0
+        self.buf_len = 0
+        self.buf_size = BLOCKSIZE
         self.EOF = True
         self.funcResult = 0
         self.recno = 0
@@ -185,8 +186,8 @@ class VirtFile(object):
             print("VirtFile.safe_close({}: {}) {}".format(
                 self.driver.fd, self.driver.path, tfile_desc))
         if self.tFile:			# write rest of file copy
-            while self.bufLen > 0:
-                self.ReadBlock()
+            while self.buf_len > 0:
+                self.read_block()
             self.tFile.close()
             self.tFile = None
 
@@ -226,7 +227,7 @@ class VirtFile(object):
         self.logForceDetail = parmSrcFile.logForceDetail
         self.logPriority = parmSrcFile.logPriority
         self.logSummary = parmSrcFile.logSummary
-        self.readAheadMode = parmSrcFile.readAheadMode
+        self.read_ahead_mode = parmSrcFile.read_ahead_mode
         self.tFile = parmSrcFile.tFile
 
         self.initialize_readahead()
@@ -296,7 +297,13 @@ class VirtFile(object):
 
     def open(self, file_name=None, mode=None, dir=None, source=None,
              backup=False, lock=False, no_wait=False, swap=False):
-        """ Open file. Return True or False to indicate result. """
+        """
+        Open file. Return True or False to indicate result.
+
+        There are lots of reasons why the open may fail.
+        self.err_code gives a hint for debugging, including pytest.
+        """
+        self.err_code = 0
         self.make_backup = backup
         self.open_mode = mode
         path = None
@@ -335,11 +342,13 @@ class VirtFile(object):
             os_mode = self.open_mode
         if lock:
             if not self.lock_set(path, no_wait=no_wait):
+                self.err_code = 10
                 return False
         if swap:
             if not self.create_swap_output(path):
                 if lock:
                     self.lock_clear()
+                self.err_code = 20
                 return False
         if self.driver.OsOpenMode(path, os_mode) >= 0:
             self.initialize_readahead()
@@ -361,6 +370,7 @@ class VirtFile(object):
             self.close_swap_file(abandon=True)
         if lock:
             self.lock_clear()
+        self.err_code = 30
         return False
 
     def create_swap_output(self, path, debug=0):
@@ -401,7 +411,7 @@ class VirtFile(object):
         self.swap_output_file.close()
         if abandon:
             os.unlink(self.swap_output_file.path)
-            self.swap_output_file = None    
+            self.swap_output_file = None
             return
         if self.make_backup:
             backup_file_path = utils.ChangeFileNameExtension(self.driver.path, 'bak')
@@ -430,16 +440,16 @@ class VirtFile(object):
             return
         if self.debug > 2:
             print('VirtFile.initialize_readahead fd={} flags={} readable={}'.format(
-				self.driver.fd, self.driver.open_flags, self.driver.is_readable()))
+				self.driver.fd, self.driver.open_flags, self.driver.is_readable))
         if not self.driver.is_readable:
             # The file is not readable, so there is nothing to read
             self.EOF = True
             return
-        if not self.readAheadMode:
+        if not self.read_ahead_mode:
             self.EOF = False
             return
-        self.ReadBlock()
-        if self.bufIx >= self.bufLen:
+        self.read_block()
+        if self.buf_ix >= self.buf_len:
             self.EOF = True
         else:
             self.EOF = False
@@ -466,20 +476,20 @@ class VirtFile(object):
                                          ostrip_eol=True, oEOL=self.EOL))
         return wsData
 
-    def ReadBlock(self):
+    def read_block(self):
         if self.debug >= 3:
-            print("VirtFile.ReadBlock(fd:%d)" % (
+            print("VirtFile.read_block(fd:%d)" % (
                                             self.driver.fd))
-        self.bufLen = 0
-        self.bufIx = 0
+        self.buf_len = 0
+        self.buf_ix = 0
         if not self.driver.is_readable:
             return
-        self.buf = self.read(self.bufSize)
-        self.bufLen = len(self.buf)
+        self.buf = self.read(self.buf_size)
+        self.buf_len = len(self.buf)
         if self.debug >= 3:
-            print("VirtFile.ReadBlock(fd:%d) len = %d" % (
-                                            self.driver.fd, self.bufLen))
-        if self.tFile and (self.bufLen > 0):
+            print("VirtFile.read_block(fd:%d) len = %d" % (
+                                            self.driver.fd, self.buf_len))
+        if self.tFile and (self.buf_len > 0):
             self.tFile.write(self.buf)
 
     def flush(self):
@@ -507,18 +517,18 @@ class VirtFile(object):
         return self.driver.OsLock()
 
     def readblob(self):
-        if self.bufIx >= self.bufLen:
+        if self.buf_ix >= self.buf_len:
           return self.read()
         else:
-          wsBlob = self.buf[self.bufIx:self.bufLen]
-          self.bufIx = self.bufLen
+          wsBlob = self.buf[self.buf_ix:self.buf_len]
+          self.buf_ix = self.buf_len
           return wsBlob
 
     def readlines(self):
         wsResult			= []
         while not self.EOF:
-            wsLine			= self.readline()
-            wsResult.append(wsLine)
+            line_out			= self.readline()
+            wsResult.append(line_out)
         return wsResult
 
     def readln(self):
@@ -531,75 +541,75 @@ class VirtFile(object):
         # the prior readline()
         if self.debug >= 3:
             print('VirtFile.readline(fd={} EOF={} ix={} len={})'.format(self.driver.fd, self.EOF,
-						self.bufIx, self.bufLen))
-        if self.bufIx >= self.bufLen: self.ReadBlock()
-        if self.bufIx >= self.bufLen: self.EOF = True
+						self.buf_ix, self.buf_len))
+        if self.buf_ix >= self.buf_len: self.read_block()
+        if self.buf_ix >= self.buf_len: self.EOF = True
 
         if self.EOF:
             if self.debug >= 2:
                 print("VirtFile.readline(fd:%d) past EOF." % (self.driver.fd))
             return None
-        wsEolLen			= len(self.eol_bytes)
+        eol_len			= len(self.eol_bytes)
 
-        wsLine				= b""
+        line_out				= b""
         while True:
-            wsEOL_ix			= self.buf.find(self.eol_bytes, self.bufIx)
-            wsStartIx			= self.bufIx
-            if wsEOL_ix >= 0:
-                wsEndIx			= wsEOL_ix
+            eol_ix			= self.buf.find(self.eol_bytes, self.buf_ix)
+            line_start_ix			= self.buf_ix
+            if eol_ix >= 0:
+                line_end_ix			= eol_ix
                 if not self.strip_eol:
-                    wsEndIx		+= wsEolLen
-                self.bufIx		= wsEOL_ix + wsEolLen
-                wsLine			+= self.buf[wsStartIx:wsEndIx]
+                    line_end_ix		+= eol_len
+                self.buf_ix		= eol_ix + eol_len
+                line_out			+= self.buf[line_start_ix:line_end_ix]
                 break
-            wsEndIx			= self.bufLen
-            wsLine			+= self.buf[wsStartIx:wsEndIx]
-            if (self.buf[wsEndIx-1] == self.eol_bytes[0]) and (wsEolLen > 1):
+            line_end_ix			= self.buf_len
+            line_out			+= self.buf[line_start_ix:line_end_ix]
+            if (self.buf[line_end_ix-1] == self.eol_bytes[0]) and (eol_len > 1):
                 # The last character in the previous block was the first
                 # character of EOL.  Check if the first character of the
                 # next block is the final character.  This logic assumes
                 # that EOL is a maximum of 2 characters long.
-                self.ReadBlock()				# read next block
-                if self.bufIx >= self.bufLen:		# EOF
+                self.read_block()				# read next block
+                if self.buf_ix >= self.buf_len:		# EOF
                     # At EOF we have found first char of EOL, strip it (this is
                     # a very marginal case, but anything can happen.
                     if self.strip_eol:
-                        wsLine		= wsLine[:len(wsLine)-1]
+                        line_out		= line_out[:-1]
                     break
-                if self.buf[self.bufIx] == self.eol_bytes[1]:
+                if self.buf[self.buf_ix] == self.eol_bytes[1]:
                     if self.strip_eol:
-                        wsLine		= wsLine[:len(wsLine)-1]
+                        line_out		= line_out[:-1]
                     else:
-                        wsLine		+= self.wseol_bytes[1]
-                    self.bufIx += 1				# advance pointer past EOL
+                        line_out		+= self.eol_bytes[1]
+                    self.buf_ix += 1				# advance pointer past EOL
                     break
-                else:
-                    self.ReadBlock()				# read next block
-                    if self.bufIx >= self.bufLen:
-                        break						# EOF
+            else:
+                # Just read the next block and search for EOL
+                self.read_block()				# read next block
+                if self.buf_ix >= self.buf_len:
+                    break						# EOF
 
         # We get here after break from while loop at end of line.
-        # wsLine is still a bytes class object.
+        # line_out is still a bytes class object.
         self.source_line_ct += 1
-        if self.print_source: print("%3d %s" % (self.source_line_ct, wsLine))
-        if self.readAheadMode:
+        if self.print_source: print("%3d %s" % (self.source_line_ct, line_out))
+        if self.read_ahead_mode:
             # Can't read ahead if a socket because it blocks instead
             # of returning null buffer.  Sockets need other mechanism
             # to check EOF.
-            if self.bufIx >= self.bufLen: self.ReadBlock()
-            if self.bufIx >= self.bufLen: self.EOF = True
+            if self.buf_ix >= self.buf_len: self.read_block()
+            if self.buf_ix >= self.buf_len: self.EOF = True
         if self.debug >= 4:
             print("VirtFile.readline(fd:%d) len = %d '%s'" % (
-					self.driver.fd, len(wsLine), wsLine))
+					self.driver.fd, len(line_out), line_out))
         if not self.strip_eol:
             # This is only needed for the last line of the filei which is often missing EOL.
             # Insert an EOL if its not there, so the last line isn't
             # a special case where EOL may be missing.
-            wsEolLen			= len(self.EOL)
-            if wsLine:
-                if wsLine[-wsEolLen:] != self.EOLi_bytes:
-                    wsLine		+= self.eol_bytes
-        return wsLine.decode('utf-8')					# return as string
+            if line_out != b"":
+                if line_out[-eol_len:] != self.eol_bytes:
+                    line_out		+= self.eol_bytes
+        return line_out.decode('utf-8')					# return as string
 
     def reset(self):
         # reset() retains the definition of the file's access rules and
@@ -613,13 +623,13 @@ class VirtFile(object):
         wsLogForceDetail = self.logForceDetail
         wsLogPriority = self.logPriority
         wsLogSummary = self.logSummary
-        wsReadAheadMode = self.readAheadMode
+        wsReadAheadMode = self.read_ahead_mode
         self.__init__(driver=self.driver, debug=self.debug)
         self.eol_bytes = wseol_bytes
         self.logForceDetail = wsLogForceDetail
         self.logPriority = wsLogPriority
         self.logSummary = wsLogSummary
-        self.readAheadMode = wsReadAheadMode
+        self.read_ahead_mode = wsReadAheadMode
 
     def seek(self, parmOfs, whence=0):
         if self.debug >= 3:
@@ -635,7 +645,7 @@ class VirtFile(object):
                                             repr(parmSrcFile)))
         self.tFile = parmSrcFile
         # Write first block read during mail file open
-        if self.tFile and (self.bufLen > 0):
+        if self.tFile and (self.buf_len > 0):
             self.tFile.write(self.buf)
 
     def tell(self):

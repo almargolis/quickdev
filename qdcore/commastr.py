@@ -19,7 +19,7 @@
 import string
 import sys
 
-from . import ezdict
+from . import qddict
 from . import utils
 
 
@@ -154,7 +154,7 @@ class bzLineParse:
         self.quoteChar = ""
         self.stripAll = StripAll
         if getKeywords:
-            self.keywords = ezdict.EzDict()
+            self.keywords = qddict.EzDict()
 
     def ClearCurField(self):
         if self.ascii:

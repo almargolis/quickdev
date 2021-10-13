@@ -22,23 +22,24 @@ import sys
 
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
-QDBASE_PATH = os.path.dirname(THIS_MODULE_PATH)
-QDDEV_PATH = os.path.dirname(QDBASE_PATH)
+QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
+QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
 QDBASE_DIR_NAME = 'qdbase'
+QDCORE_DIR_NAME = 'qdcore'
 QDBASE_PATH = os.path.join(QDDEV_PATH, QDBASE_DIR_NAME)
-QDSTART_PATH = os.path.join(QDBASE_PATH, 'qdstart.py')
+QDCORE_PATH = os.path.join(QDDEV_PATH, QDCORE_DIR_NAME)
 
 try:
-    from qdbase import qdconst
+    import qdbase.cli as cli
 except ModuleNotFoundError:
-    qdconst = None
-if qdconst is None:
+    """
+    We should only get here if we are developing QuickDev and we don't
+    have the environment setup.
+    """
     sys.path.append(QDDEV_PATH)
-    from qdbase import qdconst
-
-from qdbase import cli
-from qdbase import inifile
-from qdbase import qdsite
+    import qdbase.cli as cli
+import qdbase.exenv as exenv
+import qdcore.qdsite as qdsite
 
 def check_directory(name, path, quiet=False):
     """Create a directory if it doesn't exist. """
@@ -62,10 +63,10 @@ class QdStart():
                  'err_ct',
                  'quiet', 'site_info')
 
-    def __init__(self, args):
+    def __init__(self, no_site, quiet):
         self.err_ct = 0
-        self.site_info = qdsite.EzSite(site_path=args.site_path)
-        self.quiet = args.quiet
+        self.site_info = qdsite.EzSite()
+        self.quiet = quiet
         if not self.check_site_path():
             return
         if not self.check_conf_path():
@@ -152,6 +153,9 @@ class QdStart():
         self.err_ct += 1
         print(msg)
 
+def start_site(no_site, quiet):
+     QdStart(no_site, quiet)
+
 if __name__ == '__main__':
     menu = cli.CliCommandLine()
     exenv.command_line_site(menu)
@@ -161,7 +165,7 @@ if __name__ == '__main__':
     exenv.command_line_verbose(menu)
 
     m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
-                                                   synth_site,
+                                                   start_site,
                                                    help="Synthesize directory."))
     m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='no_site',
                                                     default_value=False,
