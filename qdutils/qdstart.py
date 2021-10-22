@@ -24,6 +24,7 @@ import sys
 THIS_MODULE_PATH = os.path.abspath(__file__)
 QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
 QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+QDDEV_NAME = os.path.basename(QDDEV_PATH)
 QDBASE_DIR_NAME = 'qdbase'
 QDCORE_DIR_NAME = 'qdcore'
 QDBASE_PATH = os.path.join(QDDEV_PATH, QDBASE_DIR_NAME)
@@ -39,7 +40,15 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     import qdbase.cli as cli
 import qdbase.exenv as exenv
-import qdcore.qdsite as qdsite
+try:
+    import qdcore.qdsite as qdsite
+except ModuleNotFoundError:
+    """
+    We should only get here if we are developing QuickDev and we don't
+    have the environment setup.
+    """
+    sys.path.append(QDDEV_PATH)
+    import qdcore.qdsite as qdsite
 
 def check_directory(name, path, quiet=False):
     """Create a directory if it doesn't exist. """
@@ -65,7 +74,7 @@ class QdStart():
 
     def __init__(self, no_site, quiet):
         self.err_ct = 0
-        self.site_info = qdsite.EzSite()
+        self.site_info = qdsite.QdSite()
         self.quiet = quiet
         if not self.check_site_path():
             return
@@ -121,16 +130,12 @@ class QdStart():
                     return False
             return False
 
-    def save_org(self, source_path):
-        """
-        Save a system configuration file before making changes.
-        """
-        source_directory, source_filename = os.path.split(source_path)
-        org_file_path = os.path.join(self.site_info.conf_path, CONF_ETC_ORG, source_filename)
-        if not os.path.exists(org_path):
-            shutil.copy2(source_path, org_file_path)
-
     def validate_venv(self):
+        def check_site_package(site_packages_path, package_name, source_path):
+            site_link = os.path.join(site_packages_path, package_name)
+            print("Check link {} to {}".format(site_link, source_path))
+            if not os.path.islink(site_link):
+                os.symlink(source_path, site_link, target_is_directory=True)
         venv_path = self.site_info.ini_info['venv_path']
         lib_path = os.path.join(venv_path, 'lib')
         libs = os.listdir(lib_path)
@@ -143,9 +148,8 @@ class QdStart():
             self.error("{} is not a valid venv.".format(venv_path))
             return False
         packages_path = os.path.join(lib_path, python_lib, 'site-packages')
-        qdbase_path = os.path.join(packages_path, QDBASE_DIR_NAME)
-        if not os.path.islink(qdbase_path):
-            os.symlink(QDBASE_PATH, qdbase_path)
+        check_site_package(packages_path, QDBASE_DIR_NAME, QDBASE_PATH)
+        check_site_package(packages_path, QDCORE_DIR_NAME, QDCORE_PATH)
         return True
 
     def error(self, msg):
@@ -154,7 +158,8 @@ class QdStart():
         print(msg)
 
 def start_site(no_site, quiet):
-     QdStart(no_site, quiet)
+    print("START")
+    QdStart(no_site, quiet)
 
 if __name__ == '__main__':
     menu = cli.CliCommandLine()
@@ -172,3 +177,4 @@ if __name__ == '__main__':
                                                     is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
                                                     is_positional=False))
+    menu.cli_run()

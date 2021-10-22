@@ -9,15 +9,15 @@ for development workstations and CLI applications.
 import os
 import sys
 
-from qdbase import exenv
-from qdbase import cli
+import qdbase.exenv as exenv
+import qdbase.cli as cli
 import apache
 
 #
 # the following are host dependent globals
 #
 platform_name = sys.platform
-apache_hosting = apache.ApacheHosting(platform_name)
+apache_hosting = apache.ApacheHosting()
 
 class HostingConf(object):
     __slots__ = ('execution_user')
@@ -26,15 +26,15 @@ class HostingConf(object):
         self.execution_user = None
 
 hosting_conf_fn = 'hosting.conf'
-hosting_conf_path = os.path.join(exenv.execution_env.ezdev_dir, hosting_conf_fn)
+hosting_conf_path = os.path.join(exenv.execution_env.qddev_dir, hosting_conf_fn)
 hosting_conf = None
 
 def init_hosting():
     if cli.cli_input_yn("Do you want to initialize or repair this host?"):
-        if not exenv.make_directory(exenv.execution_env.ezdev_dir):
+        if not exenv.make_directory(exenv.execution_env.qddev_dir):
             sys.exit(-1)
     print(repr(exenv.execution_user))
-    print("Host {} initialized.".format(exenv.execution_env.ezdev_dir))
+    print("Host {} initialized.".format(exenv.execution_env.qddev_dir))
     sys.exit(0)
 
 def init_site(site_name):

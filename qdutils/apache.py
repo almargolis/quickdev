@@ -1,8 +1,6 @@
 import os
 import sys
 
-from qdbase import qdstart
-
 from qdbase import cli
 from qdbase import exenv
 from qdcore import filedriver
@@ -304,8 +302,7 @@ def init_hosting():
     if not os.path.isfile(a.apache_config_file_path):
         raise ValueError("Unsupported Apache configuration, missing '{}'.".format(
                          a.apache_config_file_path))
-    ez = qdstart.EzStart()
-    ez.save_org(a.apache_config_file_path)
+    exenv.save_org(a.apache_config_file_path)
     a.load_host_conf_file()
     available_sites_selector = so.path.join(a.sites_available_dir_path, '*.conf')
     includes = a.parsed_config_file.find_directives('Include',
