@@ -30,6 +30,12 @@ QDCORE_DIR_NAME = 'qdcore'
 QDBASE_PATH = os.path.join(QDDEV_PATH, QDBASE_DIR_NAME)
 QDCORE_PATH = os.path.join(QDDEV_PATH, QDCORE_DIR_NAME)
 
+print(sys.version)
+if sys.version_info[0] < 3:
+    # stop here because Python v2 import exceptions are different.
+    print("Python 3 or greater required.")
+    sys.exit(-1)
+
 try:
     import qdbase.cli as cli
 except ModuleNotFoundError:
@@ -50,12 +56,16 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     import qdcore.qdsite as qdsite
 
-def check_directory(name, path, quiet=False):
+def check_directory(name, path, quiet=False, raise_ex=False):
     """Create a directory if it doesn't exist. """
     if os.path.exists(path):
         if not os.path.isdir(path):
-            self.error("'{}' is not a directory.".format(path))
-            return False
+            err_msg = "'{}' is not a directory.".format(path)
+            if raise_ex:
+                raise ValueError(err_msg)
+            else:
+                self.error(err_mdg)
+                return False
     else:
         if cli.cli_input_yn("Create directory '{}'?".format(path)):
             os.mkdir(path)
@@ -72,12 +82,13 @@ class QdStart():
                  'err_ct',
                  'quiet', 'site_info')
 
-    def __init__(self, no_site, quiet):
+    def __init__(self, site_path, no_site, quiet):
         self.err_ct = 0
-        self.site_info = qdsite.QdSite()
+        if site_path is not None:
+            site_path = os.path.abspath(site_path)
+            check_directory('site', site_path, raise_ex=True)
+        self.site_info = qdsite.QdSite(site_path=site_path)
         self.quiet = quiet
-        if not self.check_site_path():
-            return
         if not self.check_conf_path():
             return
         if not self.check_acronym():
@@ -87,10 +98,6 @@ class QdStart():
         if not self.validate_venv():
             return
         self.site_info.write_site_ini()
-
-    def check_site_path(self):
-        """Create site directory if it doesn't exist. """
-        return check_directory('Site', self.site_info.site_path, quiet=self.quiet)
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
@@ -117,10 +124,10 @@ class QdStart():
                 self.site_info.ini_info['venv_path'] = venv_path
                 return True
         venv_name = self.site_info.ini_info['acronym'] + ".venv"
-        venv_path = os.path.join(self.site_path, venv_name)
+        venv_path = os.path.join(self.site_info.site_path, venv_name)
         if not os.path.isdir(venv_path):
             if cli.cli_input_yn("Create VENV '{}'?".format(venv_path)):
-                cmd = ['python', '-m', 'venv', venv_path]
+                cmd = ['python3', '-m', 'venv', venv_path]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
                     self.site_info.ini_info['venv_path'] = venv_path
@@ -157,9 +164,9 @@ class QdStart():
         self.err_ct += 1
         print(msg)
 
-def start_site(no_site, quiet):
+def start_site(site, no_site, quiet):
     print("START")
-    QdStart(no_site, quiet)
+    QdStart(site, no_site, quiet)
 
 if __name__ == '__main__':
     menu = cli.CliCommandLine()
@@ -172,9 +179,15 @@ if __name__ == '__main__':
     m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
                                                    start_site,
                                                    help="Synthesize directory."))
-    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='no_site',
+    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_N_NO_SITE,
+                                                    parameter_name='no_site',
                                                     default_value=False,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
+    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_Q_QUIET,
+                                                    parameter_name='quiet',
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_S_SITE,
+                                                    parameter_name='site',
+                                                    default_value=None,
                                                     is_positional=False))
     menu.cli_run()

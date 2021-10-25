@@ -34,43 +34,63 @@ except:
 # Command line flags commonly used by QuickDev utilities.
 # These functions help assure consistency.
 #
+
+ARG_L_CONF_LOC = 'l'
+ARG_N_NO_SITE = 'n'
+ARG_Q_QUIET = 'q'
+ARG_S_SITE = 's'
+ARG_V_VERBOSE = 'v'
+ARG_W_WEBSITE = 'w'
+
 def command_line_loc(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('l',
+    item = cli.CliCommandLineParameterItem(ARG_L_CONF_LOC,
                   help="Location of conf file or database.",
                   value_type=cli.PARAMETER_STRING
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def command_line_no_conf(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('n',
+    item = cli.CliCommandLineParameterItem(ARG_N_NO_SITE,
                   default_value=False,
                   help="Stand-alone operation. No conf file or database.",
                   value_type=cli.PARAMETER_BOOLEAN
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def command_line_quiet(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('q',
+    item = cli.CliCommandLineParameterItem(ARG_Q_QUIET,
                   default_value=False,
                   help="Display as few messages as possible.",
                   value_type=cli.PARAMETER_BOOLEAN
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def command_line_site(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('s',
+    item = cli.CliCommandLineParameterItem(ARG_S_SITE,
                   help="Specify site to configure.",
                   value_type=cli.PARAMETER_STRING
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def command_line_verbose(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('v',
+    item = cli.CliCommandLineParameterItem(ARG_V_VERBOSE,
                   help="Display more detailed messages than minimally needed.",
                   value_type=cli.PARAMETER_BOOLEAN
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def command_line_website(menu):
-    menu.add_item(cli.CliCommandLineParameterItem('w',
+    item = cli.CliCommandLineParameterItem(ARG_W_WEBSITE,
                   help="Specify website to configure.",
                   value_type=cli.PARAMETER_STRING
-                  ))
+                  )
+    menu.add_item(item)
+    return item
 
 def make_directory(dir_name):
     # This needs a security profile and handle chown and chmod

@@ -50,6 +50,10 @@ class QdSite():
     """
     QdSite is a container for core information regarding a site.
 
+    QdSite only reflects existing information. It does not create
+    site information or directories. Use QdStart to initialize
+    or repair a site.
+
     A global instance is created within exenv.ExecutionEnvironment()
     which describes the site where the current program is executing,
     which could be an development site
