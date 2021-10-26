@@ -272,9 +272,12 @@ def write_ini_file(source, path=None, exe_controller=None):
           exe_controller = getattr(source, 'exe_controller', None)
       f = textfile.open_write_with_swap_file(path, backup=True)
       if f is None:
-          if exe_controller is not None:
-              exe_controller.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
-          return False
+          err_msg = "Unable to open output INI file '{}'.".format(path)
+          if exe_controller is None:
+              raise Exception(err_msg)
+          else:
+              exe_controller.errs.AddUserCriticalMessage(err_msg)
+              return False
       write_ini_level(f, source)
       f.keep()
       return True

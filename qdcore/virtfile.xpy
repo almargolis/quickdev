@@ -357,7 +357,7 @@ class VirtFile(object):
                     setattr(source, $'qdconst.SOURCE_FILE_PATH_ATTR$, path)
             return True
         self.EOF = True
-        if mode == filedriver.MODE_N:
+        if os_mode == filedriver.MODE_N:
             # driver is only used to hold path.
             # we are probably writing to a swap file.
             if source is not None:

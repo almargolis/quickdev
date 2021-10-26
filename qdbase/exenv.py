@@ -42,6 +42,9 @@ ARG_S_SITE = 's'
 ARG_V_VERBOSE = 'v'
 ARG_W_WEBSITE = 'w'
 
+SYMLINK_TYPE_DIR = 'd'
+SYMLINK_TYPE_FILE = 'f'
+
 def command_line_loc(menu):
     item = cli.CliCommandLineParameterItem(ARG_L_CONF_LOC,
                   help="Location of conf file or database.",
@@ -127,18 +130,19 @@ def save_org(self, source_path):
 
 
 #
-# MakeSymlink
+# make_symlink
 #
 # Errors may result in going from having a symlink to having none.
 #
 # If calling with a full path, set name part to None or ''
 #
-def MakeSymlink(
+def make_symlink(
         parmSymlinkType,
         parmSymlinkDirectory,
         parmSymlinkName,
         parmTargetDirectory,
-        parmTargetName):
+        parmTargetName,
+        error_func=None):
     if (parmSymlinkName is None) or (parmSymlinkName == ''):
         wsSymlinkPath = os.path.join(parmSymlinkDirectory)
     else:
@@ -155,20 +159,22 @@ def MakeSymlink(
     except BaseException:
         wsTargetStat = None
     if wsTargetStat is None:
-        PrintError('Symlink target %s does not exist' % (wsTargetPath))
+        if error_func is not None:
+            error_func('Symlink target %s does not exist' % (wsTargetPath))
         return False
     if os.path.islink(wsTargetPath):
-        PrintError(
-            'Symlink target %s is a symlink. Symlink not created.' %
-            (wsTargetPath))
+        if error_func is not None:
+            error_func(
+                'Symlink target %s is a symlink. Symlink not created.' %
+                (wsTargetPath))
         return False
-    if parmSymlinkType == SymlinkTypeDir:
+    if parmSymlinkType == SYMLINK_TYPE_DIR:
         if not os.path.isdir(wsTargetPath):
             PrintError(
                 'Symlink target %s is not a directory. Symlink not created.' %
                 (wsTargetPath))
             return False
-    elif parmSymlinkType == SymlinkTypeFile:
+    elif parmSymlinkType == SYMLINK_TYPE_FILE:
         if not os.path.isfile(wsTargetPath):
             PrintError(
                 'Symlink target %s is not a file. Symlink not created.' %
@@ -207,25 +213,25 @@ def MakeSymlink(
         return False
     return True
 
-def MakeSymlinkToFile(
+def make_symlink_to_file(
         parmSymlinkDirectory,
         parmSymlinkName,
         parmTargetDirectory,
         parmTargetName):
-    return MakeSymlink(
-        SymlinkTypeFile,
+    return make_symlink(
+        SYMLINK_TYPE_FILE,
         parmSymlinkDirectory,
         parmSymlinkName,
         parmTargetDirectory,
         parmTargetName)
 
-def MakeSymlinkToDirectory(
+def make_symlink_to_directory(
         parmSymlinkDirectory,
         parmSymlinkName,
         parmTargetDirectory,
         parmTargetName):
-    return MakeSymlink(
-        SymlinkTypeDir,
+    return make_symlink(
+        SYMLINK_TYPE_DIR,
         parmSymlinkDirectory,
         parmSymlinkName,
         parmTargetDirectory,

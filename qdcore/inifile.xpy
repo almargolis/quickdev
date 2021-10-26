@@ -272,9 +272,12 @@ def write_ini_file(source, path=None, $qdconst.EXE_CONTROLLER$=None):
           $qdconst.EXE_CONTROLLER$ = getattr(source, $'qdconst.EXE_CONTROLLER$, None)
       f = textfile.open_write_with_swap_file(path, backup=True)
       if f is None:
-          if $qdconst.EXE_CONTROLLER$ is not None:
-              $qdconst.EXE_CONTROLLER$.errs.AddUserCriticalMessage("Unable to open output INI file '%s'" % (wsFilePath))
-          return False
+          err_msg = "Unable to open output INI file '{}'.".format(path)
+          if $qdconst.EXE_CONTROLLER$ is None:
+              raise Exception(err_msg)
+          else:
+              $qdconst.EXE_CONTROLLER$.errs.AddUserCriticalMessage(err_msg)
+              return False
       write_ini_level(f, source)
       f.keep()
       return True

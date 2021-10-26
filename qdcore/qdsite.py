@@ -63,10 +63,8 @@ class QdSite():
     __slots__ = ('conf_path', 'ini_info', 'ini_path', 'site_path')
     def __init__(self, site_path=None):
         if site_path is None:
-            self.site_path = os.getcwd()
-        else:
-            self.site_path = site_path
-        self.site_path = os.path.abspath(self.site_path)
+            site_path = os.getcwd()
+        self.site_path = os.path.abspath(site_path)
         self.conf_path = os.path.join(self.site_path, qdconst.SITE_CONF_DIR_NAME)
         self.ini_path = os.path.join(self.conf_path, qdconst.SITE_CONF_FILE_NAME)
         self.ini_info = inifile.read_ini_file(file_name=self.ini_path)
@@ -74,11 +72,14 @@ class QdSite():
             self.ini_info = {}
             self.ini_info['site_dir'] = self.site_path
 
-    def __repr__(self):
-        return self.site_path
+    def __str__(self):
+        return "{site_path}, {ini_path}: {ini_data}.".format(
+               site_path=self.site_path, ini_path=self.ini_path,
+               ini_data=str(self.ini_info))
 
     def write_site_ini(self):
-        inifile.write_ini_file(source=self.ini_info, path=self.ini_path)
+        if not inifile.write_ini_file(source=self.ini_info, path=self.ini_path):
+            raise Exception("Unable to write site ini file '{}'.".format(self.ini_path))
 
     @property
     def synthesis_db_path(self):

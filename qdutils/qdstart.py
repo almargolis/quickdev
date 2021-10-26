@@ -83,21 +83,30 @@ class QdStart():
                  'quiet', 'site_info')
 
     def __init__(self, site_path, no_site, quiet):
+        """
+        Call self.write_site_ini() frequently so we have saved
+        any captured data before bailing after a subsequent test.
+        """
         self.err_ct = 0
         if site_path is not None:
             site_path = os.path.abspath(site_path)
             check_directory('site', site_path, raise_ex=True)
         self.site_info = qdsite.QdSite(site_path=site_path)
+        print("Site Info: {}".format(self.site_info))
         self.quiet = quiet
         if not self.check_conf_path():
             return
         if not self.check_acronym():
             return
+        self.site_info.write_site_ini()
         if not self.check_python_venv():
             return
         if not self.validate_venv():
             return
+        if not self.check_venv_shortcut():
+            return
         self.site_info.write_site_ini()
+        print("Site check completed.")
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
@@ -135,6 +144,17 @@ class QdStart():
                 else:
                     self.error("Unable to create VENV.")
                     return False
+            return False
+
+    def check_venv_shortcut(self):
+        venv_path = self.site_info.ini_info['venv_path']
+        venv_bin_path = os.path.join(venv_path, 'bin')
+        if exenv.MakeSymlinkToFile(venv_bin_path, 'activate',
+                                   self.site_info.site_path, 'venv',
+                                   error_func=self.error):
+            return True
+        else:
+            self.error("Unable to create VENV shortcut.")
             return False
 
     def validate_venv(self):
