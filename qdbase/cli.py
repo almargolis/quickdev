@@ -72,14 +72,19 @@ class CliCommandLineParameterItem(CliCommandLineItem):
     is_required is meaningful only for a function parameter. It can be specified
     for flags as documentation if all actions are expected to require it but it
     is checked only for function parameters while assembling the function parameters.
+
+    default_none is used to disambiguate the difference between there being no
+    default value and there being a defaiult value of None. If default_none is
+    True, its assumed that default_value is None but that isn't verified.
     """
-    __slots__ = ('default_value', 'is_positional', 'is_required',
+    __slots__ = ('default_none', 'default_value', 'is_positional', 'is_required',
                  'parameter_name', 'value_type')
-    def __init__(self, argument_code, default_value=None,
+    def __init__(self, argument_code, default_none=False, default_value=None,
                  is_positional=False, is_required=False,
                  parameter_name=None,
                  value_type=PARAMETER_BOOLEAN, help="", security=None):
         super().__init__(argument_code, help_description=help, security=security)
+        self.default_none = default_none
         self.default_value = default_value
         if is_positional:
             self.is_positional = True
@@ -313,17 +318,20 @@ class CliCommandLine():
         self.action_function_args = []
         self.action_function_kwargs = {}
         for this in self.action_item.function_parameters:
+            this_none = False
             this_value = None
             if this.argument_code in self.cli_data:
                 this_value = self.cli_data[this.argument_code]
             else:
-                if this.default_value is not None:
+                if this.default_none or (this.default_value is not None):
+                    this_none = this.default_none
                     this_value = this.default_value
                 else:
                     this_flag = self.items[this.argument_code]
-                    if this_flag.default_value is not None:
+                    if this_flag.default_none or (this_flag.default_value is not None):
+                        this_none = this_flag.default_none
                         this_value = this_flag.default_value
-            if (this_value is None) and this.is_required:
+            if (this_value is None) and (not this_none) and this.is_required:
                 self.err_code = 102
                 self.err_msg = "No value specified for action '{}' parameter '{}' flag '{}'".format(
                       argument_code_str(self.action_item.argument_code),
@@ -331,7 +339,7 @@ class CliCommandLine():
                       argument_code_str(this.argument_code)
                       )
                 return False
-            if this_value is None:
+            if (this_value is None) and (not this_none):
                 continue
             if this.is_positional:
                 self.action_function_args.append(this_value)

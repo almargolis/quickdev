@@ -34,7 +34,7 @@ def init_hosting():
         if not exenv.make_directory(exenv.execution_env.qddev_dir):
             sys.exit(-1)
     print(repr(exenv.execution_user))
-    print("Host {} initialized.".format(exenv.execution_env.qddev_dir))
+    print("Host {} initialized.".format(exenv.QD_HOST_DIR))
     sys.exit(0)
 
 def init_site(site_name):
