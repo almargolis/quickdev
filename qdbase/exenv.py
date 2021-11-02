@@ -119,13 +119,13 @@ PYTHON_MIN_VERSION = "{}.{}".format(PYTHON_MIN_MAJOR, PYTHON_MIN_MINOR)
 # Check python version before imports because excepton classes
 # have changed.
 
-def save_org(self, source_path):
+def save_org(source_path):
     """
     Save a system configuration file before making changes.
     """
     source_directory, source_filename = os.path.split(source_path)
-    org_file_path = os.path.join(self.site_info.conf_path, CONF_ETC_ORG, source_filename)
-    if not os.path.exists(org_path):
+    org_file_path = os.path.join(source_directory, source_filename+'.org')
+    if not os.path.exists(org_file_path):
         shutil.copy2(source_path, org_file_path)
 
 

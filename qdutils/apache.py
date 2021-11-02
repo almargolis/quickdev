@@ -1,11 +1,15 @@
 import os
 import sys
 
+import qdstart
+
 from qdbase import cli
 from qdbase import exenv
 from qdcore import filedriver
+from qdcore import textfile
 from qdcore import virtfile
 from qdcore import utils
+
 
 #
 # These are good guides for apache on macos:
@@ -84,10 +88,14 @@ class ApacheConf():
     It saves comments and blank lines so that it can recreate the
     configuration file after any changes are made.
     """
-    __slots__ = ('directives', 'file_handle')
-    def __init__(self):
+    __slots__ = ('directives', 'file_handle', 'file_path')
+    def __init__(self, file_path=None):
         self.directives = []
+        self.file_path = file_path
         self.file_handle = None
+
+    def add_directive(self, name, value):
+        self.directives.append(ApacheDirective(name, value))
 
     def find_directives(self, name, value=None, recursive=True):
         result = []
@@ -103,7 +111,7 @@ class ApacheConf():
         search_this(self)
         return result
 
-    def load(self, path, read_write=False, backup=True):
+    def load(self, file_path=None, read_write=False, backup=True):
         """ Read config file and build directive list. """
         self.directives = []
         current_block = self
@@ -114,7 +122,12 @@ class ApacheConf():
             mode = filedriver.MODE_RR
         else:
             mode = filedriver.MODE_R
-        self.file_handle.open(path, mode=mode, backup=backup)
+        if file_path is None:
+            file_path = self.file_path
+        else:
+            if self.file_path is None:
+                self.file_path = file_path
+        self.file_handle.open(file_path, mode=mode, backup=backup)
         try:
             for this in self.file_handle.readlines():
                 line_ct += 1
@@ -147,7 +160,7 @@ class ApacheConf():
                 self.file_handle = None
 
 
-    def write(self, file_name=None, swap=True, backup=True):
+    def write(self, file_path=None, swap=True, backup=True):
         def write_block(spc, d):
             for this in d.directives:
                 if isinstance(this, str):
@@ -176,7 +189,12 @@ class ApacheConf():
                     mode = filedriver.MODE_S
                 else:
                     mode = filedriver.MODE_W
-                self.file_handle.open(path, mode=mode, backup=backup)
+                if file_path is None:
+                    file_path = self.file_path
+                else:
+                    if self.file_path is None:
+                        self.file_path = file_path
+                self.file_handle.open(file_path, mode=mode, backup=backup)
             write_block('', self)
         except:
             if self.file_handle is not None:
@@ -258,21 +276,24 @@ class ApacheHosting():
         This creates debian style directories under macos. It shouldn't do anything
         under debian style linux installations.
         """
-        if not os.path.isdir(self.apache_config_dir_path):
-            print("Apache config directory {} not found.".format(self.apache_config_dir_path))
-            sys.exit(-1)
-        if not os.path.isdir(self.sites_available_dir_path):
-            os.mkdir(self.sites_available_dir_path, mode=0o755)
-        if not os.path.isdir(self.sites_enabled_dir_path):
-            os.mkdir(self.sites_enabled_dir_path, mode=0o755)
+        qdstart.check_directory('Apache configuration',
+                                self.apache_config_dir_path,
+                                raise_ex=True)
+        if not qdstart.check_directory('Sites Available',
+                                self.sites_available_dir_path,
+                                mode=0o755):
+            return False
+        if not qdstart.check_directory('Sites Enabled',
+                                self.sites_enabled_dir_path,
+                                mode=0o755):
+            return False
         default_site_conf_path = os.path.join(self.sites_available_dir_path, DEFAULT_SITE_CONF_FN)
         if not os.path.isfile(default_site_conf_path):
-            with textfile.open(default_site_conf_path, 'w') as f:
+            with textfile.TextFile(file_name=default_site_conf_path, open_mode='w') as f:
                 f.writeln('<VirtualHost *:80>')
                 f.writeln('\tDocumentRoot "/Library/WebServer/Documents')
                 f.writeln('</VirtualHost>')
-        self.parsed_config_file.add('Include', os.path.join(self.sites_enabled_dir_path, '*.conf'))
-
+        return True
 
     def create_host(self, site_name):
         pass
@@ -282,7 +303,7 @@ class ApacheHosting():
     def create_virtual_host(self, site_name):
         site_conf_path = os.path.join(self.sites_available_dir_path, site_name + '.conf')
         if not os.path.isfile(site_conf_path):
-            with textfile.open(site_conf_path, 'w') as f:
+            with textfile.TextFile(file_name=site_conf_path, open_mode='w') as f:
                 f.writeln('<VirtualHost *:80>')
                 f.writeln('\tDocumentRoot "/Users/Jason/Documents/workspace/jasonmccreary.me/htdocs"')
                 f.writeln('\tServerName jasonmccreary.local')
@@ -302,14 +323,18 @@ def init_hosting():
     if not os.path.isfile(a.apache_config_file_path):
         raise ValueError("Unsupported Apache configuration, missing '{}'.".format(
                          a.apache_config_file_path))
+    if not a.create_directories():
+        print("Host not initialized.")
+        return False
     exenv.save_org(a.apache_config_file_path)
     a.load_host_conf_file()
-    available_sites_selector = so.path.join(a.sites_available_dir_path, '*.conf')
+    available_sites_selector = os.path.join(a.sites_available_dir_path, '*.conf')
     includes = a.parsed_config_file.find_directives('Include',
                                                     value=available_sites_selector,
                                                     recursive=False)
     if len(includes) < 1:
-        a.keep()
+        a.parsed_config_file.add_directive('Include', os.path.join(a.sites_enabled_dir_path, '*.conf'))
+        a.parsed_config_file.write()
 
 def show_hosting():
     pass

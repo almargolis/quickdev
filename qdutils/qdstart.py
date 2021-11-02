@@ -6,6 +6,10 @@
     bootstraping challenge for QuickDev development.
     This impacts QuickDev core developers, not application
     developers using QuickDev.
+
+    Some of the functions in this module are used by other
+    QuickDev utililities such as apache.py.
+
     *XSynth has a stand-alone mode which can be used to
      translate the qdutils directory without any pre-configuration.
      It only uses non-xpy modules and only QuickDev modules which are
@@ -56,19 +60,44 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     import qdcore.qdsite as qdsite
 
-def check_directory(name, path, quiet=False, raise_ex=False):
-    """Create a directory if it doesn't exist. """
+def handle_error(msg, error_func, error_print, raise_ex):
+    """
+    Print error message.
+
+    Note that only one of the print nodes is executed. This makes it a little
+    terser to call the client procedure.
+    """
+    if raise_ex:
+        raise ValueError(msg)
+    elif error_func is not None:
+        error_func(msg)
+    elif error_print:
+        print(msg)
+
+def check_directory(name, path, force=False, mode=511, quiet=False,
+                    error_func=None, error_print=True, raise_ex=False):
+    """
+    Create a directory if it doesn't exist.
+
+    The default mode 511 is the default of os.mkdir. It is specified here
+    because os.mkdir doesn't accept None.
+
+    force was added for pytest but could be useful in other cases.
+    """
+
     if os.path.exists(path):
         if not os.path.isdir(path):
             err_msg = "'{}' is not a directory.".format(path)
-            if raise_ex:
-                raise ValueError(err_msg)
-            else:
-                self.error(err_mdg)
-                return False
+            handle_error(err_msg, error_func, error_print, raise_ex)
+            return False
     else:
-        if cli.cli_input_yn("Create directory '{}'?".format(path)):
-            os.mkdir(path)
+        if force or cli.cli_input_yn("Create directory '{}'?".format(path)):
+            try:
+                os.mkdir(path, mode=mode)
+            except PermissionError:
+                err_msg = "Permission error. Use sudo."
+                handle_error(err_msg, error_func, error_print, raise_ex)
+                return False
         else:
             return False
     if not quiet:
