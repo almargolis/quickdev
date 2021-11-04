@@ -60,50 +60,6 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     import qdcore.qdsite as qdsite
 
-def handle_error(msg, error_func, error_print, raise_ex):
-    """
-    Print error message.
-
-    Note that only one of the print nodes is executed. This makes it a little
-    terser to call the client procedure.
-    """
-    if raise_ex:
-        raise ValueError(msg)
-    elif error_func is not None:
-        error_func(msg)
-    elif error_print:
-        print(msg)
-
-def check_directory(name, path, force=False, mode=511, quiet=False,
-                    error_func=None, error_print=True, raise_ex=False):
-    """
-    Create a directory if it doesn't exist.
-
-    The default mode 511 is the default of os.mkdir. It is specified here
-    because os.mkdir doesn't accept None.
-
-    force was added for pytest but could be useful in other cases.
-    """
-
-    if os.path.exists(path):
-        if not os.path.isdir(path):
-            err_msg = "'{}' is not a directory.".format(path)
-            handle_error(err_msg, error_func, error_print, raise_ex)
-            return False
-    else:
-        if force or cli.cli_input_yn("Create directory '{}'?".format(path)):
-            try:
-                os.mkdir(path, mode=mode)
-            except PermissionError:
-                err_msg = "Permission error. Use sudo."
-                handle_error(err_msg, error_func, error_print, raise_ex)
-                return False
-        else:
-            return False
-    if not quiet:
-        print("{} directory: {}.".format(name, path))
-    return True
-
 
 class QdStart():
     """Create or repair an QuickDev site. """
@@ -119,7 +75,7 @@ class QdStart():
         self.err_ct = 0
         if site_path is not None:
             site_path = os.path.abspath(site_path)
-            check_directory('site', site_path, raise_ex=True)
+            exenv.make_directory('site', site_path, raise_ex=True)
         self.site_info = qdsite.QdSite(site_path=site_path)
         print("Site Info: {}".format(self.site_info))
         self.quiet = quiet
@@ -139,11 +95,11 @@ class QdStart():
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        if not check_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
+        if not exenv.make_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
             return False
         for this in qdsite.CONF_SUBDIRECTORIES:
             this_path = os.path.join(self.site_info.conf_path, this)
-            if not check_directory('Conf', this_path, quiet=self.quiet):
+            if not exenv.make_directory('Conf', this_path, quiet=self.quiet):
                 return False
         return True
 

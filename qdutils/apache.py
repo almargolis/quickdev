@@ -1,7 +1,7 @@
 import os
 import sys
 
-import qdstart
+from . import qdstart
 
 from qdbase import cli
 from qdbase import exenv
@@ -276,14 +276,14 @@ class ApacheHosting():
         This creates debian style directories under macos. It shouldn't do anything
         under debian style linux installations.
         """
-        qdstart.check_directory('Apache configuration',
+        exenv.make_directory('Apache configuration',
                                 self.apache_config_dir_path,
                                 raise_ex=True)
-        if not qdstart.check_directory('Sites Available',
+        if not exenv.make_directory('Sites Available',
                                 self.sites_available_dir_path,
                                 mode=0o755):
             return False
-        if not qdstart.check_directory('Sites Enabled',
+        if not exenv.make_directory('Sites Enabled',
                                 self.sites_enabled_dir_path,
                                 mode=0o755):
             return False

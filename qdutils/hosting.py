@@ -12,6 +12,7 @@ import sys
 import qdbase.exenv as exenv
 import qdbase.cli as cli
 import apache
+import qdstart
 
 #
 # the following are host dependent globals
@@ -26,19 +27,23 @@ class HostingConf(object):
         self.execution_user = None
 
 hosting_conf_fn = 'hosting.conf'
-hosting_conf_path = os.path.join(exenv.execution_env.qddev_dir, hosting_conf_fn)
+hosting_conf_path = os.path.join(exenv.execution_env.qdhost_dir, hosting_conf_fn)
 hosting_conf = None
 
 def init_hosting():
-    if cli.cli_input_yn("Do you want to initialize or repair this host?"):
-        if not exenv.make_directory(exenv.execution_env.qddev_dir):
-            sys.exit(-1)
-    print(repr(exenv.execution_user))
-    print("Host {} initialized.".format(exenv.execution_env.qddev_dir))
+    if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
+        sys.exit(-1)
+    exenv.make_directory('Host configuraration',
+                                    exenv.execution_env.qdhost_dir,
+                                    raise_ex=True)
+    for this in exenv.QDHOST_ALL_SUBDIRS:
+        this_path = os.path.join(exenv.execution_env.qdhost_dir, this)
+        exenv.make_directory('Host conf subdirectory',
+                                this_path,
+                                raise_ex=True)
+    print(repr(exenv.execution_env.execution_user))
+    print("Host {} initialized.".format(exenv.execution_env.qdhost_dir))
     sys.exit(0)
-
-def init_site(site_name):
-    resp = cli.cli_input("Do you want to initialize or repair site '{}'?".format(site_name), "yn")
 
 def load_hosting_conf():
     global hosting_conf
@@ -58,9 +63,6 @@ if __name__ == "__main__":
     #
     menu.add_item(cli.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
     menu.add_item(cli.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
-    #
-    m = menu.add_item(cli.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
-    m.add_parameter(cli.CliCommandLineParameterItem('s', is_positional=True))
     #
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()

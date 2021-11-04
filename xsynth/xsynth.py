@@ -117,6 +117,13 @@ class XSynth:
             self.synthesis_db_path = qdsqlite.SQLITE_IN_MEMORY_FN
         else:
             self.synthesis_db_path = site.synthesis_db_path
+        if self.synthesis_db_path is None:
+            self.synthesis_db_path = qdsqlite.SQLITE_IN_MEMORY_FN
+        if debug > 0:
+            msg = "XSynth.__init__() [DB] db_location: '{}' self.synthesis_db_path: '{}'"
+            msg += " site.synthesis_db_path: '{}'"
+            msg = msg.format(db_location, self.synthesis_db_path, site.synthesis_db_path)
+            print(msg)
         db_debug = self.debug
         db_debug = 0
         self.db = xsource.open_xdb(self.synthesis_db_path,
@@ -240,12 +247,12 @@ class XSynth:
 
 
 def synth_site(site=None, db_location=None, no_site=None, sources=None,
-               quiet=False, verbose=False):
+               quiet=False, verbose=False, debug=0):
     XSynth(site=site, db_location=db_location, no_site=no_site, db_reset=True,
-           sources=sources, synth_all=True, quiet=quiet, debug=1)
+           sources=sources, synth_all=True, quiet=quiet, debug=debug)
     print("Execution Complete")
 
-def main():
+def main(debug=0):
     """
     XSynth can operate in either qddev or stand-alone mode.
 
@@ -263,6 +270,7 @@ def main():
     or the cwd and all subdirectories (-n mode).
     """
     menu = cli.CliCommandLine()
+    exenv.command_line_debug(menu)
     exenv.command_line_site(menu)
     exenv.command_line_loc(menu)
     exenv.command_line_no_conf(menu)
@@ -279,6 +287,10 @@ def main():
                                                    help="Synthesize directory."))
     m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='no_site',
                                                     default_value=False,
+                                                    is_positional=False))
+    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_D_DEBUG,
+                                                    parameter_name='debug',
+                                                    default_value=debug,
                                                     is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem('l', parameter_name='db_location',
                                                     default_value=None,

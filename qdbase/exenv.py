@@ -35,6 +35,7 @@ except:
 # These functions help assure consistency.
 #
 
+ARG_D_DEBUG = 'd'
 ARG_L_CONF_LOC = 'l'
 ARG_N_NO_SITE = 'n'
 ARG_Q_QUIET = 'q'
@@ -45,10 +46,25 @@ ARG_W_WEBSITE = 'w'
 SYMLINK_TYPE_DIR = 'd'
 SYMLINK_TYPE_FILE = 'f'
 
+QDHOST_DIR = '/etc/qdhost'
+QDHOST_WEBSITES_SUBDIR = 'websites'
+QDHOST_DEVSITES_SUBDIR = 'devsites'
+QDHOST_ALL_SUBDIRS = [QDHOST_WEBSITES_SUBDIR, QDHOST_DEVSITES_SUBDIR]
+
+return_code = 0
+
+def command_line_debug(menu):
+    item = cli.CliCommandLineParameterItem(ARG_D_DEBUG,
+                  help="Location of conf file or database.",
+                  value_type=cli.PARAMETER_STRING
+                  )
+    menu.add_item(item)
+    return item
+
 def command_line_loc(menu):
     item = cli.CliCommandLineParameterItem(ARG_L_CONF_LOC,
                   help="Location of conf file or database.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cli.PARAMETER_INTEGER
                   )
     menu.add_item(item)
     return item
@@ -95,14 +111,53 @@ def command_line_website(menu):
     menu.add_item(item)
     return item
 
-def make_directory(dir_name):
-    # This needs a security profile and handle chown and chmod
-    if not os.path.exists(dir_name):
-        try:
-            os.mkdir(dir_name)
-        except PermissionError:
-            print('Permission denied creating directory {}.'.format(dir_name))
+def handle_error(msg, error_func, error_print, raise_ex):
+    """
+    Print error message.
+
+    Note that only one of the print nodes is executed. This makes it a little
+    terser to call the client procedure.
+    """
+    if raise_ex:
+        raise ValueError(msg)
+    elif error_func is not None:
+        error_func(msg)
+    elif error_print:
+        print(msg)
+
+def make_directory(name, path, force=False, mode=511, quiet=False,
+                    error_func=None, error_print=True, raise_ex=False):
+    """
+    Create a directory if it doesn't exist.
+
+    The default mode 511 is the default of os.mkdir. It is specified here
+    because os.mkdir doesn't accept None.
+
+    force was added for pytest but could be useful in other cases.
+    """
+
+    global return_code
+    return_code = 0
+    if os.path.exists(path):
+        if not os.path.isdir(path):
+            err_msg = "'{}' is not a directory.".format(path)
+            handle_error(err_msg, error_func, error_print, raise_ex)
+            return_code = 101
             return False
+    else:
+        if force or cli.cli_input_yn("Create directory '{}'?".format(path)):
+            try:
+                os.mkdir(path, mode=mode)
+            except PermissionError:
+                err_msg = "Permission error. Use sudo."
+                handle_error(err_msg, error_func, error_print, raise_ex)
+                return_code = 102
+                return False
+        else:
+            return_code = 102
+            return False
+    if not quiet:
+        print("{} directory: {}.".format(name, path))
     return True
 
 #
@@ -255,7 +310,7 @@ class ExecutionEnvironment():
     slots = (
                     'debug', 'error_ct',
                     'execution_cwd', 'execution_site', 'execution_user',
-                    'qddev_dir',
+                    'qdhost_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
                     'main_module_path', 'platform',
                     'package_parent_directory', 'python_version'
@@ -263,7 +318,7 @@ class ExecutionEnvironment():
     def __init__(self):
         self.debug = 0                          # mainly used for pytest
         self.error_ct = 0
-        self.qddev_dir = '/etc/qddev'
+        self.qdhost_dir = QDHOST_DIR
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
         try:
