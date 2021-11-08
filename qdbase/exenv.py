@@ -192,105 +192,114 @@ def save_org(source_path):
 # If calling with a full path, set name part to None or ''
 #
 def make_symlink(
-        parmSymlinkType,
-        parmSymlinkDirectory,
-        parmSymlinkName,
-        parmTargetDirectory,
-        parmTargetName,
+        target_type,
+        target_directory,
+        target_name=None,
+        link_directory=None,
+        link_name=None,
         error_func=None):
-    if (parmSymlinkName is None) or (parmSymlinkName == ''):
-        wsSymlinkPath = os.path.join(parmSymlinkDirectory)
+    if (target_name is None) or (target_name == ''):
+        target_path = os.path.join(target_directory)
+        target_name = os.path.basename(target_path)
     else:
-        wsSymlinkPath = os.path.join(parmSymlinkDirectory, parmSymlinkName)
-    if (parmTargetName is None) or (parmTargetName == ''):
-        wsTargetPath = os.path.join(parmTargetDirectory)
-    else:
-        wsTargetPath = os.path.join(parmTargetDirectory, parmTargetName)
+        target_path = os.path.join(target_directory, target_name)
+    if (link_directory is None) or (link_directory == ''):
+        link_directory = os.getcwd()
+    if (link_name is None) or (link_name == ''):
+        link_name = target_name
+    link_path = os.path.join(link_directory, link_name)
     #
-    # Make sure the target is valid before doing anything to any existing link
+    # Make sure the link is valid before doing anything to any existing link
     #
     try:
-        wsTargetStat = os.stat(wsTargetPath)
+        target_stat = os.stat(target_path)
     except BaseException:
-        wsTargetStat = None
-    if wsTargetStat is None:
+        target_stat = None
+    if target_stat is None:
         if error_func is not None:
-            error_func('Symlink target %s does not exist' % (wsTargetPath))
+            error_func("Symlink target '{}' does not exist".format(target_path))
         return False
-    if os.path.islink(wsTargetPath):
+    if os.path.islink(target_path):
         if error_func is not None:
             error_func(
-                'Symlink target %s is a symlink. Symlink not created.' %
-                (wsTargetPath))
+                "Symlink target '{}' is a symlink. Symlink not created.".format(target_path))
         return False
-    if parmSymlinkType == SYMLINK_TYPE_DIR:
-        if not os.path.isdir(wsTargetPath):
-            PrintError(
-                'Symlink target %s is not a directory. Symlink not created.' %
-                (wsTargetPath))
+    if target_type == SYMLINK_TYPE_DIR:
+        if not os.path.isdir(target_path):
+            if error_func is not None:
+                error_func(
+                    "Symlink target '{}' is not a directory. Symlink not created.".format(target_path))
             return False
-    elif parmSymlinkType == SYMLINK_TYPE_FILE:
-        if not os.path.isfile(wsTargetPath):
-            PrintError(
-                'Symlink target %s is not a file. Symlink not created.' %
-                (wsTargetPath))
+    elif target_type == SYMLINK_TYPE_FILE:
+        if not os.path.isfile(link_path):
+            if error_func is not None:
+                error_func(
+                    "Symlink target '{}' is not a file. Symlink not created.".format(target_path))
             return False
     else:
-        PrintError('Symlink %s type code invalid. Symlink not created.' %
-                   (wsSymlinkPath))
-        return FALSE
+        if error_func is not None:
+            error_func(
+                "Symlink '{}' type code invalid. Symlink not created.".format(target_path))
+        return False
     #
     # Deal with any existing link or file
     #
-    if os.path.islink(wsSymlinkPath):
+    if os.path.islink(link_path):
         try:
-            os.remove(wsSymlinkPath)
+            os.remove(link_path)
         except BaseException:
-            PrintError('Unable to remove existing symlink %s' %
-                       (wsSymlinkPath))
+            if error_func is not None:
+                error_func(
+                    "Unable to remove existing symlink '{}'.".format(link_path))
             return False
     try:
-        wsSymlinkStat = os.stat(wsSymlinkPath)
+        link_stat = os.stat(link_path)
     except BaseException:
-        wsSymlinkStat = None
-    if not (wsSymlinkStat is None):
-        PrintError(
-            'File exists at symlink %s. It must be removed to continue' %
-            (wsSymlinkPath))
+        link_stat = None
+    if not (link_stat is None):
+        if error_func is not None:
+            error_func(
+                "File exists at symlink '{}'. It must be removed to continue.".format(link_path))
         return False
     #
     # Make the symlink
     #
     try:
-        os.symlink(wsTargetPath, wsSymlinkPath)
+        os.symlink(target_path, link_path)
     except BaseException:
-        PrintError('Unable to create symlink %s.' % (wsSymlinkPath))
+        if error_func is not None:
+            error_func(
+                "Unable to create symlink '{}'.".format(target_path))
         return False
     return True
 
 def make_symlink_to_file(
-        parmSymlinkDirectory,
-        parmSymlinkName,
-        parmTargetDirectory,
-        parmTargetName):
+        target_directory,
+        target_name=None,
+        link_directory=None,
+        link_name=None,
+        error_func=None):
     return make_symlink(
         SYMLINK_TYPE_FILE,
-        parmSymlinkDirectory,
-        parmSymlinkName,
-        parmTargetDirectory,
-        parmTargetName)
+        target_directory,
+        target_name,
+        link_directory,
+        link_name,
+        error_func=error_func)
 
 def make_symlink_to_directory(
-        parmSymlinkDirectory,
-        parmSymlinkName,
-        parmTargetDirectory,
-        parmTargetName):
+        target_directory,
+        target_name=None,
+        link_directory=None,
+        link_name=None,
+        error_func=None):
     return make_symlink(
         SYMLINK_TYPE_DIR,
-        parmSymlinkDirectory,
-        parmSymlinkName,
-        parmTargetDirectory,
-        parmTargetName)
+        target_directory,
+        target_name,
+        link_directory,
+        link_name,
+        error_func=error_func)
 
 class ExecutionUser(object):
     slots = ('effective_uid', 'effective_username', 'real_uid', 'real_username')

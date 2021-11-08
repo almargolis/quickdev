@@ -133,9 +133,8 @@ class QdStart():
 
     def check_venv_shortcut(self):
         venv_path = self.site_info.ini_info['venv_path']
-        venv_bin_path = os.path.join(venv_path, 'bin')
-        if exenv.MakeSymlinkToFile(venv_bin_path, 'activate',
-                                   self.site_info.site_path, 'venv',
+        venv_bin_path = os.path.join(venv_path, 'bin/activate')
+        if exenv.make_symlink_to_file(venv_bin_path, link_name='venv',
                                    error_func=self.error):
             return True
         else:
@@ -193,6 +192,6 @@ if __name__ == '__main__':
                                                     is_positional=False))
     m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_S_SITE,
                                                     parameter_name='site',
-                                                    default_value=None,
+                                                    default_none=True,
                                                     is_positional=False))
     menu.cli_run()
