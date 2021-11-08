@@ -1,4 +1,17 @@
+import os
+
 from qdbase import exenv
+
+def test_make_directory(tmpdir):
+    d_name = 'something'
+    d_path = tmpdir.join(d_name)
+    f = open(d_path, 'w')
+    f.write('xxx')
+    f.close()
+    #assert not os.path.exists(d_path)
+    assert not exenv.make_directory('Test Directory', d_path, force=True)
+    assert exenv.return_code == 101
+    assert os.path.exists(d_path)
 
 def test_symlink_file(tmpdir):
     content = 'some content'

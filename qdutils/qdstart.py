@@ -6,6 +6,10 @@
     bootstraping challenge for QuickDev development.
     This impacts QuickDev core developers, not application
     developers using QuickDev.
+
+    Some of the functions in this module are used by other
+    QuickDev utililities such as apache.py.
+
     *XSynth has a stand-alone mode which can be used to
      translate the qdutils directory without any pre-configuration.
      It only uses non-xpy modules and only QuickDev modules which are
@@ -56,25 +60,6 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     import qdcore.qdsite as qdsite
 
-def check_directory(name, path, quiet=False, raise_ex=False):
-    """Create a directory if it doesn't exist. """
-    if os.path.exists(path):
-        if not os.path.isdir(path):
-            err_msg = "'{}' is not a directory.".format(path)
-            if raise_ex:
-                raise ValueError(err_msg)
-            else:
-                self.error(err_mdg)
-                return False
-    else:
-        if cli.cli_input_yn("Create directory '{}'?".format(path)):
-            os.mkdir(path)
-        else:
-            return False
-    if not quiet:
-        print("{} directory: {}.".format(name, path))
-    return True
-
 
 class QdStart():
     """Create or repair an QuickDev site. """
@@ -90,7 +75,7 @@ class QdStart():
         self.err_ct = 0
         if site_path is not None:
             site_path = os.path.abspath(site_path)
-            check_directory('site', site_path, raise_ex=True)
+            exenv.make_directory('site', site_path, raise_ex=True)
         self.site_info = qdsite.QdSite(site_path=site_path)
         print("Site Info: {}".format(self.site_info))
         self.quiet = quiet
@@ -110,11 +95,11 @@ class QdStart():
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        if not check_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
+        if not exenv.make_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
             return False
         for this in qdsite.CONF_SUBDIRECTORIES:
             this_path = os.path.join(self.site_info.conf_path, this)
-            if not check_directory('Conf', this_path, quiet=self.quiet):
+            if not exenv.make_directory('Conf', this_path, quiet=self.quiet):
                 return False
         return True
 

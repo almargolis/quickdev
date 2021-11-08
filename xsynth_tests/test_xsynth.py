@@ -62,5 +62,4 @@ def test_xsynth(tmpdir):
 
 def test_main(tmpdir):
     # This makes sure XSynth() initializes, which was failing.
-    xsynth.main()
-
+    xsynth.main(debug=1)
