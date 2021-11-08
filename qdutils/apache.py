@@ -30,6 +30,7 @@ DEFAULT_SITE_CONF_FN = 'default'
 MACOS_HOMEBREW = {
     'apache_config_dir_path':	'/usr/local/etc/httpd',
     'document_base_dir':	'~/Sites',
+    'log_base_dir': '/private/var/log/apache2/'
     'apachectl':		'/usr/local/bin/apachectl',
     'httpd':			'/usr/local/bin/httpd',
     'service_start':		'brew services start httpd'
@@ -39,6 +40,7 @@ MACOS_DARWIN = {
     # The MacOS apachectl seems to be implemented as launchctl.
     'apache_config_dir_path':	'/private/etc/apache2',			# symlink to /etc/apache2
     'document_base_dir':	'~/Sites',
+    'log_base_dir': '/private/var/log/apache2/'
     'apachectl':		'/usr/sbin/apachectl',
     'httpd':			'/usr/sbin/httpd',
     'service_status':		'launchctl print system/org.apache.httpd',
@@ -47,7 +49,8 @@ MACOS_DARWIN = {
 
 DEBIAN = {
     'apache_config_dir_path':	'/etc/apache2',
-    'document_base_dir':	'/var/www'
+    'document_base_dir':	'/var/www',
+    'log_base_dir': '/var/log/apache2'
 }
 
 ALL_APACHE_PLATFORMS = {
@@ -251,7 +254,7 @@ class ApacheHosting():
     __slots__ = (
         'apache_config_dir_path', 'apache_config_file_path',
         'default_page_path', 'document_base_dir',
-        'parsed_config_file',
+        'log_base_dir', 'parsed_config_file',
         'sites_available_dir_path', 'sites_enabled_dir_path'
         )
     def __init__(self):
@@ -262,6 +265,8 @@ class ApacheHosting():
         self.sites_enabled_dir_path = os.path.join(self.apache_config_dir_path, SITES_ENABLED)
         self.document_base_dir = APACHE_PLATFORM['document_base_dir']
         self.document_base_dir = os.path.expanduser(self.document_base_dir)
+        self.log_base_dir = APACHE_PLATFORM['log_base_dir']
+        self.log_base_dir = os.path.expanduser(self.log_base_dir)
         self.default_page_path = os.path.join(self.document_base_dir, 'index.html')
         self.parsed_config_file = None
 
@@ -302,15 +307,20 @@ class ApacheHosting():
 
     def create_virtual_host(self, site_name):
         site_conf_path = os.path.join(self.sites_available_dir_path, site_name + '.conf')
+        site_acronym =
+        site_server_name =
+        site_document_root = os.path.join(self.document_base_dir, site_acronym, 'html')
+        access_log = os.path.join(self.log_base_dir, site_acronym + '.local-access-log')
+        error_log = os.path.join(self.log_base_dir, site_acronym + '.local-error-log')
         if not os.path.isfile(site_conf_path):
             with textfile.TextFile(file_name=site_conf_path, open_mode='w') as f:
                 f.writeln('<VirtualHost *:80>')
-                f.writeln('\tDocumentRoot "/Users/Jason/Documents/workspace/jasonmccreary.me/htdocs"')
-                f.writeln('\tServerName jasonmccreary.local')
-                f.writeln('\tErrorLog "/private/var/log/apache2/jasonmccreary.local-error_log"')
-                f.writeln('\tCustomLog "/private/var/log/apache2/jasonmccreary.local-access_log" common')
+                f.writeln('\tDocumentRoot "{}"'.format(site_document_root))
+                f.writeln('\tServerName {}'.format(site_server_name))
+                f.writeln('\tErrorLog "{}"'.format(error_log))
+                f.writeln('\tCustomLog "{}" common'.format(access_log))
                 f.writeln('')
-                f.writeln('\t<Directory "/Users/Jason/Documents/workspace/jasonmccreary.me/htdocs">')
+                f.writeln('\t<Directory "{}">'.format(site_document_root))
                 f.writeln('t\tAllowOverride All')
                 f.writeln('\t\tRequire all granted')
                 f.writeln('\t</Directory>')
@@ -338,9 +348,6 @@ def init_hosting():
 
 def show_hosting():
     pass
-
-def init_site(site_name):
-    resp = cli.cli_input("Do you want to initialize or repair site '{}'?".format(site_name), "yn")
 
 if __name__ == '__main__':
     # There is a great deal of symetry between hosting.py and apache.py
