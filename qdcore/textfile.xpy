@@ -88,7 +88,10 @@ RANDOM_NAME_MAX_ATTEMPTS = 10
 def open(path, mode, debug=0):
     """Simple text file open, like built-in function. """
     text_file = TextFile(debug=debug)
-    return text_file.open(path, mode)
+    if text_file.open(path, mode):
+        return text_file
+    else:
+        return None
 
 def open_read(file_name=None, dir=None, source=None, debug=0):
     text_file = TextFile(debug=debug)
@@ -289,17 +292,17 @@ def ParseTabHeadings(parmHeadings):
   return wsFields
 
 def LoadTabFileToDataStore(parmFn, DefaultValue="", debug=0):
-  wsFile = open("tab.txt", "r", debug)
-  if not wsFile: return None
-  wsLine = wsFile.readline()
+  csv_file = open("tab.txt", "r", debug)
+  if not csv_file: return None
+  wsLine = csv_file.readline()
   wsLine = utils.StripAnyEOL(wsLine)
   wsLine = wsLine.expandtabs(8)
   wsTabDict = ParseTabHeadings(wsLine)
   if debug > 0:
     print("DICT: " + repr(wsTabDict))
   wsDataStore = datastore.datastoreObject(DefaultValue=DefaultValue, Dict=wsTabDict)
-  while not wsFile.EOF:
-    wsLine = wsFile.readline()
+  while not csv_file.EOF:
+    wsLine = csv_file.readline()
     wsLine = utils.StripAnyEOL(wsLine)
     wsLine = wsLine.expandtabs(8)
     wsFields = []
@@ -316,7 +319,12 @@ def LoadTabFileToDataStore(parmFn, DefaultValue="", debug=0):
 # Optionally execute callback function for each line.
 # Optionally return data datastore of records (otherwise callback can save)
 #
-def LoadCsvFile(
+# BOM indicates byte ordering. Not actually meaningful for UTF-8,
+# but some applications insert it anyway. EBay is one of those.
+# https://docs.python.org/3/howto/unicode.html
+BOM = '\ufeff'
+
+def load_csv_file(
 						parmFn,
 						DefaultValue=None,
 						DefaultValueAssigned=None,
@@ -327,78 +335,80 @@ def LoadCsvFile(
 						RecordLimit=None,
 						ReturnDataStore=True,
 						StripAll=False,
-						Ascii=False,
 						Debug=0):
-  # Using codecs.open() instead of TextFile.open() to quickly get utf-8 support.
-  if isinstance(parmFn, str):
-    if Ascii:
-      wsFile				= open(parmFn, 'r')
+    if isinstance(parmFn, str):
+        csv_file = open(parmFn, mode='r')
     else:
-      wsFile				= codecs.open(parmFn, encoding='utf-8')
-  else:
-    wsFile				= parmFn
-  if wsFile is None:
-    return None
-  wsHeaderLine				= wsFile.readline()
-  wsFileHeader				= commastr.CommaStrToList(wsHeaderLine, StripAll=StripAll)
-  wsFieldNames				= []
-  for wsIx, wsColHdr in enumerate(wsFileHeader):
-    if (Map is None) or (wsIx >= len(Map)):
-      wsMappedHdr			= wsColHdr
-    else:
-      wsModelHdr			= Map[wsIx][0]
-      wsMappedHdr			= Map[wsIx][1]
-      wsTestLen				= len(wsModelHdr)
-      if wsColHdr[:wsTestLen] != wsModelHdr:
-        raise TypeError("Invalid header '{ActualHdr}' s/b '{ModelHdr}'.".format(ActualHdr=wsColHdr, ModelHdr=wsModelHdr))
-      if wsMappedHdr == '':
-       wsMappedHdr			= wsModelHdr
-    if wsMappedHdr == '':
-      wsMappedHdr			= 'Col' + utils.Str(wsIx)
-    wsFieldNames.append(wsMappedHdr)					# filter to symbol characters ??
-  if AdditionalTDictFields is not None:
-    # These are fields that we want in our non-dynamic TDict but may not be in this import file.
-    for wsThisFieldName in AdditionalTDictFields:
-      if wsThisFieldName in wsFieldNames:
-        pass
+        csv_file = parmFn
+    if csv_file is None:
+        return None
+    csv_file_header = None
+    while csv_file_header is None:
+        header_line = csv_file.readline()
+        if (csv_file.source_line_ct == 1) and (header_line[0] == BOM):
+            header_line = header_line[1:]
+        csv_file_header = commastr.CommaStrToList(header_line, StripAll=StripAll)
+        print("HDR", csv_file_header)
+        if commastr.is_empty_list(csv_file_header):
+            csv_file_header = None
+    wsFieldNames = []
+    for wsIx, wsColHdr in enumerate(csv_file_header):
+      if (Map is None) or (wsIx >= len(Map)):
+        wsMappedHdr			= wsColHdr
       else:
-        wsFieldNames.append(wsThisFieldName)
-  wsTDict				= tupledict.MakeTDict(wsFieldNames)
-  #
-  if ReturnDataStore:
-    wsDataStore				= datastore.datastoreObject(
+        wsModelHdr			= Map[wsIx][0]
+        wsMappedHdr			= Map[wsIx][1]
+        wsTestLen				= len(wsModelHdr)
+        if wsColHdr[:wsTestLen] != wsModelHdr:
+          raise TypeError("Invalid header '{ActualHdr}' s/b '{ModelHdr}'.".format(ActualHdr=wsColHdr, ModelHdr=wsModelHdr))
+        if wsMappedHdr == '':
+         wsMappedHdr			= wsModelHdr
+      if wsMappedHdr == '':
+        wsMappedHdr			= 'Col' + utils.Str(wsIx)
+      wsFieldNames.append(wsMappedHdr)					# filter to symbol characters ??
+    if AdditionalTDictFields is not None:
+      # These are fields that we want in our non-dynamic TDict but may not be in this import file.
+      for wsThisFieldName in AdditionalTDictFields:
+        if wsThisFieldName in wsFieldNames:
+          pass
+        else:
+          wsFieldNames.append(wsThisFieldName)
+    wsTDict				= tupledict.MakeTDict(wsFieldNames)
+    #
+    if ReturnDataStore:
+      wsDataStore				= datastore.DataStoreObject(
 						DefaultValue=DefaultValue,
 						DefaultValueAssigned=DefaultValueAssigned,
 						TDict=wsTDict)
-  wsRecCt				= 0
-  if AllowQuotedNewline:
-    wsGetNextLine			= wsFile.readline
-  else:
-    wsGetNextLine			= None
-  for wsSourceLine in wsFile:
-    if (wsSourceLine == '') or (wsSourceLine == '\n'):
-      continue
-    wsThis				= commastr.CommaStrToList(wsSourceLine, GetNextLine=wsGetNextLine, StripAll=StripAll)
-    wsRecCt				+= 1
-    if ReturnDataStore:
-      wsTuple				= wsDataStore.AppendData(wsThis)
+    wsRecCt				= 0
+    if AllowQuotedNewline:
+      wsGetNextLine			= csv_file.readline
     else:
-      wsTuple				= datastore.bafTupleObject(
+      wsGetNextLine			= None
+    for wsSourceLine in csv_file:
+      if (wsSourceLine == '') or (wsSourceLine == '\n'):
+        continue
+      wsThis				= commastr.CommaStrToList(wsSourceLine, GetNextLine=wsGetNextLine, StripAll=StripAll)
+      wsRecCt				+= 1
+      if ReturnDataStore:
+        wsTuple				= wsDataStore.AppendData(wsThis)
+      else:
+        wsTuple				= datastore.bafTupleObject(
 						Data=wsThis,
 						DefaultValue=DefaultValue,
 						DefaultValueAssigned=DefaultValueAssigned,
 						TDict=wsTDict)
-    if LineCleanUp is not None:
-      LineCleanUp(wsTuple)
-    if RecordLimit is not None:					# limit records for testing
-      if wsRecCt > RecordLimit:
-        break
-  if ReturnDataStore:
-    return wsDataStore
+      if LineCleanUp is not None:
+        LineCleanUp(wsTuple)
+      if RecordLimit is not None:					# limit records for testing
+        if wsRecCt > RecordLimit:
+          break
+    if ReturnDataStore:
+      return wsDataStore
 
 def WriteDataStoreToCsvFile(FileName="", DataStore=None, FldSkipList=[], Delim=', ', debug=0):
-  wsFile			= open(FileName, "w", debug)
-  if not wsFile:
+  csv_file			= open(FileName, "w", debug)
+  if not csv_file:
     return None
   #
   # Write Column Headings Line
@@ -418,15 +428,15 @@ def WriteDataStoreToCsvFile(FileName="", DataStore=None, FldSkipList=[], Delim='
           else:
             wsDictDst.append(wsThisDictItem)
             wsFldSkipMap	+= "N"
-        wsFile.writecma(wsDictDst, Delim=Delim)
+        csv_file.writecma(wsDictDst, Delim=Delim)
   else:
     if DataStore._tdict:
-      wsFile.writecma(DataStore._tdict.Captions(), Delim=Delim)
+      csv_file.writecma(DataStore._tdict.Captions(), Delim=Delim)
   #
   # Write Data Lines
   #
   for wsTuple in DataStore:
-    wsFile.writecma(wsTuple._datums, FldSkipMap=wsFldSkipMap, Delim=Delim)
+    csv_file.writecma(wsTuple._datums, FldSkipMap=wsFldSkipMap, Delim=Delim)
   return True
 
 class TextFileIterator(object):

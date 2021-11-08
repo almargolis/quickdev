@@ -86,6 +86,7 @@ class QdStart():
         self.site_info.write_site_ini()
         if not self.check_python_venv():
             return
+        self.site_info.write_site_ini()
         if not self.validate_venv():
             return
         if not self.check_venv_shortcut():
@@ -130,6 +131,13 @@ class QdStart():
                     self.error("Unable to create VENV.")
                     return False
             return False
+        #
+        # We get here if the virtual environment already exists.
+        # Update the configuration variable in case it doesn't
+        # have the current value.
+        #
+        self.site_info.ini_info['venv_path'] = venv_path
+        return True
 
     def check_venv_shortcut(self):
         venv_path = self.site_info.ini_info['venv_path']

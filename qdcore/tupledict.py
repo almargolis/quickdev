@@ -237,7 +237,7 @@ def MakeTDict(parmTDict, Name=None):
     if wsItems is not None:
         parmTDict = wsItems
     if isinstance(parmTDict, list) or isinstance(parmTDict, tuple):
-        wsDict = TupleDictionary(Name=Name)
+        wsDict = TupleDict(Name=Name)
         for wsElement in parmTDict:
             if isinstance(wsElement, list) or isinstance(wsElement, tuple):
                 wsFieldName = wsElement[0]

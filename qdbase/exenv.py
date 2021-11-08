@@ -231,7 +231,7 @@ def make_symlink(
                     "Symlink target '{}' is not a directory. Symlink not created.".format(target_path))
             return False
     elif target_type == SYMLINK_TYPE_FILE:
-        if not os.path.isfile(link_path):
+        if not os.path.isfile(target_path):
             if error_func is not None:
                 error_func(
                     "Symlink target '{}' is not a file. Symlink not created.".format(target_path))

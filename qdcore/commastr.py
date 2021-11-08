@@ -22,7 +22,12 @@ import sys
 from . import qddict
 from . import utils
 
-
+def is_empty_list(data):
+    for this in data:
+        if (this != '') and (this is not None):
+            return False
+    return True
+    
 def AsList(parmData):
     if parmData is None:
         return []
