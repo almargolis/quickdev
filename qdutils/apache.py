@@ -28,6 +28,8 @@ APACHE_CONFIG_FILE = 'httpd.conf'
 SITES_AVAILABLE = 'sites-available'
 SITES_ENABLED = 'sites-enabled'
 DEFAULT_SITE_CONF_FN = 'default'
+ACCESS_LOG_SUFFIX = '.local-access-log'
+ERROR_LOG_SUFFIX = '.local-error-log'
 
 MACOS_HOMEBREW = {
     'apache_config_dir_path':	'/usr/local/etc/httpd',
@@ -323,11 +325,10 @@ class ApacheHosting():
         domain_name = www_ini['domain_name']
         website_subdir = site_ini['website_subdir']
 
-
         apache_conf_path = os.path.join(self.sites_available_dir_path, site_acronym+'.conf')
         document_root = os.path.join(site_dpath, website_subdir)
-        access_log = os.path.join(self.log_base_dir, site_acronym + '.local-access-log')
-        error_log = os.path.join(self.log_base_dir, site_acronym + '.local-error-log')
+        access_log = os.path.join(self.log_base_dir, site_acronym + ACCESS_LOG_SUFFIX)
+        error_log = os.path.join(self.log_base_dir, site_acronym + ERROR_LOG_SUFFIX)
 
         with textfile.TextFile(file_name=apache_conf_path, open_mode='w') as f:
             f.writeln('<VirtualHost *:80>')
@@ -337,7 +338,7 @@ class ApacheHosting():
             f.writeln('\tCustomLog "{}" common'.format(access_log))
             f.writeln('')
             f.writeln('\t<Directory "{}">'.format(document_root))
-            f.writeln('t\tAllowOverride All')
+            f.writeln('\t\tAllowOverride All')
             f.writeln('\t\tRequire all granted')
             f.writeln('\t</Directory>')
             f.writeln('</VirtualHost>')
@@ -363,14 +364,14 @@ def init_hosting():
         a.parsed_config_file.write()
 
 def config_vhosts():
-    apache = ApacheHosting()
+    apache_host = ApacheHosting()
     websites = os.listdir(exenv.g.qdhost_websites_dpath)
     for this in websites:
         wwww_ini_path = os.path.join(exenv.g.qdhost_websites_dpath, this)
         host_www_ini = inifile.read_ini_file(file_name=wwww_ini_path)
         site_acronym = site_acronym = host_www_ini['acronym']
         devsite = qdsite.get_site_by_acronym(site_acronym)
-        apache.create_virtual_host(devsite.host_site_data, host_www_ini, devsite.ini_data)
+        apache_host.create_virtual_host(devsite.host_site_data, host_www_ini, devsite.ini_data)
 
 def show_hosting():
     pass
