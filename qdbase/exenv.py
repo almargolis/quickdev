@@ -21,6 +21,8 @@ import pwd
 import shutil
 import sys
 
+import werkzeug
+
 from . import cli
 
 try:
@@ -46,17 +48,27 @@ ARG_W_WEBSITE = 'w'
 SYMLINK_TYPE_DIR = 'd'
 SYMLINK_TYPE_FILE = 'f'
 
+def safe_join(*args):
+    args = list(args)
+    if len(args) > 1:
+        if args[1][0] == '/':
+            args[1] = args[1][1:]
+    return werkzeug.utils.safe_join(*args)
+
 class ExenvGlobals():
     def __init__(self):
         self.init()
 
     def init(self, root='/'):
         "This is separated so test can call with an alternate root."
+        self.root = root
         self.qdhost_dpath = os.path.join(root, 'etc/qdhost')
         self.qdhost_websites_subdir = 'websites'
         self.qdhost_websites_dpath = os.path.join(self.qdhost_dpath, self.qdhost_websites_subdir)
         self.qdhost_devsites_subdir = 'devsites'
+        self.qdhost_devsites_dpath = os.path.join(self.qdhost_dpath, self.qdhost_devsites_subdir)
         self.qdhost_all_subdirs = [self.qdhost_websites_subdir, self.qdhost_devsites_subdir]
+        self.devsites_dpath = os.path.join(root, 'var/www')
 
 return_code = 0
 

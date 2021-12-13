@@ -1,8 +1,6 @@
 import os
 import sys
 
-import werkzeug
-
 from . import qdstart
 
 from qdbase import cli
@@ -11,6 +9,8 @@ from qdcore import filedriver
 from qdcore import textfile
 from qdcore import virtfile
 from qdcore import utils
+from qdcore import inifile
+from qdcore import qdsite
 
 
 #
@@ -261,7 +261,7 @@ class ApacheHosting():
         )
     def __init__(self):
         # just consider this a good place to track core directories.
-        self.apache_config_dir_path = APACHE_PLATFORM['apache_config_dir_path']
+        self.apache_config_dir_path = exenv.safe_join(exenv.g.root, APACHE_PLATFORM['apache_config_dir_path'])
         self.apache_config_file_path = os.path.join(self.apache_config_dir_path, APACHE_CONFIG_FILE)
         self.sites_available_dir_path = os.path.join(self.apache_config_dir_path, SITES_AVAILABLE)
         self.sites_enabled_dir_path = os.path.join(self.apache_config_dir_path, SITES_ENABLED)
@@ -307,7 +307,7 @@ class ApacheHosting():
         # add a line to hosts file
         # 127.0.0.1       jasonmccreary.local
 
-    def create_virtual_host(self, site_ini, www_ini):
+    def create_virtual_host(self, host_ini, www_ini, site_ini):
         """"
         Creates or replaces an apache2 virtual host conf file.
 
@@ -318,18 +318,18 @@ class ApacheHosting():
 
         site_ini is owned by application developers.
         """
-        site_acronym = www_ini['acronym']
-        domain_name = www_inii['domain_name']
-        website_dir = site_ini['website_dir']
+        site_acronym = host_ini['acronym']
+        site_dpath = host_ini['site_dpath']
+        domain_name = www_ini['domain_name']
+        website_subdir = site_ini['website_subdir']
 
-        document_root_subdir = site_ini['document_root']
 
-        document_root = os.path.join(website_dir, document_root_subdir)
-        website_conf_path = os.path.join(self.sites_available_dir_path, site_acronym + '.conf')
+        apache_conf_path = os.path.join(self.sites_available_dir_path, site_acronym+'.conf')
+        document_root = os.path.join(site_dpath, website_subdir)
         access_log = os.path.join(self.log_base_dir, site_acronym + '.local-access-log')
         error_log = os.path.join(self.log_base_dir, site_acronym + '.local-error-log')
 
-        with textfile.TextFile(file_name=site_conf_path, open_mode='w') as f:
+        with textfile.TextFile(file_name=apache_conf_path, open_mode='w') as f:
             f.writeln('<VirtualHost *:80>')
             f.writeln('\tDocumentRoot "{}"'.format(document_root))
             f.writeln('\tServerName {}'.format(domain_name))
@@ -367,10 +367,10 @@ def config_vhosts():
     websites = os.listdir(exenv.g.qdhost_websites_dpath)
     for this in websites:
         wwww_ini_path = os.path.join(exenv.g.qdhost_websites_dpath, this)
-        www_ini = inifile.read_ini_file(file_name=wwww_ini_path)
-        site_acronym = site_acronym = www_ini['acronym']
+        host_www_ini = inifile.read_ini_file(file_name=wwww_ini_path)
+        site_acronym = site_acronym = host_www_ini['acronym']
         devsite = qdsite.get_site_by_acronym(site_acronym)
-        apache.create_virtual_host(devsite.ini_data, www_ini)
+        apache.create_virtual_host(devsite.host_site_data, host_www_ini, devsite.ini_data)
 
 def show_hosting():
     pass

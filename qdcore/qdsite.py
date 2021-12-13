@@ -3,7 +3,9 @@ QdSite provides access to site information.
 """
 
 import os
+import werkzeug
 
+from qdbase import exenv
 from qdcore import qdconst
 from qdcore import inifile
 
@@ -49,7 +51,7 @@ def get_site_by_acronym(acronym):
     dev_ini_fpath = werkzeug.utils.safe_join(exenv.g.qdhost_devsites_dpath, acronym + '.ini')
     dev_ini_data = inifile.read_ini_file(file_name=dev_ini_fpath)
     site_dpath = dev_ini_data['site_dpath']
-    return QdSite(site_dpath=site_dpath)
+    return QdSite(site_dpath=site_dpath, host_site_ini=dev_ini_data)
 
 class QdSite():
     """
@@ -65,25 +67,27 @@ class QdSite():
     for QdDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
     """
-    __slots__ = ('conf_path', 'ini_data', 'ini_path', 'site_path')
-    def __init__(self, site_dpath=None):
-        if site_path is None:
-            site_path = os.getcwd()
-        self.site_path = os.path.abspath(site_path)
-        self.conf_path = os.path.join(self.site_path, qdconst.SITE_CONF_DIR_NAME)
+    __slots__ = ('conf_path', 'host_site_data', 'ini_data', 'ini_path', 'site_dpath')
+    def __init__(self, site_dpath=None, host_site_ini=None):
+        if site_dpath is None:
+            site_dpath = os.getcwd()
+        self.site_dpath = os.path.abspath(site_dpath)
+        self.conf_path = os.path.join(self.site_dpath, qdconst.SITE_CONF_DIR_NAME)
         self.ini_path = os.path.join(self.conf_path, qdconst.SITE_CONF_FILE_NAME)
         self.ini_data = inifile.read_ini_file(file_name=self.ini_path)
-        if self.ini_info is None:
-            self.ini_info = {}
-            self.ini_info['site_dir'] = self.site_path
+        print("QdSite", self.ini_path, self.ini_data)
+        self.host_site_data = host_site_ini
+        if self.ini_data is None:
+            self.ini_data = {}
+            self.ini_data['site_dir'] = self.site_dpath
 
     def __str__(self):
-        return "{site_path}, {ini_path}: {ini_data}.".format(
-               site_path=self.site_path, ini_path=self.ini_path,
-               ini_data=str(self.ini_info))
+        return "{site_dpath}, {ini_path}: {ini_data}.".format(
+               site_dpath=self.site_dpath, ini_path=self.ini_path,
+               ini_data=str(self.ini_data))
 
     def write_site_ini(self):
-        if not inifile.write_ini_file(source=self.ini_info, path=self.ini_path):
+        if not inifile.write_ini_file(source=self.ini_data, path=self.ini_path):
             raise Exception("Unable to write site ini file '{}'.".format(self.ini_path))
 
     @property

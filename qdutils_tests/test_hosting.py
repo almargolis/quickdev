@@ -15,7 +15,15 @@ class MakeQdev:
     def __init__(self, tmpdir):
         self.tmpdir = tmpdir
         self.root = tmpdir.mkdir('root')
-        self.root.mkdir('etc')
+        etc = self.root.mkdir('etc')
+        apache = etc.mkdir('apache2')
+        apache.mkdir('sites-available')
+        private = self.root.mkdir('private')
+        private_etc = private.mkdir('etc')
+        private_apache = private_etc.mkdir('apache2')
+        private_apache.mkdir('sites-available')
+        var = self.root.mkdir('var')
+        var.mkdir('www')
         exenv.g.init(self.root)
         try:
             hosting.init_hosting(force=True)

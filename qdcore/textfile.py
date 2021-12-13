@@ -472,10 +472,11 @@ class TextFile(virtfile.VirtFile):
         assert self.call_file_name is not None
         assert self.call_open_mode is not None
         self.open(self.call_file_name, self.call_open_mode)
+        return self
 
 
     def __exit__(self, type, value, traceback):
-        self.Close()
+        self.close()
 
     def __iter__(self):
         return TextFileIterator(self)

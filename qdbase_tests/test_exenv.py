@@ -2,6 +2,10 @@ import os
 
 from qdbase import exenv
 
+def test_safe_join(tmpdir):
+    assert exenv.safe_join('/', '/etc') == '/etc'
+    assert exenv.safe_join('/', 'etc') == '/etc'
+
 def test_make_directory(tmpdir):
     d_name = 'something'
     d_path = tmpdir.join(d_name)
@@ -13,7 +17,14 @@ def test_make_directory(tmpdir):
     assert exenv.return_code == 101
     assert os.path.exists(d_path)
 
+def print_msg(msg):
+    print(msg)
+
 def test_symlink_file(tmpdir):
+    """
+    Target is the original file we are pointing to.
+    Link is the symlink we are creating.
+    """
     content = 'some content'
     target_file_name = 't'
     bad_target_file_name = 'bad'
@@ -23,8 +34,8 @@ def test_symlink_file(tmpdir):
     f_targ = open(target_file_path, 'w')
     f_targ.write(content)
     f_targ.close()
-    assert not exenv.make_symlink_to_file(tmpdir, link_file_name, tmpdir, bad_target_file_name)
-    assert exenv.make_symlink_to_file(tmpdir, link_file_name, tmpdir, target_file_name)
+    assert not exenv.make_symlink_to_file(tmpdir, bad_target_file_name, tmpdir, link_file_name, error_func=print_msg)
+    assert exenv.make_symlink_to_file(tmpdir, target_file_name, tmpdir, link_file_name, error_func=print_msg)
     f_link = open(link_file_path)
     read_content = f_link.read()
     assert read_content == content
