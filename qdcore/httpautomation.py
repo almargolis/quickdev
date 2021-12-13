@@ -3,6 +3,7 @@
 import codecs
 import bs4
 from bs4 import BeautifulSoup
+import os
 import re
 import requests
 import shutil
@@ -14,18 +15,18 @@ class bafCrawlerResponse(object):
 
 class Crawler(object):
     def __init__(self, ExeController=None):
-          self.exeController		= ExeController
-          self.findIx			= 0		# last succesful find
-          self.nextCharIx		= 0		# start of next thing
-          self.crawl_session		= requests.Session()
+          self.exeController = ExeController
+          self.findIx = 0		# last succesful find
+          self.nextCharIx = 0		# start of next thing
+          self.crawl_session = requests.Session()
           self.crawlCredentials	= None
-          self.crawl_response		= None
-          self.crawlPage		= None		# page being analyzed
-          self.crawlPageLen		= 0
-          self.parse_tree		= None		# beutiful soup tree
-          self.crawlFromCache		= False
-          self.savePath		= None
-          self.scrapeUrlsTable	= None
+          self.crawl_response = None
+          self.crawlPage = None		# page being analyzed
+          self.crawlPageLen = 0
+          self.parse_tree = None		# beutiful soup tree
+          self.crawlFromCache = False
+          self.savePath = None
+          self.scrapeUrlsTable = None
           if self.exeController is not None:
               self.scrapeUrlsTable = self.exeController.OpenDbTable('ScrapeUrls')
 
@@ -206,6 +207,7 @@ class Crawler(object):
         # It would be nice to integrate with Load() -- but no time today
         if fn is None:
             fn = url.split('/')[-1]
+        fn = os.path.abspath(os.path.expanduser(fn))
         with self.crawl_session.get(url, stream=True) as r:
             with open(fn, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)

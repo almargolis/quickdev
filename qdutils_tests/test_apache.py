@@ -1,5 +1,7 @@
 from qdutils import apache
 
+from . import test_hosting
+
 SITES_CONF_SELECTOR = '/etc/apache2/sites_available/*.conf'
 
 conf_contents = []
@@ -40,3 +42,7 @@ def test_apache_conf(tmpdir):
     includes = a.find_directives('Include', value=SITES_CONF_SELECTOR)
     assert len(includes) == 1
     assert includes[0].value == SITES_CONF_SELECTOR
+
+def test_config_vhosts(tmpdir):
+    q = test_hosting.MakeQdev(tmpdir)
+    apache.config_vhosts()

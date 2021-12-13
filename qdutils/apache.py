@@ -1,6 +1,8 @@
 import os
 import sys
 
+import werkzeug
+
 from . import qdstart
 
 from qdbase import cli
@@ -30,7 +32,7 @@ DEFAULT_SITE_CONF_FN = 'default'
 MACOS_HOMEBREW = {
     'apache_config_dir_path':	'/usr/local/etc/httpd',
     'document_base_dir':	'~/Sites',
-    'log_base_dir': '/private/var/log/apache2/'
+    'log_base_dir': '/private/var/log/apache2/',
     'apachectl':		'/usr/local/bin/apachectl',
     'httpd':			'/usr/local/bin/httpd',
     'service_start':		'brew services start httpd'
@@ -40,7 +42,7 @@ MACOS_DARWIN = {
     # The MacOS apachectl seems to be implemented as launchctl.
     'apache_config_dir_path':	'/private/etc/apache2',			# symlink to /etc/apache2
     'document_base_dir':	'~/Sites',
-    'log_base_dir': '/private/var/log/apache2/'
+    'log_base_dir': '/private/var/log/apache2/',
     'apachectl':		'/usr/sbin/apachectl',
     'httpd':			'/usr/sbin/httpd',
     'service_status':		'launchctl print system/org.apache.httpd',
@@ -305,26 +307,40 @@ class ApacheHosting():
         # add a line to hosts file
         # 127.0.0.1       jasonmccreary.local
 
-    def create_virtual_host(self, site_name):
-        site_conf_path = os.path.join(self.sites_available_dir_path, site_name + '.conf')
-        site_acronym =
-        site_server_name =
-        site_document_root = os.path.join(self.document_base_dir, site_acronym, 'html')
+    def create_virtual_host(self, site_ini, www_ini):
+        """"
+        Creates or replaces an apache2 virtual host conf file.
+
+        wwww_ini is owned by operations administrators.  Application
+        developers have to go through a process to have those
+        parameters changed. This includes domain and host names and
+        the top levels of directory paths.
+
+        site_ini is owned by application developers.
+        """
+        site_acronym = www_ini['acronym']
+        domain_name = www_inii['domain_name']
+        website_dir = site_ini['website_dir']
+
+        document_root_subdir = site_ini['document_root']
+
+        document_root = os.path.join(website_dir, document_root_subdir)
+        website_conf_path = os.path.join(self.sites_available_dir_path, site_acronym + '.conf')
         access_log = os.path.join(self.log_base_dir, site_acronym + '.local-access-log')
         error_log = os.path.join(self.log_base_dir, site_acronym + '.local-error-log')
-        if not os.path.isfile(site_conf_path):
-            with textfile.TextFile(file_name=site_conf_path, open_mode='w') as f:
-                f.writeln('<VirtualHost *:80>')
-                f.writeln('\tDocumentRoot "{}"'.format(site_document_root))
-                f.writeln('\tServerName {}'.format(site_server_name))
-                f.writeln('\tErrorLog "{}"'.format(error_log))
-                f.writeln('\tCustomLog "{}" common'.format(access_log))
-                f.writeln('')
-                f.writeln('\t<Directory "{}">'.format(site_document_root))
-                f.writeln('t\tAllowOverride All')
-                f.writeln('\t\tRequire all granted')
-                f.writeln('\t</Directory>')
-                f.writeln('</VirtualHost>')
+
+        with textfile.TextFile(file_name=site_conf_path, open_mode='w') as f:
+            f.writeln('<VirtualHost *:80>')
+            f.writeln('\tDocumentRoot "{}"'.format(document_root))
+            f.writeln('\tServerName {}'.format(domain_name))
+            f.writeln('\tErrorLog "{}"'.format(error_log))
+            f.writeln('\tCustomLog "{}" common'.format(access_log))
+            f.writeln('')
+            f.writeln('\t<Directory "{}">'.format(document_root))
+            f.writeln('t\tAllowOverride All')
+            f.writeln('\t\tRequire all granted')
+            f.writeln('\t</Directory>')
+            f.writeln('</VirtualHost>')
 
 def init_hosting():
     if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
@@ -346,6 +362,16 @@ def init_hosting():
         a.parsed_config_file.add_directive('Include', os.path.join(a.sites_enabled_dir_path, '*.conf'))
         a.parsed_config_file.write()
 
+def config_vhosts():
+    apache = ApacheHosting()
+    websites = os.listdir(exenv.g.qdhost_websites_dpath)
+    for this in websites:
+        wwww_ini_path = os.path.join(exenv.g.qdhost_websites_dpath, this)
+        www_ini = inifile.read_ini_file(file_name=wwww_ini_path)
+        site_acronym = site_acronym = www_ini['acronym']
+        devsite = qdsite.get_site_by_acronym(site_acronym)
+        apache.create_virtual_host(devsite.ini_data, www_ini)
+
 def show_hosting():
     pass
 
@@ -360,6 +386,7 @@ if __name__ == '__main__':
 
     menu.add_item(cli.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
     menu.add_item(cli.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
+    menu.add_item(cli.CliCommandLineActionItem('vhosts', config_vhosts, help="Configure Apache vhosts"))
     #
     m = menu.add_item(cli.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
     m.add_parameter(cli.CliCommandLineParameterItem('s', is_positional=True))

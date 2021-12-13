@@ -46,10 +46,17 @@ ARG_W_WEBSITE = 'w'
 SYMLINK_TYPE_DIR = 'd'
 SYMLINK_TYPE_FILE = 'f'
 
-QDHOST_DIR = '/etc/qdhost'
-QDHOST_WEBSITES_SUBDIR = 'websites'
-QDHOST_DEVSITES_SUBDIR = 'devsites'
-QDHOST_ALL_SUBDIRS = [QDHOST_WEBSITES_SUBDIR, QDHOST_DEVSITES_SUBDIR]
+class ExenvGlobals():
+    def __init__(self):
+        self.init()
+
+    def init(self, root='/'):
+        "This is separated so test can call with an alternate root."
+        self.qdhost_dpath = os.path.join(root, 'etc/qdhost')
+        self.qdhost_websites_subdir = 'websites'
+        self.qdhost_websites_dpath = os.path.join(self.qdhost_dpath, self.qdhost_websites_subdir)
+        self.qdhost_devsites_subdir = 'devsites'
+        self.qdhost_all_subdirs = [self.qdhost_websites_subdir, self.qdhost_devsites_subdir]
 
 return_code = 0
 
@@ -319,7 +326,6 @@ class ExecutionEnvironment():
     slots = (
                     'debug', 'error_ct',
                     'execution_cwd', 'execution_site', 'execution_user',
-                    'qdhost_dir',
                     'main_module_name', 'main_module_object', 'main_module_package',
                     'main_module_path', 'platform',
                     'package_parent_directory', 'python_version'
@@ -327,7 +333,6 @@ class ExecutionEnvironment():
     def __init__(self):
         self.debug = 0                          # mainly used for pytest
         self.error_ct = 0
-        self.qdhost_dir = QDHOST_DIR
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
         try:
@@ -457,4 +462,5 @@ class ExecutionEnvironment():
         print('User:', self.execution_user)
         print('Site:', self.execution_site)
 
+g = ExenvGlobals()
 execution_env = ExecutionEnvironment()

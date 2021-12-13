@@ -11,8 +11,8 @@ import sys
 
 import qdbase.exenv as exenv
 import qdbase.cli as cli
-import apache
-import qdstart
+from . import apache
+from . import qdstart
 
 #
 # the following are host dependent globals
@@ -27,22 +27,25 @@ class HostingConf(object):
         self.execution_user = None
 
 hosting_conf_fn = 'hosting.conf'
-hosting_conf_path = os.path.join(exenv.execution_env.qdhost_dir, hosting_conf_fn)
+hosting_conf_path = os.path.join(exenv.g.qdhost_dpath, hosting_conf_fn)
 hosting_conf = None
 
-def init_hosting():
-    if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
-        sys.exit(-1)
+def init_hosting(force=False):
+    if not force:
+        if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
+            sys.exit(-1)
     exenv.make_directory('Host configuraration',
-                                    exenv.execution_env.qdhost_dir,
+                                    exenv.g.qdhost_dpath,
+                                    force=force,
                                     raise_ex=True)
-    for this in exenv.QDHOST_ALL_SUBDIRS:
-        this_path = os.path.join(exenv.execution_env.qdhost_dir, this)
+    for this in exenv.g.qdhost_all_subdirs:
+        this_dpath = os.path.join(exenv.g.qdhost_dpath, this)
         exenv.make_directory('Host conf subdirectory',
-                                this_path,
+                                this_dpath,
+                                force=force,
                                 raise_ex=True)
     print(repr(exenv.execution_env.execution_user))
-    print("Host {} initialized.".format(exenv.execution_env.qdhost_dir))
+    print("Host {} initialized.".format(exenv.g.qdhost_dpath))
     sys.exit(0)
 
 def load_hosting_conf():

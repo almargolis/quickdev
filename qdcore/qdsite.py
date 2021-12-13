@@ -45,6 +45,11 @@ class hold():
         self.sources = self.conf_info['site.sources']
         return True
 
+def get_site_by_acronym(acronym):
+    dev_ini_fpath = werkzeug.utils.safe_join(exenv.g.qdhost_devsites_dpath, acronym + '.ini')
+    dev_ini_data = inifile.read_ini_file(file_name=dev_ini_fpath)
+    site_dpath = dev_ini_data['site_dpath']
+    return QdSite(site_dpath=site_dpath)
 
 class QdSite():
     """
@@ -60,14 +65,14 @@ class QdSite():
     for QdDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
     """
-    __slots__ = ('conf_path', 'ini_info', 'ini_path', 'site_path')
-    def __init__(self, site_path=None):
+    __slots__ = ('conf_path', 'ini_data', 'ini_path', 'site_path')
+    def __init__(self, site_dpath=None):
         if site_path is None:
             site_path = os.getcwd()
         self.site_path = os.path.abspath(site_path)
         self.conf_path = os.path.join(self.site_path, qdconst.SITE_CONF_DIR_NAME)
         self.ini_path = os.path.join(self.conf_path, qdconst.SITE_CONF_FILE_NAME)
-        self.ini_info = inifile.read_ini_file(file_name=self.ini_path)
+        self.ini_data = inifile.read_ini_file(file_name=self.ini_path)
         if self.ini_info is None:
             self.ini_info = {}
             self.ini_info['site_dir'] = self.site_path
