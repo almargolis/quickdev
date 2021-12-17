@@ -10,7 +10,8 @@ import os
 import sys
 
 import qdbase.exenv as exenv
-import qdbase.cli as cli
+import qdbase.cliargs as cliargs
+import qdbase.cliinput as cliinput
 from . import apache
 from . import qdstart
 
@@ -32,7 +33,7 @@ hosting_conf = None
 
 def init_hosting(force=False):
     if not force:
-        if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
+        if not cliinput.cli_input_yn("Do you want to initialize or repair this host?"):
             sys.exit(-1)
     exenv.make_directory('Host configuraration',
                                     exenv.g.qdhost_dpath,
@@ -61,11 +62,11 @@ if __name__ == "__main__":
     # There is a great deal of symetry between hosting.py and apache.py
     # commands. If you change one, check the other to see if similar
     # changes are needed.
-    menu = cli.CliCommandLine()
+    menu = cliargs.CliCommandLine()
     exenv.command_line_site(menu)
     #
-    menu.add_item(cli.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
-    menu.add_item(cli.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
+    menu.add_item(cliargs.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
+    menu.add_item(cliargs.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
     #
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()

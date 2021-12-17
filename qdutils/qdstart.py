@@ -41,14 +41,15 @@ if sys.version_info[0] < 3:
     sys.exit(-1)
 
 try:
-    import qdbase.cli as cli
+    import qdbase.cliargs as cliargs
 except ModuleNotFoundError:
     """
     We should only get here if we are developing QuickDev and we don't
     have the environment setup.
     """
     sys.path.append(QDDEV_PATH)
-    import qdbase.cli as cli
+    import qdbase.cliargs as cliargs
+import qdbase.cliinput as cliinput
 import qdbase.exenv as exenv
 try:
     import qdcore.qdsite as qdsite
@@ -108,20 +109,20 @@ class QdStart():
         if 'acronym' in self.site_info.ini_info:
             print('Site acronym "{}"'.format(self.site_info.ini_info['acronym']))
             return True
-        self.site_info.ini_info['acronym'] = cli.cli_input_symbol('Site Acronym')
+        self.site_info.ini_info['acronym'] = cliinput.cli_input_symbol('Site Acronym')
         return True
 
     def check_python_venv(self):
         venv_path = os.environ.get('VIRTUAL_ENV', None)
         if venv_path is not None:
             print("VENV: {}".format(venv_path))
-            if cli.cli_input_yn("Do you want to use this VENV for this project?"):
+            if cliinput.cli_input_yn("Do you want to use this VENV for this project?"):
                 self.site_info.ini_info['venv_path'] = venv_path
                 return True
         venv_name = self.site_info.ini_info['acronym'] + ".venv"
         venv_path = os.path.join(self.site_info.site_path, venv_name)
         if not os.path.isdir(venv_path):
-            if cli.cli_input_yn("Create VENV '{}'?".format(venv_path)):
+            if cliinput.cli_input_yn("Create VENV '{}'?".format(venv_path)):
                 cmd = ['python3', '-m', 'venv', venv_path]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
@@ -181,24 +182,24 @@ def start_site(site, no_site, quiet):
     QdStart(site, no_site, quiet)
 
 if __name__ == '__main__':
-    menu = cli.CliCommandLine()
+    menu = cliargs.CliCommandLine()
     exenv.command_line_site(menu)
     exenv.command_line_loc(menu)
     exenv.command_line_no_conf(menu)
     exenv.command_line_quiet(menu)
     exenv.command_line_verbose(menu)
 
-    m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
+    m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
                                                    start_site,
                                                    help="Synthesize directory."))
-    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_N_NO_SITE,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_N_NO_SITE,
                                                     parameter_name='no_site',
                                                     default_value=False,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_Q_QUIET,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_Q_QUIET,
                                                     parameter_name='quiet',
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_S_SITE,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_S_SITE,
                                                     parameter_name='site',
                                                     default_none=True,
                                                     is_positional=False))

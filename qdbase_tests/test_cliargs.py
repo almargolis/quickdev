@@ -1,5 +1,5 @@
 import sys
-import qdbase.cli as cli
+import qdbase.cliargs as cliargs
 
 SOME_FILE_NAMES = ['file1', 'dir1/', 'something_else']
 
@@ -20,29 +20,29 @@ def print_help(menu):
     menu.show_help()
 
 def make_menu():
-    menu = cli.CliCommandLine(debug=1)
-    menu.add_item(cli.CliCommandLineParameterItem('q',
+    menu = cliargs.CliCommandLine(debug=1)
+    menu.add_item(cliargs.CliCommandLineParameterItem('q',
                   default_value=False,
                   help="Display as few messages as possible.",
-                  value_type=cli.PARAMETER_BOOLEAN
+                  value_type=cliargs.PARAMETER_BOOLEAN
                   ))
-    menu.add_item(cli.CliCommandLineParameterItem('s',
+    menu.add_item(cliargs.CliCommandLineParameterItem('s',
                       help="Specify site to configure.",
-                      value_type=cli.PARAMETER_STRING
+                      value_type=cliargs.PARAMETER_STRING
                       ))
-    menu.add_item(cli.CliCommandLineParameterItem('n',
+    menu.add_item(cliargs.CliCommandLineParameterItem('n',
                   default_value=False,
                   help="Stand-alone operation. No conf file.",
-                  value_type=cli.PARAMETER_BOOLEAN
+                  value_type=cliargs.PARAMETER_BOOLEAN
                   ))
-    menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+    menu.add_item(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
                   help="Specify files or directory to synthesise in stand-alone mode.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cliargs.PARAMETER_STRING
                   ))
     return menu
 
 def add_default_action(menu):
-    m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
+    m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
                                                    action_function,
                                                    help="Synthesize directory."))
     return m
@@ -51,9 +51,9 @@ def test_cli_clean(tmpdir):
 
     menu = make_menu()
     m = add_default_action(menu)
-    m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='stand_alone',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='stand_alone',
                                                     default_value=False,
                                                     is_positional=False))
     print_help(menu)
@@ -76,7 +76,7 @@ def test_cli_clean(tmpdir):
     assert menu.action_function_kwargs['stand_alone'] is True
 
 
-    m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
                                                     parameter_name='sources',
                                                     is_positional=False))
     print_help(menu)
@@ -99,7 +99,7 @@ def test_cli_errors(tmpdir):
 
     menu = make_menu()
     m = add_default_action(menu)
-    m.add_parameter(cli.CliCommandLineParameterItem('s', parameter_name='site',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
                                                     is_positional=False,
                                                     is_required=True))
     print_help(menu)

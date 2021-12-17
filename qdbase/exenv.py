@@ -23,7 +23,7 @@ import sys
 
 import werkzeug
 
-from . import cli
+from . import cliargs
 
 try:
     from qdcore import qdsite
@@ -73,59 +73,59 @@ class ExenvGlobals():
 return_code = 0
 
 def command_line_debug(menu):
-    item = cli.CliCommandLineParameterItem(ARG_D_DEBUG,
+    item = cliargs.CliCommandLineParameterItem(ARG_D_DEBUG,
                   help="Location of conf file or database.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cliargs.PARAMETER_STRING
                   )
     menu.add_item(item)
     return item
 
 def command_line_loc(menu):
-    item = cli.CliCommandLineParameterItem(ARG_L_CONF_LOC,
+    item = cliargs.CliCommandLineParameterItem(ARG_L_CONF_LOC,
                   help="Location of conf file or database.",
-                  value_type=cli.PARAMETER_INTEGER
+                  value_type=cliargs.PARAMETER_INTEGER
                   )
     menu.add_item(item)
     return item
 
 def command_line_no_conf(menu):
-    item = cli.CliCommandLineParameterItem(ARG_N_NO_SITE,
+    item = cliargs.CliCommandLineParameterItem(ARG_N_NO_SITE,
                   default_value=False,
                   help="Stand-alone operation. No conf file or database.",
-                  value_type=cli.PARAMETER_BOOLEAN
+                  value_type=cliargs.PARAMETER_BOOLEAN
                   )
     menu.add_item(item)
     return item
 
 def command_line_quiet(menu):
-    item = cli.CliCommandLineParameterItem(ARG_Q_QUIET,
+    item = cliargs.CliCommandLineParameterItem(ARG_Q_QUIET,
                   default_value=False,
                   help="Display as few messages as possible.",
-                  value_type=cli.PARAMETER_BOOLEAN
+                  value_type=cliargs.PARAMETER_BOOLEAN
                   )
     menu.add_item(item)
     return item
 
 def command_line_site(menu):
-    item = cli.CliCommandLineParameterItem(ARG_S_SITE,
+    item = cliargs.CliCommandLineParameterItem(ARG_S_SITE,
                   help="Specify site to configure.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cliargs.PARAMETER_STRING
                   )
     menu.add_item(item)
     return item
 
 def command_line_verbose(menu):
-    item = cli.CliCommandLineParameterItem(ARG_V_VERBOSE,
+    item = cliargs.CliCommandLineParameterItem(ARG_V_VERBOSE,
                   help="Display more detailed messages than minimally needed.",
-                  value_type=cli.PARAMETER_BOOLEAN
+                  value_type=cliargs.PARAMETER_BOOLEAN
                   )
     menu.add_item(item)
     return item
 
 def command_line_website(menu):
-    item = cli.CliCommandLineParameterItem(ARG_W_WEBSITE,
+    item = cliargs.CliCommandLineParameterItem(ARG_W_WEBSITE,
                   help="Specify website to configure.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cliargs.PARAMETER_STRING
                   )
     menu.add_item(item)
     return item
@@ -164,7 +164,7 @@ def make_directory(name, path, force=False, mode=511, quiet=False,
             return_code = 101
             return False
     else:
-        if force or cli.cli_input_yn("Create directory '{}'?".format(path)):
+        if force or cliargs.cli_input_yn("Create directory '{}'?".format(path)):
             try:
                 os.mkdir(path, mode=mode)
             except PermissionError:

@@ -50,7 +50,8 @@ import stat
 import os
 import imp
 
-import cli
+import cliargs
+import cliinput
 import configutils
 
 ConfigNoDependencies = 9
@@ -2460,7 +2461,7 @@ if __name__ == "__main__":
     env = configutils.ExecutionEnvironment(__name__)
     if not env.check_version():
         sys.exit(-1)
-    resp = cli.cli_input("Do you want to initialize or repair this site?", "yn")
+    resp = cliinput.cli_input("Do you want to initialize or repair this site?", "yn")
     if resp.lower() == 'y':
         print("yes")
     else:

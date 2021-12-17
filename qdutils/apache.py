@@ -3,7 +3,8 @@ import sys
 
 from . import qdstart
 
-from qdbase import cli
+from qdbase import cliargs
+from qdbase import cliinput
 from qdbase import exenv
 from qdcore import filedriver
 from qdcore import textfile
@@ -344,7 +345,7 @@ class ApacheHosting():
             f.writeln('</VirtualHost>')
 
 def init_hosting():
-    if not cli.cli_input_yn("Do you want to initialize or repair this host?"):
+    if not cliinput.cli_input_yn("Do you want to initialize or repair this host?"):
         sys.exit(-1)
     a = ApacheHosting()
     if not os.path.isfile(a.apache_config_file_path):
@@ -380,17 +381,17 @@ if __name__ == '__main__':
     # There is a great deal of symetry between hosting.py and apache.py
     # commands. If you change one, check the other to see if similar
     # changes are needed.
-    menu = cli.CliCommandLine()
+    menu = cliargs.CliCommandLine()
     exenv.command_line_quiet(menu)
     exenv.command_line_site(menu)
     exenv.command_line_website(menu)
 
-    menu.add_item(cli.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
-    menu.add_item(cli.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
-    menu.add_item(cli.CliCommandLineActionItem('vhosts', config_vhosts, help="Configure Apache vhosts"))
+    menu.add_item(cliargs.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
+    menu.add_item(cliargs.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
+    menu.add_item(cliargs.CliCommandLineActionItem('vhosts', config_vhosts, help="Configure Apache vhosts"))
     #
-    m = menu.add_item(cli.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
-    m.add_parameter(cli.CliCommandLineParameterItem('s', is_positional=True))
+    m = menu.add_item(cliargs.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
+    m.add_parameter(cliargs.CliCommandLineParameterItem('s', is_positional=True))
     #
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()
