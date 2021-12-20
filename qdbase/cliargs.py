@@ -8,7 +8,6 @@ separately. CliCommandLine is also more explicit about value types
 and is intentially similar to other EzDev dictionary components.
 """
 
-import re
 import sys
 
 PARAMETER_BOOLEAN = 'bool'
@@ -45,12 +44,18 @@ class CliCommandLineActionItem(CliCommandLineItem):
     the action.
 
     An argument code of DEFAULT_ACTION_CODE is the special case of
-    an action to b triggered if no other action is specified.
+    an action to be triggered if no other action is specified.
     """
     def __init__(self, argument_code, action_function, help="", security=None):
         super().__init__(argument_code, help_description=help, security=security)
         self.action_function = action_function
         self.function_parameters = []
+
+    def __repr__(self):
+        repr_args = []
+        repr_args.append(self.argument_code)
+        repr_args.append(self.action_function.__name__)
+        return "CliCommandLineActionItem({})".format(", ".join(repr_args))
 
     def add_parameter(self, parm):
         if not parm.argument_code in self.parent.items:
@@ -189,7 +194,7 @@ class CliCommandLine():
             return False
         argument_item = self.items[argument_code]
         if isinstance(argument_item, CliCommandLineActionItem):
-            # this should be the action take for this command line
+            # this should be the action taken for this command line
             if self.action_item is None:
                 self.action_item = argument_item
                 return True

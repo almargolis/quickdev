@@ -51,6 +51,7 @@ except ModuleNotFoundError:
     import qdbase.cliargs as cliargs
 import qdbase.cliinput as cliinput
 import qdbase.exenv as exenv
+from qdbase import pdict
 try:
     import qdcore.qdsite as qdsite
 except ModuleNotFoundError:
@@ -68,16 +69,16 @@ class QdStart():
                  'err_ct',
                  'quiet', 'site_info')
 
-    def __init__(self, site_path, no_site, quiet):
+    def __init__(self, site_dpath, no_site, quiet):
         """
         Call self.write_site_ini() frequently so we have saved
         any captured data before bailing after a subsequent test.
         """
         self.err_ct = 0
-        if site_path is not None:
-            site_path = os.path.abspath(site_path)
-            exenv.make_directory('site', site_path, raise_ex=True)
-        self.site_info = qdsite.QdSite(site_path=site_path)
+        if site_dpath is not None:
+            site_dpath = os.path.abspath(site_dpath)
+            exenv.make_directory('site', site_dpath, raise_ex=True)
+        self.site_info = qdsite.QdSite(site_dpath=site_dpath)
         print("Site Info: {}".format(self.site_info))
         self.quiet = quiet
         if not self.check_conf_path():
@@ -177,9 +178,16 @@ class QdStart():
         self.err_ct += 1
         print(msg)
 
-def start_site(site, no_site, quiet):
+def start_site(site_dpath, no_site, quiet):
     print("START")
-    QdStart(site, no_site, quiet)
+    QdStart(site_dpath, no_site, quiet)
+
+def edit_conf(site_dpath):
+    tdict = pdict.TupleDict()
+    tdict.add_column(pdict.Text('acronym'))
+    tdict.add_column(pdict.Text('website_subdir'))
+    site_info = qdsite.QdSite(site_dpath=site_dpath)
+    editor = cliinput.CliForm(site_info.ini_data, tdict=tdict)
 
 if __name__ == '__main__':
     menu = cliargs.CliCommandLine()
@@ -200,7 +208,14 @@ if __name__ == '__main__':
                                                     parameter_name='quiet',
                                                     is_positional=False))
     m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_S_SITE,
-                                                    parameter_name='site',
+                                                    parameter_name='site_dpath',
+                                                    default_none=True,
+                                                    is_positional=False))
+    m = menu.add_item(cliargs.CliCommandLineActionItem('e',
+                                                   edit_conf,
+                                                   help="Edit site conf file."))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_S_SITE,
+                                                    parameter_name='site_dpath',
                                                     default_none=True,
                                                     is_positional=False))
     menu.cli_run()

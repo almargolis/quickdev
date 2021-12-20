@@ -45,17 +45,27 @@ def add_default_action(menu):
     m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
                                                    action_function,
                                                    help="Synthesize directory."))
+    m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
+                                                    is_positional=False))
+    m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='stand_alone',
+                                                    default_value=False,
+                                                    is_positional=False))
+    return m
+
+def add_additional_action(menu):
+    m = menu.add_item(cliargs.CliCommandLineActionItem('e',
+                                                   action_function,
+                                                   help="Edit site conf file."))
+    m.add_parameter(cliargs.CliCommandLineParameterItem('s',
+                                                    parameter_name='site_dpath',
+                                                    default_none=True,
+                                                    is_positional=False))
     return m
 
 def test_cli_clean(tmpdir):
 
     menu = make_menu()
     m = add_default_action(menu)
-    m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
-                                                    is_positional=False))
-    m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='stand_alone',
-                                                    default_value=False,
-                                                    is_positional=False))
     print_help(menu)
 
     menu.cli_argv = ['prog.py']
@@ -95,13 +105,19 @@ def test_cli_clean(tmpdir):
     assert menu.action_function_kwargs['site'] == 'which_site'
     assert menu.file_list == SOME_FILE_NAMES
 
+    add_additional_action(menu)
+    print_help(menu)
+
+    menu.cli_argv = ['prog.py', '-e', '-s', 'which_site']
+    menu.build_action_function()
+    print_actions_function(menu)
+    assert menu.err_code is None
+    assert menu.action_item.argument_code == 'e'
+
 def test_cli_errors(tmpdir):
 
     menu = make_menu()
     m = add_default_action(menu)
-    m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
-                                                    is_positional=False,
-                                                    is_required=True))
     print_help(menu)
 
     menu.cli_argv = ['prog.py']

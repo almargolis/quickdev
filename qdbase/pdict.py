@@ -90,6 +90,15 @@ class DbTableDict:
         table_def += ");" + eol
         return table_def
 
+class TupleDict(DbTableDict):
+    """
+    TupleDict is a minor variation of DbTableDict that is used
+    to define simple data structure outside the context of an
+    RDBMS.
+    """
+    def __init__(self, name=None):
+        super().__init__(name, is_rowid_table=False)
+
 class Index: # pylint: disable=too-few-public-methods
     """
     Represents an index for a table.
