@@ -17,7 +17,7 @@ from . import utils
 
 #
 # TupleDictionary should probably be descendant from bafDataStoreObject
-# instead of EzDict because each entry is a complex element instead
+# instead of QdDict because each entry is a complex element instead
 # of a scalar. Making that happen requires more work to avoid circular
 # definintions.
 #
@@ -255,8 +255,8 @@ class bafTupleSchema(object):
 
     def __init__(self, Name=None):
         self._name = Name
-        self.dictionaries = qddict.EzDict(Name="dictionaries")
-        self.associations = qddict.EzDict(Name="associations")
+        self.dictionaries = qddict.QdDict(Name="dictionaries")
+        self.associations = qddict.QdDict(Name="associations")
 
     def __repr__(self):
         return "SCHEMA: %s %s" % (repr(self.associations), repr(self.dictionaries))
@@ -491,18 +491,18 @@ class TupleDict(object):
         BinderUdi=0,
         Schema=None,
     ):
-        self.associations = qddict.EzDict()
+        self.associations = qddict.QdDict()
         self.binderUdi = BinderUdi  # Source definition (documentation only)
         self.exeController = ExeController
         # ordered list of record choosing fields
-        self.choosingFields = qddict.EzDict()
+        self.choosingFields = qddict.QdDict()
         # identifies how to access values / container type
         self.primaryDataPhysicalType = PrimaryDataPhysicalType
         self.instanceClassName = InstanceClassName  # identifies class to create for new
         self.instancePhysicalType = (
             InstancePhysicalType  # identifies how to access data
         )
-        self.dbmsFieldNames = qddict.EzDict()
+        self.dbmsFieldNames = qddict.QdDict()
         self.dbmsTableIndices = []  # list of bzDbmsTableIndex objects
         self.debug = 0
         self.dictionaryElementClass = TupleDictionaryElement
@@ -747,7 +747,7 @@ class TupleDict(object):
         return wsCaptions
 
     def Clear(self):
-        self.elements = qddict.EzDict(Name=self._name)
+        self.elements = qddict.QdDict(Name=self._name)
         self.indexDefs = None
         self.ixCtr = 0
 
@@ -795,7 +795,7 @@ class TupleDict(object):
         # parmIndexFields is an array of field names. Each name must be defined for this
         # tuple. The combined values must be unique within the record set.
         if self.indexDefs is None:
-            self.indexDefs = qddict.EzDict()
+            self.indexDefs = qddict.QdDict()
         if Name is None:
             # Default index name is field name(s) with dot separators
             wsIndexName = ""
@@ -982,7 +982,7 @@ class TupleDict(object):
             # We need to accesss the environment in order to validate the data.
             self.exeController = ExeController
         # This may be reduntent with ValidateTuple -- replace later
-        wsAssociatedRecords = qddict.EzDict()
+        wsAssociatedRecords = qddict.QdDict()
 
         def GetAssociatedRecord(parmElement):
             # This can be accessees the record associated with parmElement.

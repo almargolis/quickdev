@@ -941,7 +941,7 @@ class TupleObject(DataTreeBranch):
         elif isinstance(other, type(self)):
             return self._datums.__eq__(other._datums)
         elif (isinstance(parmOther, type({}))) \
-                or (isinstance(parmOther, qddict.EzDict)):
+                or (isinstance(parmOther, qddict.QdDict)):
             if len(self._datums) != len(other):
                 return False
             for (wsKey, wsDictElement) in list(self._tdict.items()):

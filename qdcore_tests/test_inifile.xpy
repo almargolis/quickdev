@@ -16,7 +16,7 @@ def test_write_ini_file(tmpdir):
     sub1['list'] = ['a', 'b', 'c']
     source['sub1'] = sub1
 
-    assert inifile.write_ini_file(source, path=test_path)
+    assert inifile.write_ini_file(source, fpath=test_path)
 
     with open(test_path) as outf:
         out_lines = outf.readlines()
@@ -24,7 +24,7 @@ def test_write_ini_file(tmpdir):
     print(out_lines)
     print('** INI FILE END **')
 
-    result = inifile.read_ini_file(file_name=test_path)
+    result = inifile.IniReader(file_name=test_path)
     assert  source == result
 
 root_ini_content = """root1 = a
@@ -60,7 +60,8 @@ def test_read_ini_directory(tmpdir):
 
     # check path attributes
     assert ini_tree.$qdconst.IS_DIRECTORY_ATTR$ is True
-    assert ini_tree.$qdconst.SOURCE_FILE_PATH_ATTR$ == tmpdir
+    #assert ini_tree.$qdconst.SOURCE_FILE_PATH_ATTR$ == tmpdir
+    assert ini_tree.dpath == tmpdir
     print("Sub1", ini_tree['site.Sub1'].$qdconst.IS_DIRECTORY_ATTR$,
           ini_tree['site.Sub1'].$qdconst.SOURCE_FILE_PATH_ATTR$)
     assert ini_tree['site.Sub1'].$qdconst.IS_DIRECTORY_ATTR$ is False

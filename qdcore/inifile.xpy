@@ -49,7 +49,7 @@ INI_PARSE_STATE_INIT		= 0
 INI_PARSE_STATE_NORMAL_LINE	= 1
 INI_PARSE_STATE_COLLECT_MULTI	= 3
 
-def read_ini_directory(dir, ext='conf', target=None, debug=0):
+def read_ini_directory(dpath, ext='conf', parent_container=None, debug=0):
     """
     Read a hierarchy of conf files into a hierarchy of dict-like objects.
 
@@ -58,44 +58,28 @@ def read_ini_directory(dir, ext='conf', target=None, debug=0):
     in order to tell if a sub-dict represents a different file or directory or
     just a section within an ini file.
     """
-    if target is None:
-        target = qddict.EzDict()
     if debug >= 1:
-        print($__def_name__$, ext, target)
-    dir = os.path.abspath(dir)
-    set_target_path(target, True, dir)
+        print($__def_name__$, ext)
+    dpath = os.path.abspath(dpath)
+    if parent_container is None:
+        parent_container = IniReader(dpath=dpath, is_directory=True)
     ini_ext = '.' + ext
-    for this_item in os.listdir(dir):
-        this_path = os.path.join(dir, this_item)
-        if this_item.endswith(ini_ext):
+    for this_file_name in os.listdir(dpath):
+        this_path = os.path.join(dpath, this_file_name)
+        if this_file_name.endswith(ini_ext):
             if debug >= 1:
-                print($'__def_name__$, 'FILE', this_item, target)
-            ext_pos = this_item.rfind(ini_ext)
-            this_container = this_item[:ext_pos]
-            child_target = target.__class__()
-            target[this_container] = child_target
-            read_ini_file(file_name=this_item, dir=dir, target=child_target, debug=debug)
+                print($'__def_name__$, 'FILE', this_file_name)
+            ext_pos = this_file_name.rfind(ini_ext)
+            this_container_key = this_file_name[:ext_pos]
+            child_ini = IniReader(dpath=dpath, file_name=this_file_name)
+            parent_container[this_container_key] = child_ini
         elif os.path.isdir(this_path):
             if debug >= 1:
-                print($'__def_name__$, 'DIR', this_item, target)
-            child_target = target.__class__()
-            target[this_item ] = child_target
-            read_ini_directory(dir=this_path, ext=ext, target=child_target, debug=debug)
-    return target
-
-def read_ini_file(file_name=None, dir=None, target=None,
-                  hierarchy_separator=$'qdconst.HIERARCHY_SEPARATOR_CHARACTER$,
-                  exe_controller=None, debug=0):
-    """ Load an ini text file into a hierarchy of map type objects. """
-    if target is None:
-        target = qddict.EzDict()
-    ini_reader = IniReader(file_name=file_name, dir=dir, target=target,
-                           hierarchy_separator=hierarchy_separator,
-                           exe_controller=exe_controller, debug=debug)
-    if ini_reader.load():
-        return ini_reader.target
-    else:
-        return None
+                print($'__def_name__$, 'DIR', this_file_name)
+            child_container = IniReader(dpath=this_path, is_directory=True)
+            parent_container[this_file_name ] = child_container
+            read_ini_directory(dpath=this_path, ext=ext, parent_container=child_container, debug=debug)
+    return parent_container
 
 def set_target_path(target, is_dir, path):
     if hasattr(target, $'qdconst.IS_DIRECTORY_ATTR$):
@@ -103,45 +87,55 @@ def set_target_path(target, is_dir, path):
     if hasattr(target, $'qdconst.SOURCE_FILE_PATH_ATTR$):
         setattr(target, $'qdconst.SOURCE_FILE_PATH_ATTR$, path)
 
-class IniReader:
+class IniReader(qddict.QdDict):
     __slots__ = ('active_target', 'active_key', 'current_line',
-                 'debug', 'dir', 'exe_controller', 'file_name',
-                 'hierarchy_separator', 'multi_line_signature',
-                 'state', 'target')
+                 'dpath', 'file_name',
+                 'multi_line_signature',
+                 'state')
 
-    def __init__(self, file_name=None, dir=None, target=None,
+    def __init__(self, file_name=None, dpath=None,
+                 is_case_sensitive=False,
+                 is_directory=False,
+                 is_hierarchy=True,
                  hierarchy_separator=$'qdconst.HIERARCHY_SEPARATOR_CHARACTER$,
-                 exe_controller=None, debug=0):
-        self.active_target = target
+                 name=None,
+                 exe_action=None, exe_controller=None, debug=0):
+
+        super().__init__(
+                         exe_action=exe_action,
+                         exe_controller=exe_controller,
+                         is_case_sensitive=is_case_sensitive,
+                         is_directory=is_directory,
+                         is_hierarchy=is_hierarchy,
+                         hierarchy_separator=hierarchy_separator,
+                         name=name, debug=debug)
+
+
+        self.active_target = self
         self.active_key = None
         self.current_line = None
         self.debug = debug
-        self.dir = dir
+        self.dpath = dpath
         self.exe_controller = exe_controller
         self.file_name = file_name
-        self.hierarchy_separator = hierarchy_separator
         self.multi_line_signature = None
         self.state = INI_PARSE_STATE_INIT
-        self.target = target
+        if file_name is not None:
+            self.load()
 
-    def load(self, file_name=None, dir=None, target=None):
+    def load(self, file_name=None, dpath=None):
         if file_name is not None:
             self.file_name = file_name
-        if dir is not None:
-            self.dir = dir
-        if target is not None:
-            self.target = target
-        if self.target is None:
-            self.target = qddict.EzDict()
+        if dpath is not None:
+            self.dpath = dpath
         if self.debug >= 1:
-            print($'__class_name__$, $'__def_name__$, self.file_name, self.dir)
-        f = textfile.open_read(file_name=self.file_name, dir=self.dir, source=self.target)
+            print($'__class_name__$, $'__def_name__$, self.file_name, self.dpath)
+        f = textfile.open_read(file_name=self.file_name, dpath=self.dpath)
         if f is not None:
             ini_lines = f.readlines()
             f.close()
             for self.current_line in ini_lines:
                 self.parse_line()
-            set_target_path(self.target, False, f.path)
             return True
         else:
             return False
@@ -155,8 +149,8 @@ class IniReader:
 
     def locate_active_target_section(self, section_name):
         """ Set self.active_target in a hierarchical data store. """
-        parts = section_name.split(self.hierarchy_separator)
-        self.active_target = self.target
+        parts = section_name.split(self.$qdconst.HIERARCHY_SEPARATOR_ATTR$)
+        self.active_target = self
         for this_part in parts:
             if not this_part in self.active_target:
                 new_child = self.active_target.__class__()
@@ -239,6 +233,13 @@ class IniReader:
         else:
             self.normal_value()
 
+    def save(self):
+        if self.dpath is None:
+            fpath = self.file_name
+        else:
+            fpath = os.path.join(self.dpath, self.file_name)
+        write_ini_file(self, fpath=fpath, $qdconst.EXE_CONTROLLER$=self.$qdconst.EXE_CONTROLLER$)
+
 def write_ini_level(f, data, section_name=''):
     children = []
     if section_name != '':
@@ -262,17 +263,17 @@ def write_ini_level(f, data, section_name=''):
             child_section_name = section_name + '.'
         write_ini_level(f, child_data, section_name=child_section_name)
 
-def write_ini_file(source, path=None, $qdconst.EXE_CONTROLLER$=None):
+def write_ini_file(source, fpath=None, $qdconst.EXE_CONTROLLER$=None):
       """ Write a hierarchy of dict-like data as an ini file. """
-      if path is None:
-          path = getattr(source, $'qdconst.SOURCE_FILE_PATH_ATTR$, None)
-      if path is None:
+      if fpath is None:
+          fpath = getattr(source, $'qdconst.SOURCE_FILE_PATH_ATTR$, None)
+      if fpath is None:
           raise ValueError("No path specified for output file.")
       if $qdconst.EXE_CONTROLLER$ is None:
           $qdconst.EXE_CONTROLLER$ = getattr(source, $'qdconst.EXE_CONTROLLER$, None)
-      f = textfile.open_write_with_swap_file(path, backup=True)
+      f = textfile.open_write_with_swap_file(fpath, backup=True)
       if f is None:
-          err_msg = "Unable to open output INI file '{}'.".format(path)
+          err_msg = "Unable to open output INI file '{}'.".format(fpath)
           if $qdconst.EXE_CONTROLLER$ is None:
               raise Exception(err_msg)
           else:

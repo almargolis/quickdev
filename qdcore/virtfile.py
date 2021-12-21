@@ -295,7 +295,7 @@ class VirtFile(object):
             time.sleep(wait_secs)
         return False
 
-    def open(self, file_name=None, mode=None, dir=None, source=None,
+    def open(self, file_name=None, mode=None, dpath=None, source=None,
              backup=False, lock=False, no_wait=False, swap=False):
         """
         Open file. Return True or False to indicate result.
@@ -306,17 +306,16 @@ class VirtFile(object):
         self.err_code = 0
         self.make_backup = backup
         self.open_mode = mode
-        path = None
         if file_name is None:
             if source is not None:
                 if hasattr(source, '_source_file_path'):
                     path = getattr(source, '_source_file_path', None)
 
-        elif dir is None:
-            path = file_name
+        elif dpath is None:
+            fpath = file_name
         else:
-            path = os.path.join(dir, file_name)
-        if path is None:
+            fpath = os.path.join(dpath, file_name)
+        if fpath is None:
             raise VirtFileException(1, "No path specified for open.", self)
         if self.debug >= 3:
             print("VirtFile.open(%s, %s)" % (path, self.open_mode))
@@ -341,20 +340,20 @@ class VirtFile(object):
         else:
             os_mode = self.open_mode
         if lock:
-            if not self.lock_set(path, no_wait=no_wait):
+            if not self.lock_set(fpath, no_wait=no_wait):
                 self.err_code = 10
                 return False
         if swap:
-            if not self.create_swap_output(path):
+            if not self.create_swap_output(fpath):
                 if lock:
                     self.lock_clear()
                 self.err_code = 20
                 return False
-        if self.driver.OsOpenMode(path, os_mode) >= 0:
+        if self.driver.OsOpenMode(fpath, os_mode) >= 0:
             self.initialize_readahead()
             if source is not None:
                 if hasattr(source, '_source_file_path'):
-                    setattr(source, '_source_file_path', path)
+                    setattr(source, '_source_file_path', fpath)
             return True
         self.EOF = True
         if os_mode == filedriver.MODE_N:
@@ -362,7 +361,7 @@ class VirtFile(object):
             # we are probably writing to a swap file.
             if source is not None:
                 if hasattr(source, '_source_file_path'):
-                    setattr(source, '_source_file_path', path)
+                    setattr(source, '_source_file_path', fpath)
             return True
         # We get here if the open was unsuccesful in order to
         # clean up the temporary files we created.

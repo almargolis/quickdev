@@ -93,19 +93,19 @@ def open(path, mode, debug=0):
     else:
         return None
 
-def open_read(file_name=None, dir=None, source=None, debug=0):
+def open_read(file_name=None, dpath=None, source=None, debug=0):
     text_file = TextFile(debug=debug)
     if text_file.open(file_name=file_name,
-                                   mode=filedriver.MODE_R, dir=dir,
+                                   mode=filedriver.MODE_R, dpath=dpath,
                                    source=source):
         return text_file
     return None
 
-def open_write_with_swap_file(file_name=None, dir=None,
+def open_write_with_swap_file(file_name=None, dpath=None,
                          source=None, backup=False,
                          no_wait=False, debug=0):
     text_file = TextFile(debug=debug)
-    if text_file.open(file_name=file_name, mode=filedriver.MODE_S, dir=dir,
+    if text_file.open(file_name=file_name, mode=filedriver.MODE_S, dpath=dpath,
                           source=source, backup=backup, no_wait=no_wait):
         return text_file
     return None
