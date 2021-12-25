@@ -40,37 +40,53 @@ def cli_chooser(items):
     )
     return cli_input(", ".join(menu_display), regex=regex, lower=True)
 
+STATUS_DEFINED = ' '
+STATUS_UNDEFINED = '?'
 
 class CliFormItem:
-    __slots__ = ("ix", "key", "value")
+    __slots__ = ("ix", "is_read_only", "key", "status", "value")
 
-    def __init__(self, ix, key, value):
+    def __init__(self, status, ix, key, value, is_read_only=False):
+        self.status = status
+        self.is_read_only = is_read_only
         self.ix = ix
         self.key = key
         self.value = value
 
     def __repr__(self):
-        return "CliFormItem({}, {}, {})".format(self.ix, self.key, self.value)
+        return "CliFormItem({}, {}, {}, {})".format(
+            self.status, self.ix, self.key, self.value
+        )
 
 
 class CliForm:
     def __init__(self, data, tdict=None, run=True):
         self.source_data = data
         self.working_data = {}
+        self.max_ix = 0
         for ix, (key, value) in enumerate(data.items()):
-            self.working_data[key] = CliFormItem(ix, key, value)
+            self.working_data[key] = CliFormItem(STATUS_UNDEFINED, ix, key, value)
+            self.max_ix = ix
         if tdict is not None:
             for this in tdict.columns.values():
                 if this.name in self.working_data:
-                    continue
+                    self.working_data[this.name].status = STATUS_DEFINED
+                    self.working_data[this.name].is_read_only = this.is_read_only
                 else:
-                    self.append_item(this.name, this.default_value)
+                    self.append_item(
+                        STATUS_DEFINED,
+                        this.name,
+                        this.default_value,
+                        is_read_only=this.is_read_only,
+                    )
         if run:
             self.form_run()
 
-    def append_item(self, key, value):
-        ix = len(self.working_data)
-        self.working_data[key] = CliFormItem(ix, key, value)
+    def append_item(self, status, key, value, is_read_only=False):
+        self.max_ix += 1
+        self.working_data[key] = CliFormItem(
+            status, self.max_ix, key, value, is_read_only=is_read_only
+        )
 
     def add_item(self):
         """
@@ -85,7 +101,7 @@ class CliForm:
                 print("Key '{}' already in collection.".format(key))
                 continue
             value = input("Item Value:")
-            self.append_item(key, value)
+            self.append_item(STATUS_UNDEFINED, key, value)
             return True
 
     def get_item(self):
@@ -105,6 +121,12 @@ class CliForm:
                 return item
             print("Index '{}' not in collection.".format(ix))
 
+    def item_by_ix(self, ix):
+        for this in self.working_data.values():
+            if this.ix == ix:
+                return this
+        return None
+
     def del_item(self):
         """
         The return value can be used to set a data dirty flag. True inidicates that
@@ -113,8 +135,12 @@ class CliForm:
         item = self.get_item()
         if item is None:
             return False
+        if item.is_read_only:
+            print("Read only item. Caanot be deleted.")
+            return False
         prompt = "Delete [{}. {}: {}]".format(item.ix, item.key, item.value)
         if cli_input_yn(prompt):
+            self.working_data.pop(item.key)
             return True
         return False
 
@@ -126,7 +152,11 @@ class CliForm:
         item = self.get_item()
         if item is None:
             return False
-        prompt = "Delete [{}. {}: {}]".format(item.ix, item.key, item.value)
+        if item.is_read_only:
+            print("Read only item. Caanot be edited.")
+            return False
+        prompt = "Edit [{}. {}: {}]".format(item.ix, item.key, item.value)
+        item.value = cli_input(prompt)
 
     def form_menu(self):
         menu_choices = []
@@ -144,6 +174,12 @@ class CliForm:
             return True
         elif choice == "a":
             self.add_item()
+            return True
+        elif choice == "d":
+            self.del_item()
+            return True
+        elif choice == "e":
+            self.edit_item()
             return True
         elif choice == "l":
             self.show_data()

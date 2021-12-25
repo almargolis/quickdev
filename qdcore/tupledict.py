@@ -747,7 +747,7 @@ class TupleDict(object):
         return wsCaptions
 
     def Clear(self):
-        self.elements = qddict.QdDict(Name=self._name)
+        self.elements = qddict.QdDict(name=self._name)
         self.indexDefs = None
         self.ixCtr = 0
 

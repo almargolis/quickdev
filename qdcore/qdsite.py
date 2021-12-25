@@ -74,7 +74,7 @@ class QdSite():
         self.site_dpath = os.path.abspath(site_dpath)
         self.conf_path = os.path.join(self.site_dpath, qdconst.SITE_CONF_DIR_NAME)
         self.ini_path = os.path.join(self.conf_path, qdconst.SITE_CONF_FILE_NAME)
-        self.ini_data = inifile.read_ini_file(file_name=self.ini_path)
+        self.ini_data = inifile.IniReader(file_name=self.ini_path)
         print("QdSite", self.ini_path, self.ini_data)
         self.host_site_data = host_site_ini
         if self.ini_data is None:

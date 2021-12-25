@@ -49,8 +49,8 @@ except ModuleNotFoundError:
     """
     sys.path.append(QDDEV_PATH)
     import qdbase.cliargs as cliargs
-import qdbase.cliinput as cliinput
-import qdbase.exenv as exenv
+from qdbase import cliinput
+from qdbase import exenv
 from qdbase import pdict
 try:
     import qdcore.qdsite as qdsite
@@ -185,6 +185,7 @@ def start_site(site_dpath, no_site, quiet):
 def edit_conf(site_dpath):
     tdict = pdict.TupleDict()
     tdict.add_column(pdict.Text('acronym'))
+    tdict.add_column(pdict.Text('guid', is_read_only=True))
     tdict.add_column(pdict.Text('website_subdir'))
     site_info = qdsite.QdSite(site_dpath=site_dpath)
     editor = cliinput.CliForm(site_info.ini_data, tdict=tdict)

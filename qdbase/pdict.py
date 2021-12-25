@@ -9,11 +9,13 @@ use XPython features.
 
 import numbers
 
+
 class DbDict:
     """
     Database dictionary primarily for use with sqlite_ez.
     """
-    __slots__ = ('tables',)
+
+    __slots__ = ("tables",)
 
     def __init__(self):
         self.tables = {}
@@ -34,6 +36,7 @@ class DbDict:
                 create_list.append(this_index.sql())
         return create_list
 
+
 class DbTableDict:
     """
     DbTableDict is a dictionary primarily intended to define
@@ -41,7 +44,8 @@ class DbTableDict:
     rowid table with an alias column of id. When needed,
     alternate keys are implemented as indexes.
     """
-    __slots__ = ('columns', 'indexes', 'is_rowid_table', 'name')
+
+    __slots__ = ("columns", "indexes", "is_rowid_table", "name")
 
     def __init__(self, name, is_rowid_table=True):
         self.columns = {}
@@ -49,24 +53,28 @@ class DbTableDict:
         self.name = name
         self.is_rowid_table = is_rowid_table
         if self.is_rowid_table:
-            id_col = self.add_column(Number('id'))
+            id_col = self.add_column(Number("id"))
             id_col.is_primary_key = True
 
     def add_column(self, column):
         """Add a column to the table."""
         if column.name in self.columns:
-            raise Exception("Duplicate column name '{}' in table '{}'".format(
-                                column.name, self.name))
+            raise Exception(
+                "Duplicate column name '{}' in table '{}'".format(
+                    column.name, self.name
+                )
+            )
         self.columns[column.name] = column
         return column
 
     def add_index(self, name, columns, is_unique=True):
         """
-            Add an index to the table.
+        Add an index to the table.
         """
         if name in self.indexes:
-            raise Exception("Duplicate index name '{}' in table '{}'".format(
-                                name, self.name))
+            raise Exception(
+                "Duplicate index name '{}' in table '{}'".format(name, self.name)
+            )
         index = Index(name, columns, self, is_unique=is_unique)
         self.indexes[name] = index
         return index
@@ -78,17 +86,18 @@ class DbTableDict:
                 d[this.name] = default_value
         return d
 
-    def sql(self, eol='\n'):
+    def sql(self, eol="\n"):
         """Create an sql create table command for this table."""
         table_def = "CREATE TABLE {} ({}".format(self.name, eol)
         last_column_ix = len(self.columns) - 1
         for ix, this in enumerate(self.columns.values()):
             table_def += this.sql()
             if (last_column_ix > 0) and (ix < last_column_ix):
-                table_def += ','
+                table_def += ","
             table_def += eol
         table_def += ");" + eol
         return table_def
+
 
 class TupleDict(DbTableDict):
     """
@@ -96,14 +105,17 @@ class TupleDict(DbTableDict):
     to define simple data structure outside the context of an
     RDBMS.
     """
+
     def __init__(self, name=None):
         super().__init__(name, is_rowid_table=False)
 
-class Index: # pylint: disable=too-few-public-methods
+
+class Index:  # pylint: disable=too-few-public-methods
     """
     Represents an index for a table.
     """
-    __slots__ = ('name', 'columns', 'is_unique', 'table_dict')
+
+    __slots__ = ("name", "columns", "is_unique", "table_dict")
 
     def __init__(self, name, columns, table_dict, is_unique=True):
         """
@@ -117,69 +129,100 @@ class Index: # pylint: disable=too-few-public-methods
             columns = (columns,)
         for this in columns:
             if this not in table_dict.columns:
-                raise Exception("Invalid index column '{}' for index {}.{}".format(
-                                    this, table_dict.name, self.name
-                ))
+                raise Exception(
+                    "Invalid index column '{}' for index {}.{}".format(
+                        this, table_dict.name, self.name
+                    )
+                )
             self.columns.append(this)
         self.is_unique = is_unique
 
-    def sql(self, eol='\n'):
+    def sql(self, eol="\n"):
         """Create sql CREATE INDEX statement string."""
-        index_def = 'CREATE'
+        index_def = "CREATE"
         if self.is_unique:
-            index_def += ' UNIQUE'
-        index_def += ' INDEX ' + self.name + eol
-        index_def += 'ON ' + self.table_dict.name + '('
+            index_def += " UNIQUE"
+        index_def += " INDEX " + self.name + eol
+        index_def += "ON " + self.table_dict.name + "("
         last_column_ix = len(self.columns) - 1
         for ix, this in enumerate(self.columns):
             index_def += this
             if (last_column_ix > 0) and (ix < last_column_ix):
-                index_def += ', '
-        index_def += ');' + eol
+                index_def += ", "
+        index_def += ");" + eol
         return index_def
 
-class Column: # pylint: disable=too-few-public-methods
-    """Base class for table columns."""
-    __slots__ = ('allow_nulls', 'column_type', 'default_value',
-                 'is_primary_key', 'name')
 
-    def __init__(self, name, column_type,
-                 allow_nulls=False, default_value=None):
+class Column:  # pylint: disable=too-few-public-methods
+    """Base class for table columns."""
+
+    __slots__ = (
+        "allow_nulls",
+        "column_type",
+        "default_value",
+        "is_primary_key",
+        "is_read_only",
+        "name",
+    )
+
+    def __init__(
+        self,
+        name,
+        column_type,
+        allow_nulls=False,
+        default_value=None,
+        is_read_only=False,
+    ):
         self.name = name
         self.column_type = column_type
         self.allow_nulls = allow_nulls
         self.default_value = default_value
         self.is_primary_key = False
+        self.is_read_only = is_read_only
 
     def sql(self):
         """Create sql column definition clause."""
-        col_def = self.name + ' ' + self.column_type
+        col_def = self.name + " " + self.column_type
         if not self.allow_nulls:
-            col_def += ' NOT NULL'
+            col_def += " NOT NULL"
         if self.is_primary_key:
-            col_def += ' PRIMARY KEY'
+            col_def += " PRIMARY KEY"
         if self.default_value is not None:
-            col_def += ' DEFAULT '
+            col_def += " DEFAULT "
             if isinstance(self.default_value, numbers.Number):
                 col_def += str(self.default_value)
             else:
                 col_def += "'" + self.default_value + "'"
         return col_def
 
-class Number(Column): # pylint: disable=too-few-public-methods
+
+class Number(Column):  # pylint: disable=too-few-public-methods
     """Numeric column class."""
+
     __slots__ = ()
 
-    def __init__(self, name, allow_nulls=False, default_value=None):
+    def __init__(self, name, allow_nulls=False, default_value=None, is_read_only=False):
         # sqlite recognize int as an alias for INTEGER but
         # not for the aliasing of rowid.
-        super().__init__(name, 'INTEGER', allow_nulls=allow_nulls,
-                         default_value=default_value)
+        super().__init__(
+            name,
+            "INTEGER",
+            allow_nulls=allow_nulls,
+            default_value=default_value,
+            is_read_only=is_read_only,
+        )
 
-class Text(Column): # pylint: disable=too-few-public-methods
+
+class Text(Column):  # pylint: disable=too-few-public-methods
     """Text column class."""
-    __slots__ = ('allow_nulls',)
 
-    def __init__(self, name, allow_nulls=False, default_value=None):
-        super().__init__(name, 'TEXT', allow_nulls=allow_nulls,
-                         default_value=default_value)
+    __slots__ = ("allow_nulls",)
+
+    def __init__(self, name, allow_nulls=False, default_value=None, is_read_only=False):
+        super().__init__(
+            name,
+            "TEXT",
+            allow_nulls=allow_nulls,
+            default_value=default_value,
+            is_read_only=is_read_only,
+        )
