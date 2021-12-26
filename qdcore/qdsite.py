@@ -13,6 +13,14 @@ CONF_ETC_ORG = 'etc_org'
 
 CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
 
+CONF_PARM_ACRONYM = 'acronym'
+CONF_PARM_UUID = 'uuid'
+CONF_PARM_DOMAIN_NAME = 'domain_name'
+CONF_PARM_WEBSITE_SUBDIR = 'website_subdir'
+CONF_PARM_SITE_DPATH = 'site_dpath'
+CONF_PARM_SITE_UDI = 'site_udi'
+CONF_PARM_VENV_DPATH = 'venv_dpath'
+
 def identify_site(site=None):
     """
     Returns QdSite() object if a site can be identified using the site
@@ -49,7 +57,7 @@ class hold():
 
 def get_site_by_acronym(acronym):
     dev_ini_fpath = werkzeug.utils.safe_join(exenv.g.qdhost_devsites_dpath, acronym + '.ini')
-    dev_ini_data = inifile.read_ini_file(file_name=dev_ini_fpath)
+    dev_ini_data = inifile.IniReader(file_name=dev_ini_fpath)
     site_dpath = dev_ini_data['site_dpath']
     return QdSite(site_dpath=site_dpath, host_site_ini=dev_ini_data)
 
@@ -79,7 +87,7 @@ class QdSite():
         self.host_site_data = host_site_ini
         if self.ini_data is None:
             self.ini_data = {}
-            self.ini_data['site_dir'] = self.site_dpath
+            self.ini_data[CONF_PARM_SITE_DPATH] = self.site_dpath
 
     def __str__(self):
         return "{site_dpath}, {ini_path}: {ini_data}.".format(

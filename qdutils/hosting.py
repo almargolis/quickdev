@@ -58,14 +58,22 @@ def load_hosting_conf():
 def show_hosting():
     exenv.execution_env.show()
 
+def register_site(site_dpath=None):
+    if site_dpath is None:
+        site_dpath = os.getcwd()
+    site = qdsite.QdSite(site_dpath=site_dpath)
+
 if __name__ == "__main__":
     # There is a great deal of symetry between hosting.py and apache.py
     # commands. If you change one, check the other to see if similar
     # changes are needed.
     menu = cliargs.CliCommandLine()
+    exenv.command_line_loc(menu)
     exenv.command_line_site(menu)
     #
     menu.add_item(cliargs.CliCommandLineActionItem('hinit', init_hosting, help="Initialize host"))
+    m = menu.add_item(cliargs.CliCommandLineActionItem('sregit', init_hosting, help="Register site."))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_L_CONF_LOC, parameter_name='site_dpath'))
     menu.add_item(cliargs.CliCommandLineActionItem('show', show_hosting, help="Show host information"))
     #
     exenv.execution_env.set_run_name(__name__)

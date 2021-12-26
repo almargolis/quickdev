@@ -1,13 +1,29 @@
 import re
 
+debug_input_strings = []
+debug_input_ix = 0
 
-def cli_input(prompt, regex=None, value_hint=None, lower=False):
+def set_debug_input(debug_strings):
+    global debug_input_strings
+    global debug_input_ix
+    debug_input_strings = debug_strings
+    debug_input_ix = 0
+
+def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
+    global debug_input_ix
     if value_hint is None:
         value_prompt = ""
     else:
         value_prompt = " [{}]".format(value_hint)
     while True:
-        resp = input("{}{}".format(prompt, value_prompt))
+        if debug > 0:
+            print("cli_input() '{}' '{}'".format(prompt, value_prompt))
+        if debug_input_ix < len(debug_input_strings):
+            resp = debug_input_strings[debug_input_ix]
+            print("cli_input() ix={} '{}'".format(debug_input_ix, resp))
+            debug_input_ix += 1
+        else:
+            resp = input("{}{}".format(prompt, value_prompt))
         if (regex is None) or regex.match(resp):
             break
     if lower:
@@ -15,21 +31,21 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False):
     return resp
 
 
-def cli_input_symbol(prompt):
+def cli_input_symbol(prompt, debug=0):
     regex = re.compile(r"[a-z]\w", flags=re.ASCII | re.IGNORECASE)
-    return cli_input(prompt, regex=regex)
+    return cli_input(prompt, regex=regex, debug=debug)
 
 
-def cli_input_yn(prompt):
+def cli_input_yn(prompt, debug=0):
     regex = re.compile(r"[yn]", flags=re.IGNORECASE)
-    resp = cli_input(prompt, regex=regex, value_hint="y/n", lower=True)
+    resp = cli_input(prompt, regex=regex, value_hint="y/n", lower=True, debug=debug)
     if resp == "y":
         return True
     else:
         return False
 
 
-def cli_chooser(items):
+def cli_chooser(items, debug=0):
     menu_display = []
     menu_match = []
     for this in items:
@@ -38,7 +54,7 @@ def cli_chooser(items):
     regex = re.compile(
         r"[{}]".format("".join(menu_match)), flags=re.ASCII | re.IGNORECASE
     )
-    return cli_input(", ".join(menu_display), regex=regex, lower=True)
+    return cli_input(", ".join(menu_display), regex=regex, lower=True, debug=debug)
 
 STATUS_DEFINED = ' '
 STATUS_UNDEFINED = '?'
@@ -60,10 +76,12 @@ class CliFormItem:
 
 
 class CliForm:
-    def __init__(self, data, tdict=None, run=True):
+    def __init__(self, data, tdict=None, run=True, debug=0):
         self.source_data = data
         self.working_data = {}
         self.max_ix = 0
+        self.dirty = False
+        self.debug = debug
         for ix, (key, value) in enumerate(data.items()):
             self.working_data[key] = CliFormItem(STATUS_UNDEFINED, ix, key, value)
             self.max_ix = ix
@@ -79,6 +97,7 @@ class CliForm:
                         this.default_value,
                         is_read_only=this.is_read_only,
                     )
+                    self.dirty = True
         if run:
             self.form_run()
 
@@ -94,19 +113,19 @@ class CliForm:
         data was changed. False indicates that no changes were made.
         """
         while True:
-            key = input("Item Key:")
+            key = cli_input("Item Key:")
             if key == "":
                 return False
             if key in self.working_data:
                 print("Key '{}' already in collection.".format(key))
                 continue
-            value = input("Item Value:")
+            value = cli_input("Item Value:")
             self.append_item(STATUS_UNDEFINED, key, value)
             return True
 
     def get_item(self):
         while True:
-            key = input("Item Index:")
+            key = cli_input("Item Index:")
             if key == "":
                 return None
             ix = int(key)
@@ -139,7 +158,7 @@ class CliForm:
             print("Read only item. Caanot be deleted.")
             return False
         prompt = "Delete [{}. {}: {}]".format(item.ix, item.key, item.value)
-        if cli_input_yn(prompt):
+        if cli_input_yn(prompt, debug=self.debug):
             self.working_data.pop(item.key)
             return True
         return False
@@ -156,7 +175,8 @@ class CliForm:
             print("Read only item. Caanot be edited.")
             return False
         prompt = "Edit [{}. {}: {}]".format(item.ix, item.key, item.value)
-        item.value = cli_input(prompt)
+        item.value = cli_input(prompt, debug=self.debug)
+        return True
 
     def form_menu(self):
         menu_choices = []
@@ -166,20 +186,27 @@ class CliForm:
         menu_choices.append("List")
         menu_choices.append("Save")
         menu_choices.append("Quit")
-        choice = cli_chooser(menu_choices)
+        choice = cli_chooser(menu_choices, debug=self.debug)
         if choice == "q":
+            if self.dirty:
+                if not cli_input_yn("Unsaved changes. Do you want to quit?", debug=self.debug):
+                    return True
             return False
         elif choice == "s":
             self.source_data.save(new_data=self.working_data)
+            self.dirty = False
             return True
         elif choice == "a":
-            self.add_item()
+            if self.add_item():
+                self.dirty = True
             return True
         elif choice == "d":
-            self.del_item()
+            if self.del_item():
+                self.dirty = True
             return True
         elif choice == "e":
-            self.edit_item()
+            if self.edit_item():
+                self.dirty = True
             return True
         elif choice == "l":
             self.show_data()

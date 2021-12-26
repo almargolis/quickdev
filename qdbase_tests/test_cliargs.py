@@ -41,12 +41,13 @@ def make_menu():
                   ))
     return menu
 
-def add_default_action(menu):
+def add_default_action(menu, s_is_required=False):
     m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
                                                    action_function,
                                                    help="Synthesize directory."))
     m.add_parameter(cliargs.CliCommandLineParameterItem('s', parameter_name='site',
-                                                    is_positional=False))
+                                                    is_positional=False,
+                                                    is_required=s_is_required))
     m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='stand_alone',
                                                     default_value=False,
                                                     is_positional=False))
@@ -117,7 +118,7 @@ def test_cli_clean(tmpdir):
 def test_cli_errors(tmpdir):
 
     menu = make_menu()
-    m = add_default_action(menu)
+    m = add_default_action(menu, s_is_required=True)
     print_help(menu)
 
     menu.cli_argv = ['prog.py']

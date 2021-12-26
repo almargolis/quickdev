@@ -233,12 +233,14 @@ class IniReader(qddict.QdDict):
         else:
             self.normal_value()
 
-    def save(self):
+    def save(self, new_data=None):
+        if new_data is None:
+            new_data = self
         if self.dpath is None:
             fpath = self.file_name
         else:
             fpath = os.path.join(self.dpath, self.file_name)
-        write_ini_file(self, fpath=fpath, exe_controller=self.exe_controller)
+        write_ini_file(new_data, fpath=fpath, exe_controller=self.exe_controller)
 
 def write_ini_level(f, data, section_name=''):
     children = []

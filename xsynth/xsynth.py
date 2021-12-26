@@ -49,8 +49,8 @@ if qdsqlite is None:
     sys.path.append(EZCORE_PATH)
     from qdcore import qdsqlite
 """
-import qdbase.cli as cli
-import qdbase.exenv as exenv
+from qdbase import cliargs
+from qdbase import exenv
 from . import xsource
 
 try:
@@ -269,7 +269,7 @@ def main(debug=0):
     If no file list is provided, xsynth processes either the entire site (-s mode)
     or the cwd and all subdirectories (-n mode).
     """
-    menu = cli.CliCommandLine()
+    menu = cliargs.CliCommandLine()
     exenv.command_line_debug(menu)
     exenv.command_line_site(menu)
     exenv.command_line_loc(menu)
@@ -277,27 +277,27 @@ def main(debug=0):
     exenv.command_line_quiet(menu)
     exenv.command_line_verbose(menu)
 
-    menu.add_item(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+    menu.add_item(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
                   help="Specify files or directory to synthesise in stand-alone mode.",
-                  value_type=cli.PARAMETER_STRING
+                  value_type=cliargs.PARAMETER_STRING
                   ))
 
-    m = menu.add_item(cli.CliCommandLineActionItem(cli.DEFAULT_ACTION_CODE,
+    m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
                                                    synth_site,
                                                    help="Synthesize directory."))
-    m.add_parameter(cli.CliCommandLineParameterItem('n', parameter_name='no_site',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='no_site',
                                                     default_value=False,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem(exenv.ARG_D_DEBUG,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_D_DEBUG,
                                                     parameter_name='debug',
                                                     default_value=debug,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem('l', parameter_name='db_location',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('l', parameter_name='db_location',
                                                     default_value=None,
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem('q', parameter_name='quiet',
+    m.add_parameter(cliargs.CliCommandLineParameterItem('q', parameter_name='quiet',
                                                     is_positional=False))
-    m.add_parameter(cli.CliCommandLineParameterItem(cli.DEFAULT_FILE_LIST_CODE,
+    m.add_parameter(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
                                                     parameter_name='sources',
                                                     default_value=None,
                                                     is_positional=False))

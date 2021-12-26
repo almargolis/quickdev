@@ -318,7 +318,7 @@ class VirtFile(object):
         if fpath is None:
             raise VirtFileException(1, "No path specified for open.", self)
         if self.debug >= 3:
-            print("VirtFile.open(%s, %s)" % (path, self.open_mode))
+            print("VirtFile.open(%s, %s)" % (dpath, self.open_mode))
 
         # MODE_RR open a file for input and a swap file for output.
         # MODE_S is output only using a swap file.

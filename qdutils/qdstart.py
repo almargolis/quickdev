@@ -107,27 +107,27 @@ class QdStart():
         return True
 
     def check_acronym(self):
-        if 'acronym' in self.site_info.ini_info:
-            print('Site acronym "{}"'.format(self.site_info.ini_info['acronym']))
+        if qdsite.CONF_PARM_ACRONYM in self.site_info.ini_info:
+            print('Site acronym "{}"'.format(self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM]))
             return True
-        self.site_info.ini_info['acronym'] = cliinput.cli_input_symbol('Site Acronym')
+        self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM] = cliinput.cli_input_symbol('Site Acronym')
         return True
 
     def check_python_venv(self):
-        venv_path = os.environ.get('VIRTUAL_ENV', None)
-        if venv_path is not None:
-            print("VENV: {}".format(venv_path))
+        venv_dpath = os.environ.get('VIRTUAL_ENV', None)
+        if venv_dpath is not None:
+            print("VENV: {}".format(venv_dpath))
             if cliinput.cli_input_yn("Do you want to use this VENV for this project?"):
-                self.site_info.ini_info['venv_path'] = venv_path
+                self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
                 return True
-        venv_name = self.site_info.ini_info['acronym'] + ".venv"
-        venv_path = os.path.join(self.site_info.site_path, venv_name)
-        if not os.path.isdir(venv_path):
-            if cliinput.cli_input_yn("Create VENV '{}'?".format(venv_path)):
-                cmd = ['python3', '-m', 'venv', venv_path]
+        venv_name = self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM] + ".venv"
+        venv_dpath = os.path.join(self.site_info.site_path, venv_name)
+        if not os.path.isdir(venv_dpath):
+            if cliinput.cli_input_yn("Create VENV '{}'?".format(venv_dpath)):
+                cmd = ['python3', '-m', 'venv', venv_dpath]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
-                    self.site_info.ini_info['venv_path'] = venv_path
+                    self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
                     return True
                 else:
                     self.error("Unable to create VENV.")
@@ -138,12 +138,12 @@ class QdStart():
         # Update the configuration variable in case it doesn't
         # have the current value.
         #
-        self.site_info.ini_info['venv_path'] = venv_path
+        self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
         return True
 
     def check_venv_shortcut(self):
-        venv_path = self.site_info.ini_info['venv_path']
-        venv_bin_path = os.path.join(venv_path, 'bin/activate')
+        venv_dpath = self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH]
+        venv_bin_path = os.path.join(venv_dpath, 'bin/activate')
         if exenv.make_symlink_to_file(venv_bin_path, link_name='venv',
                                    error_func=self.error):
             return True
@@ -157,8 +157,8 @@ class QdStart():
             print("Check link {} to {}".format(site_link, source_path))
             if not os.path.islink(site_link):
                 os.symlink(source_path, site_link, target_is_directory=True)
-        venv_path = self.site_info.ini_info['venv_path']
-        lib_path = os.path.join(venv_path, 'lib')
+        venv_dpath = self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH]
+        lib_path = os.path.join(venv_dpath, 'lib')
         libs = os.listdir(lib_path)
         python_lib = None
         for this_lib in libs:
@@ -166,7 +166,7 @@ class QdStart():
                 python_lib = this_lib
                 break
         if python_lib is None:
-            self.error("{} is not a valid venv.".format(venv_path))
+            self.error("{} is not a valid venv.".format(venv_dpath))
             return False
         packages_path = os.path.join(lib_path, python_lib, 'site-packages')
         check_site_package(packages_path, QDBASE_DIR_NAME, QDBASE_PATH)

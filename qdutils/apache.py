@@ -321,10 +321,10 @@ class ApacheHosting():
 
         site_ini is owned by application developers.
         """
-        site_acronym = host_ini['acronym']
-        site_dpath = host_ini['site_dpath']
-        domain_name = www_ini['domain_name']
-        website_subdir = site_ini['website_subdir']
+        site_acronym = host_ini[qdsite.CONF_PARM_ACRONYM]
+        site_dpath = host_ini[qdsite.CONF_PARM_SITE_DPATH]
+        domain_name = www_ini[qdsite.CONF_PARM_DOMAIN_NAME]
+        website_subdir = site_ini[qdsite.CONF_PARM_WEBSITE_SUBDIR]
 
         apache_conf_path = os.path.join(self.sites_available_dir_path, site_acronym+'.conf')
         document_root = os.path.join(site_dpath, website_subdir)
@@ -369,7 +369,7 @@ def config_vhosts():
     websites = os.listdir(exenv.g.qdhost_websites_dpath)
     for this in websites:
         wwww_ini_path = os.path.join(exenv.g.qdhost_websites_dpath, this)
-        host_www_ini = inifile.read_ini_file(file_name=wwww_ini_path)
+        host_www_ini = inifile.IniReader(file_name=wwww_ini_path)
         site_acronym = site_acronym = host_www_ini['acronym']
         devsite = qdsite.get_site_by_acronym(site_acronym)
         apache_host.create_virtual_host(devsite.host_site_data, host_www_ini, devsite.ini_data)
@@ -391,7 +391,7 @@ if __name__ == '__main__':
     menu.add_item(cliargs.CliCommandLineActionItem('vhosts', config_vhosts, help="Configure Apache vhosts"))
     #
     m = menu.add_item(cliargs.CliCommandLineActionItem('sinit', init_site, help="Initialize site"))
-    m.add_parameter(cliargs.CliCommandLineParameterItem('s', is_positional=True))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_S_SITE, is_positional=True))
     #
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()

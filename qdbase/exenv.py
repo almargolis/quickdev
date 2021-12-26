@@ -82,7 +82,7 @@ def command_line_debug(menu):
 
 def command_line_loc(menu):
     item = cliargs.CliCommandLineParameterItem(ARG_L_CONF_LOC,
-                  help="Location of conf file or database.",
+                  help="Location of site base directory.",
                   value_type=cliargs.PARAMETER_INTEGER
                   )
     menu.add_item(item)
