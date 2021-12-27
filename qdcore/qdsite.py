@@ -75,28 +75,34 @@ class QdSite():
     for QdDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
     """
-    __slots__ = ('conf_path', 'host_site_data', 'ini_data', 'ini_path', 'site_dpath')
+    __slots__ = ('conf_dpath', 'host_site_data', 'ini_data', 'ini_fpath', 'site_dpath')
     def __init__(self, site_dpath=None, host_site_ini=None):
         if site_dpath is None:
             site_dpath = os.getcwd()
         self.site_dpath = os.path.abspath(site_dpath)
-        self.conf_path = os.path.join(self.site_dpath, qdconst.SITE_CONF_DIR_NAME)
-        self.ini_path = os.path.join(self.conf_path, qdconst.SITE_CONF_FILE_NAME)
-        self.ini_data = inifile.IniReader(file_name=self.ini_path)
-        print("QdSite", self.ini_path, self.ini_data)
-        self.host_site_data = host_site_ini
+        self.conf_dpath = os.path.join(self.site_dpath, qdconst.SITE_CONF_DIR_NAME)
+        self.ini_fpath = os.path.join(self.conf_dpath, qdconst.SITE_CONF_FILE_NAME)
+        self.ini_data = inifile.IniReader(file_name=self.ini_fpath)
         if self.ini_data is None:
             self.ini_data = {}
+        if self.ini_data.get(CONF_PARM_SITE_DPATH, '') != self.site_dpath:
+            # We should only get here for new conf file but it is also
+            # a safety valve so we can always trust the ini file entry.
             self.ini_data[CONF_PARM_SITE_DPATH] = self.site_dpath
+            if os.path.isdir(self.conf_dpath):
+                # The directory may not exist yet, particularly if called
+                # by QdStart()
+                self.write_site_ini()
+        self.host_site_data = host_site_ini
 
     def __str__(self):
         return "{site_dpath}, {ini_path}: {ini_data}.".format(
-               site_dpath=self.site_dpath, ini_path=self.ini_path,
+               site_dpath=self.site_dpath, ini_path=self.ini_fpath,
                ini_data=str(self.ini_data))
 
-    def write_site_ini(self):
-        if not inifile.write_ini_file(source=self.ini_data, path=self.ini_path):
-            raise Exception("Unable to write site ini file '{}'.".format(self.ini_path))
+    def write_site_ini(self, debug=0):
+        if not inifile.write_ini_file(source=self.ini_data, fpath=self.ini_fpath, debug=debug):
+            raise Exception("Unable to write site ini file '{}'.".format(self.ini_fpath))
 
     @property
     def synthesis_db_path(self):

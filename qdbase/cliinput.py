@@ -2,6 +2,7 @@ import re
 
 debug_input_strings = []
 debug_input_ix = 0
+debug_input_answers = {}
 
 def set_debug_input(debug_strings):
     global debug_input_strings
@@ -22,6 +23,8 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
             resp = debug_input_strings[debug_input_ix]
             print("cli_input() ix={} '{}'".format(debug_input_ix, resp))
             debug_input_ix += 1
+        elif prompt in debug_input_answers:
+            resp = debug_input_answers[prompt]
         else:
             resp = input("{}{}".format(prompt, value_prompt))
         if (regex is None) or regex.match(resp):

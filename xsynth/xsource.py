@@ -12,9 +12,9 @@ import sqlite3
 import stat
 import sys
 
-import qdbase.qdsqlite as qdsqlite
-import qdbase.pdict as pdict
-import qdbase.simplelex as simplelex
+from qdbase import qdsqlite as qdsqlite
+from qdbase import pdict
+from qdbase import simplelex
 
 
 """

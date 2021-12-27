@@ -65,52 +65,56 @@ except ModuleNotFoundError:
 
 class QdStart():
     """Create or repair an QuickDev site. """
-    __slots__ = ('conf_path',
-                 'err_ct',
-                 'quiet', 'site_info')
+    __slots__ = ('conf_path', 'debug',
+                 'err_ct', 'force',
+                 'quiet', 'dev_site')
 
-    def __init__(self, site_dpath, no_site, quiet):
+    def __init__(self, site_dpath=None, no_site=False, force=False, quiet=False, debug=0):
         """
         Call self.write_site_ini() frequently so we have saved
         any captured data before bailing after a subsequent test.
         """
         self.err_ct = 0
+        self.debug = debug
+        self.force = force
         if site_dpath is not None:
             site_dpath = os.path.abspath(site_dpath)
-            exenv.make_directory('site', site_dpath, raise_ex=True)
-        self.site_info = qdsite.QdSite(site_dpath=site_dpath)
-        print("Site Info: {}".format(self.site_info))
+            exenv.make_directory('site', site_dpath, force=self.force, raise_ex=True)
+        else:
+            site_dpath = os.getcwd()
+        self.dev_site = qdsite.QdSite(site_dpath=site_dpath)
+        print("Site Info: {}".format(self.dev_site))
         self.quiet = quiet
         if not self.check_conf_path():
             return
         if not self.check_acronym():
             return
-        self.site_info.write_site_ini()
+        self.dev_site.write_site_ini(debug=self.debug)
         if not self.check_python_venv():
             return
-        self.site_info.write_site_ini()
+        self.dev_site.write_site_ini()
         if not self.validate_venv():
             return
         if not self.check_venv_shortcut():
             return
-        self.site_info.write_site_ini()
+        self.dev_site.write_site_ini()
         print("Site check completed.")
 
     def check_conf_path(self):
         """Create site conf directory if it doesn't exist. """
-        if not exenv.make_directory('Conf', self.site_info.conf_path, quiet=self.quiet):
+        if not exenv.make_directory('Conf', self.dev_site.conf_dpath, force=self.force, quiet=self.quiet):
             return False
         for this in qdsite.CONF_SUBDIRECTORIES:
-            this_path = os.path.join(self.site_info.conf_path, this)
-            if not exenv.make_directory('Conf', this_path, quiet=self.quiet):
+            this_path = os.path.join(self.dev_site.conf_dpath, this)
+            if not exenv.make_directory('Conf', this_path, force=self.force, quiet=self.quiet):
                 return False
         return True
 
     def check_acronym(self):
-        if qdsite.CONF_PARM_ACRONYM in self.site_info.ini_info:
-            print('Site acronym "{}"'.format(self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM]))
+        if qdsite.CONF_PARM_ACRONYM in self.dev_site.ini_data:
+            print('Site acronym "{}"'.format(self.dev_site.ini_data[qdsite.CONF_PARM_ACRONYM]))
             return True
-        self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM] = cliinput.cli_input_symbol('Site Acronym')
+        self.dev_site.ini_data[qdsite.CONF_PARM_ACRONYM] = cliinput.cli_input_symbol('Site Acronym')
         return True
 
     def check_python_venv(self):
@@ -118,16 +122,16 @@ class QdStart():
         if venv_dpath is not None:
             print("VENV: {}".format(venv_dpath))
             if cliinput.cli_input_yn("Do you want to use this VENV for this project?"):
-                self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
+                self.dev_site.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
                 return True
-        venv_name = self.site_info.ini_info[qdsite.CONF_PARM_ACRONYM] + ".venv"
-        venv_dpath = os.path.join(self.site_info.site_path, venv_name)
+        venv_name = self.dev_site.ini_data[qdsite.CONF_PARM_ACRONYM] + ".venv"
+        venv_dpath = os.path.join(self.dev_site.site_path, venv_name)
         if not os.path.isdir(venv_dpath):
             if cliinput.cli_input_yn("Create VENV '{}'?".format(venv_dpath)):
                 cmd = ['python3', '-m', 'venv', venv_dpath]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
-                    self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
+                    self.dev_site.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
                     return True
                 else:
                     self.error("Unable to create VENV.")
@@ -138,11 +142,11 @@ class QdStart():
         # Update the configuration variable in case it doesn't
         # have the current value.
         #
-        self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
+        self.dev_site.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
         return True
 
     def check_venv_shortcut(self):
-        venv_dpath = self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH]
+        venv_dpath = self.dev_site.ini_data[qdsite.CONF_PARM_VENV_DPATH]
         venv_bin_path = os.path.join(venv_dpath, 'bin/activate')
         if exenv.make_symlink_to_file(venv_bin_path, link_name='venv',
                                    error_func=self.error):
@@ -157,7 +161,7 @@ class QdStart():
             print("Check link {} to {}".format(site_link, source_path))
             if not os.path.islink(site_link):
                 os.symlink(source_path, site_link, target_is_directory=True)
-        venv_dpath = self.site_info.ini_info[qdsite.CONF_PARM_VENV_DPATH]
+        venv_dpath = self.dev_site.ini_data[qdsite.CONF_PARM_VENV_DPATH]
         lib_path = os.path.join(venv_dpath, 'lib')
         libs = os.listdir(lib_path)
         python_lib = None
@@ -187,8 +191,8 @@ def edit_conf(site_dpath):
     tdict.add_column(pdict.Text('acronym'))
     tdict.add_column(pdict.Text('guid', is_read_only=True))
     tdict.add_column(pdict.Text('website_subdir'))
-    site_info = qdsite.QdSite(site_dpath=site_dpath)
-    editor = cliinput.CliForm(site_info.ini_data, tdict=tdict)
+    dev_site = qdsite.QdSite(site_dpath=site_dpath)
+    editor = cliinput.CliForm(dev_site.ini_data, tdict=tdict)
 
 if __name__ == '__main__':
     menu = cliargs.CliCommandLine()

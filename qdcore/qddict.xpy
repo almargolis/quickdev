@@ -223,6 +223,12 @@ class QdDict():
     def __len__(self):
         return len(self._data)
 
+    def get(self, key, default_value=None):
+        if key in self:
+            return self[key]
+        else:
+            return default_value
+
     @property
     def name(self):
         return self._name

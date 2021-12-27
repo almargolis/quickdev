@@ -24,6 +24,7 @@ import sys
 import werkzeug
 
 from . import cliargs
+from . import cliinput
 
 try:
     from qdcore import qdsite
@@ -63,6 +64,7 @@ class ExenvGlobals():
         "This is separated so test can call with an alternate root."
         self.root = root
         self.qdhost_dpath = os.path.join(root, 'etc/qdhost')
+        self.qdhost_db_fpath = os.path.join(self.qdhost_dpath, 'db.sql')
         self.qdhost_websites_subdir = 'websites'
         self.qdhost_websites_dpath = os.path.join(self.qdhost_dpath, self.qdhost_websites_subdir)
         self.qdhost_devsites_subdir = 'devsites'
@@ -164,7 +166,7 @@ def make_directory(name, path, force=False, mode=511, quiet=False,
             return_code = 101
             return False
     else:
-        if force or cliargs.cli_input_yn("Create directory '{}'?".format(path)):
+        if force or cliinput.cli_input_yn("Create directory '{}'?".format(path)):
             try:
                 os.mkdir(path, mode=mode)
             except PermissionError:

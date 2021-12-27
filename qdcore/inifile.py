@@ -265,7 +265,7 @@ def write_ini_level(f, data, section_name=''):
             child_section_name = section_name + '.'
         write_ini_level(f, child_data, section_name=child_section_name)
 
-def write_ini_file(source, fpath=None, exe_controller=None):
+def write_ini_file(source, fpath=None, exe_controller=None, debug=0):
       """ Write a hierarchy of dict-like data as an ini file. """
       if fpath is None:
           fpath = getattr(source, '_source_file_path', None)
@@ -273,7 +273,7 @@ def write_ini_file(source, fpath=None, exe_controller=None):
           raise ValueError("No path specified for output file.")
       if exe_controller is None:
           exe_controller = getattr(source, 'exe_controller', None)
-      f = textfile.open_write_with_swap_file(fpath, backup=True)
+      f = textfile.open_write_with_swap_file(fpath, backup=True, debug=debug)
       if f is None:
           err_msg = "Unable to open output INI file '{}'.".format(fpath)
           if exe_controller is None:

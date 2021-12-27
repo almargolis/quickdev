@@ -93,13 +93,13 @@ class QdSqlite:
     __slots__ = ('db_conn', 'db_cursor', 'db_dict', 'debug',
                  'detailed_exceptions', 'sql_create')
 
-    def __init__(self, path, db_dict=None, sql_create=None,
+    def __init__(self, fpath, db_dict=None, sql_create=None,
                  detailed_exceptions=True, debug=0):
         self.db_dict = db_dict
         self.sql_create = sql_create
         self.detailed_exceptions = detailed_exceptions
         self.debug = debug
-        self.db_conn = sqlite3.connect(path)
+        self.db_conn = sqlite3.connect(fpath)
         if self.debug > 0:
             self.db_conn.set_trace_callback(print)
         self.db_conn.row_factory = sqlite3.Row

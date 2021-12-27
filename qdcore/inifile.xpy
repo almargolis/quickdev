@@ -265,7 +265,7 @@ def write_ini_level(f, data, section_name=''):
             child_section_name = section_name + '.'
         write_ini_level(f, child_data, section_name=child_section_name)
 
-def write_ini_file(source, fpath=None, $qdconst.EXE_CONTROLLER$=None):
+def write_ini_file(source, fpath=None, $qdconst.EXE_CONTROLLER$=None, debug=0):
       """ Write a hierarchy of dict-like data as an ini file. """
       if fpath is None:
           fpath = getattr(source, $'qdconst.SOURCE_FILE_PATH_ATTR$, None)
@@ -273,7 +273,7 @@ def write_ini_file(source, fpath=None, $qdconst.EXE_CONTROLLER$=None):
           raise ValueError("No path specified for output file.")
       if $qdconst.EXE_CONTROLLER$ is None:
           $qdconst.EXE_CONTROLLER$ = getattr(source, $'qdconst.EXE_CONTROLLER$, None)
-      f = textfile.open_write_with_swap_file(fpath, backup=True)
+      f = textfile.open_write_with_swap_file(fpath, backup=True, debug=debug)
       if f is None:
           err_msg = "Unable to open output INI file '{}'.".format(fpath)
           if $qdconst.EXE_CONTROLLER$ is None:
