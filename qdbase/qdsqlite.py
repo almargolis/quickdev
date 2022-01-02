@@ -7,13 +7,20 @@ use XPython features.
 
 import sqlite3
 
-SQLITE_IN_MEMORY_FN = ':memory:'
-SQLITE_TEMP_FN = ''
+SQLITE_IN_MEMORY_FN = ":memory:"
+SQLITE_TEMP_FN = ""
 
-class AttributeName():
-    __slots__ = ('name',)
+
+class AttributeName:  # pylint: disable=too-few-public-methods
+    """
+    Container for attribute names.
+    """
+
+    __slots__ = ("name",)
+
     def __init__(self, name):
         self.name = name
+
 
 def dict_to_sql_equal(source_dict, seperator):
     """
@@ -25,7 +32,7 @@ def dict_to_sql_equal(source_dict, seperator):
     comparison clause and is always assumed to be a
     field / attribute name. If the dictionay element
     value is a tuple,
-    the first element is the comparison operator and
+    the first element is the comparison sql_operatorerator and
     the second element is the second element of the
     comparison. If the second element is an instance
     of AttributeName, it is treated as a
@@ -35,41 +42,43 @@ def dict_to_sql_equal(source_dict, seperator):
     This can be used both for update asignments and
     where clause comparisions.
     """
-    sql = ''
+    sql = ""
     values = []
     if source_dict is not None:
         for ix, (key, value) in enumerate(source_dict.items()):
             if ix > 0:
                 sql += seperator
             if isinstance(value, tuple):
-                op = value[0]
-                v = value[1]
+                sql_operator = value[0]
+                sql_operand = value[1]
             else:
-                op = '='
-                v = value
-            if isinstance(v, AttributeName):
-                sql += key + op + v.name
+                sql_operator = "="
+                sql_operand = value
+            if isinstance(sql_operand, AttributeName):
+                sql += key + sql_operator + sql_operand.name
             else:
-                sql += key + op + '?'
-                values.append(v)
+                sql += key + sql_operator + "?"
+                values.append(sql_operand)
     return sql, values
+
 
 def dict_to_sql_flds(source_dict):
     """
     Create a list of comma separated field names
     from a dictionary.
     """
-    flds = ''
-    value_str = ''
+    flds = ""
+    value_str = ""
     value_data = []
     for ix, this in enumerate(source_dict.items()):
         if ix > 0:
-            flds += ', '
-            value_str += ', '
+            flds += ", "
+            value_str += ", "
         flds += this[0]
-        value_str += '?'
+        value_str += "?"
         value_data.append(this[1])
     return flds, value_str, value_data
+
 
 def row_repr(row):
     """
@@ -77,24 +86,35 @@ def row_repr(row):
     but it doesn't have an __repr__ method. This method provides a
     dict-like __repr__ capability.
     """
-    result = ''
+    result = ""
     for key in row.keys():
         value = row[key]
-        if result == '': sep = ''
-        else: sep = ', '
-        result += '{}{}: {}'.format(sep, key, value)
-    return '{' + result + '}'
+        if result == "":
+            sep = ""
+        else:
+            sep = ", "
+        result += f"{sep}{key}: {value}"
+    return "{" + result + "}"
+
 
 class QdSqlite:
     """
     Sqlite3 api with dictionary support and python methods
     that create all sql.
     """
-    __slots__ = ('db_conn', 'db_cursor', 'db_dict', 'debug',
-                 'detailed_exceptions', 'sql_create')
 
-    def __init__(self, fpath, db_dict=None, sql_create=None,
-                 detailed_exceptions=True, debug=0):
+    __slots__ = (
+        "db_conn",
+        "db_cursor",
+        "db_dict",
+        "debug",
+        "detailed_exceptions",
+        "sql_create",
+    )
+
+    def __init__(
+        self, fpath, db_dict=None, sql_create=None, detailed_exceptions=True, debug=0
+    ):  # pylint: disable=too-many-arguments
         self.db_dict = db_dict
         self.sql_create = sql_create
         self.detailed_exceptions = detailed_exceptions
@@ -128,18 +148,21 @@ class QdSqlite:
 
     def delete(self, table, where=None):
         """Perform SQL delete command."""
-        sql = 'DELETE FROM {}'.format(table)
+        sql = f"DELETE FROM {table}"
         if where is not None:
-            where_sql, where_values = dict_to_sql_equal(where, ' AND ')
-            sql += ' WHERE ' + where_sql
+            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            sql += " WHERE " + where_sql
         else:
             where_values = []
-        sql += ';'
+        sql += ";"
         if self.debug > 0:
-            print("SQL {} {}".format(sql, where_values))
+            print(f"SQL {sql} {where_values}")
         self.db_cursor.execute(sql, tuple(where_values))
 
     def execute(self, sql, flds_values=None):
+        """
+        Execute the SQL statement.
+        """
         try:
             self.db_cursor.execute(sql, tuple(flds_values))
         except:
@@ -148,62 +171,75 @@ class QdSqlite:
                 # don't print enough information to identify error.
                 # This just prints some context before letting the
                 # exception process continue normally.
-                print("EzSqlite exception for {}".format(sql))
+                print(f"EzSqlite exception for {sql}")
                 if flds_values is not None:
-                    print("EzSqlite values: {}".format(flds_values))
+                    print(f"EzSqlite values: {flds_values}")
             raise
 
     def insert(self, table, flds):
         """Perform SQL insert command."""
         flds_sql_list, flds_value_str, flds_values = dict_to_sql_flds(flds)
-        sql = 'INSERT INTO {} ({}) VALUES ({});'.format(table, flds_sql_list, flds_value_str)
+        sql = f"INSERT INTO {table} ({flds_sql_list}) VALUES ({flds_value_str});"
         if self.debug > 0:
-            print("SQL {} {}".format(sql, flds_values))
+            print(f"SQL {sql} {flds_values}")
         self.execute(sql, tuple(flds_values))
         self.db_conn.commit()
 
     def insert_unique(self, table, flds, where):
         """Perform SQL insert command if no existing records satisfy where."""
-        select = self.select(table, '*', where=where)
+        select = self.select(table, "*", where=where)
         if len(select) > 0:
-            raise KeyError('duplicate "{}" found in table {}'.format(where, table))
+            raise KeyError(f'duplicate "{where}" found in table {table}')
         self.insert(table, flds)
 
-    def lookup(self, table, flds='*', where=None):
+    def lookup(self, table, flds="*", where=None):
+        """
+        Access a unique row. Often used for code lookups.
+
+        Returns either the row or None.
+        Raises KeyError if the selection isn't unique.
+        """
         select = self.select(table, flds=flds, where=where)
         if len(select) > 1:
-            raise KeyError('duplicate "{}" found in table {}'.format(where, table))
+            raise KeyError(f'duplicate "{where}" found in table {table}')
         if len(select) == 1:
             return select[0]
-        else:
-            return None
+        return None
 
-    def require(self, table, flds='*', where=None):
+    def require(self, table, flds="*", where=None):
+        """
+        Access a unique row. Often used for code lookups.
+
+        Similar to lookup() but raises KeyError if the selection
+        isn't unique or no matches found.
+        """
         select = self.select(table, flds=flds, where=where)
         if len(select) != 1:
-            raise KeyError('"{}" not found in table {}'.format(where, table))
+            raise KeyError(f'"{where}" not found in table {table}')
         return select[0]
 
-    def select(self, table, flds='*', where=None, limit=0, offset=0):
+    def select(
+        self, table, flds="*", where=None, limit=0, offset=0
+    ):  # pylint: disable=too-many-arguments
         """Perform SQL select command."""
-        sql = 'SELECT '
+        sql = "SELECT "
         if isinstance(flds, str):
             sql += flds
         else:
-            sql += ' '.join(flds)
-        sql += ' FROM ' + table
+            sql += " ".join(flds)
+        sql += " FROM " + table
         if where is None:
             where_values = []
         else:
-            where_sql, where_values = dict_to_sql_equal(where, ' AND ')
-            sql += ' WHERE ' + where_sql
+            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            sql += " WHERE " + where_sql
         if limit > 0:
-            sql += ' LIMIT {}'.format(limit)
+            sql += f" LIMIT {limit}"
         if offset > 0:
-            sql += ' OFFSET {}'.format(offset)
-        sql += ';'
+            sql += f" OFFSET {offset}"
+        sql += ";"
         if self.debug > 0:
-            print("SQL {} {}".format(sql, where_values))
+            print(f"SQL {sql} {where_values}")
         self.db_cursor.execute(sql, tuple(where_values))
         return self.db_cursor.fetchall()
 
@@ -230,28 +266,28 @@ class QdSqlite:
         needed where they differ from column defaults specified when the
         sqlite3 table was created.
         """
-        sql_data = self.select(table, '*', where=where)
+        sql_data = self.select(table, "*", where=where)
         if len(sql_data) > 1:
-            raise KeyError('Duplicate matches for {} in table {}'.format(where, table))
+            raise KeyError(f"Duplicate matches for {where} in table {table}")
         if len(sql_data) == 1:
             self.update(table, flds, where=where)
             return
         uflds = {}
         if defaults is not None:
-            uuflds.update(defaults)
+            uflds.update(defaults)
         uflds.update(where)
         uflds.update(flds)
         self.insert(table, uflds)
 
     def update(self, table, flds, where=None):
         """Perform SQL update command."""
-        flds_sql, flds_values = dict_to_sql_equal(flds, ', ')
-        sql = 'UPDATE {} SET {}'.format(table, flds_sql)
+        flds_sql, flds_values = dict_to_sql_equal(flds, ", ")
+        sql = f"UPDATE {table} SET {flds_sql}"
         if where is not None:
-            where_sql, where_values = dict_to_sql_equal(where, ' AND ')
-            sql += ' WHERE ' + where_sql
+            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            sql += " WHERE " + where_sql
             flds_values += where_values
-        sql += ';'
+        sql += ";"
         if self.debug > 0:
-            print("SQL {} {}".format(sql, flds_values))
+            print(f"SQL {sql} {flds_values}")
         self.db_cursor.execute(sql, tuple(flds_values))

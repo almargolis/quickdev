@@ -1,32 +1,45 @@
+"""
+cliinput.py provides a functions and classes to
+handle command line data input with consistent
+presentation and basic data validation.
+"""
+
 import re
 
-debug_input_strings = []
-debug_input_ix = 0
-debug_input_answers = {}
+debug_input_strings = []  # pylint: disable=invalid-name
+debug_input_ix = 0  # pylint: disable=invalid-name
+debug_input_answers = {}  # pylint: disable=invalid-name
+
 
 def set_debug_input(debug_strings):
-    global debug_input_strings
-    global debug_input_ix
+    """
+    Store simulated input values.
+    """
+    global debug_input_strings  # pylint: disable=global-statement,invalid-name
+    global debug_input_ix  # pylint: disable=global-statement, invalid-name
     debug_input_strings = debug_strings
     debug_input_ix = 0
 
+
 def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
-    global debug_input_ix
+    """
+    This is an extension of the standard input function that
+    provides data validation and simulated data for debugging.
+    """
+    global debug_input_ix  # pylint: disable=global-statement, invalid-name
     if value_hint is None:
         value_prompt = ""
     else:
-        value_prompt = " [{}]".format(value_hint)
+        value_prompt = f" [{value_hint}]"
     while True:
         if debug > 0:
-            print("cli_input() '{}' '{}'".format(prompt, value_prompt))
+            print(f"cli_input() '{prompt}' '{value_prompt}'")
         if debug_input_ix < len(debug_input_strings):
             resp = debug_input_strings[debug_input_ix]
-            print("cli_input() ix={} '{}'".format(debug_input_ix, resp))
+            print(f"cli_input() ix={debug_input_ix} '{resp}'")
             debug_input_ix += 1
-        elif prompt in debug_input_answers:
-            resp = debug_input_answers[prompt]
         else:
-            resp = input("{}{}".format(prompt, value_prompt))
+            resp = debug_input_answers.get(prompt, input(f"{prompt}{value_prompt}"))
         if (regex is None) or regex.match(resp):
             break
     if lower:
@@ -35,37 +48,51 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
 
 
 def cli_input_symbol(prompt, debug=0):
+    """
+    input a value that validates as a program variable name.
+    """
     regex = re.compile(r"[a-z]\w", flags=re.ASCII | re.IGNORECASE)
     return cli_input(prompt, regex=regex, debug=debug)
 
 
 def cli_input_yn(prompt, debug=0):
+    """
+    input a value that validates as y/n. Return a boolean response.
+    """
     regex = re.compile(r"[yn]", flags=re.IGNORECASE)
     resp = cli_input(prompt, regex=regex, value_hint="y/n", lower=True, debug=debug)
-    if resp == "y":
-        return True
-    else:
-        return False
+    return bool(resp == "y")
 
 
 def cli_chooser(items, debug=0):
+    """
+    input a value that validates as the first character of one
+    of the words in the items parameter. These will usually
+    be menu choices.
+    """
     menu_display = []
     menu_match = []
     for this in items:
-        menu_display.append("{}({})".format(this[0], this[1:]))
+        menu_display.append(f"{this[0]}({this[1:]})")
         menu_match.append(this[0])
-    regex = re.compile(
-        r"[{}]".format("".join(menu_match)), flags=re.ASCII | re.IGNORECASE
-    )
+    regex = re.compile(f"[{''.join(menu_match)}]", flags=re.ASCII | re.IGNORECASE)
     return cli_input(", ".join(menu_display), regex=regex, lower=True, debug=debug)
 
-STATUS_DEFINED = ' '
-STATUS_UNDEFINED = '?'
 
-class CliFormItem:
+STATUS_DEFINED = " "
+STATUS_UNDEFINED = "?"
+
+
+class CliFormItem:  # pylint: disable=too-few-public-methods
+    """
+    Container for an entry in an input form.
+    """
+
     __slots__ = ("ix", "is_read_only", "key", "status", "value")
 
-    def __init__(self, status, ix, key, value, is_read_only=False):
+    def __init__(
+        self, status, ix, key, value, is_read_only=False
+    ):  # pylint: disable=too-many-arguments
         self.status = status
         self.is_read_only = is_read_only
         self.ix = ix
@@ -73,12 +100,15 @@ class CliFormItem:
         self.value = value
 
     def __repr__(self):
-        return "CliFormItem({}, {}, {}, {})".format(
-            self.status, self.ix, self.key, self.value
-        )
+        return f"CliFormItem({self.status}, {self.ix}, {self.key}, {self.value})"
 
 
 class CliForm:
+    """
+    Command line edit form. This is generally used to edit
+    ini or yaml files.
+    """
+
     def __init__(self, data, tdict=None, run=True, debug=0):
         self.source_data = data
         self.working_data = {}
@@ -90,25 +120,29 @@ class CliForm:
             self.max_ix = ix
         if tdict is not None:
             for this in tdict.columns.values():
-                if this.name in self.working_data:
-                    self.working_data[this.name].status = STATUS_DEFINED
-                    self.working_data[this.name].is_read_only = this.is_read_only
-                else:
-                    self.append_item(
-                        STATUS_DEFINED,
-                        this.name,
-                        this.default_value,
-                        is_read_only=this.is_read_only,
-                    )
-                    self.dirty = True
+                self.define_item(
+                    STATUS_DEFINED,
+                    this.name,
+                    this.default_value,
+                    is_read_only=this.is_read_only,
+                )
         if run:
             self.form_run()
 
-    def append_item(self, status, key, value, is_read_only=False):
+    def define_item(self, status, key, value, is_read_only=False):
+        """
+        Define an item in the working_data.
+        Create if it doesn't exist.
+        """
+        if key in self.working_data:
+            self.working_data[key].status = status
+            self.working_data[key].is_read_only = is_read_only
+            return
         self.max_ix += 1
         self.working_data[key] = CliFormItem(
             status, self.max_ix, key, value, is_read_only=is_read_only
         )
+        self.dirty = True
 
     def add_item(self):
         """
@@ -120,13 +154,17 @@ class CliForm:
             if key == "":
                 return False
             if key in self.working_data:
-                print("Key '{}' already in collection.".format(key))
+                print(f"Key '{key}' already in collection.")
                 continue
             value = cli_input("Item Value:")
-            self.append_item(STATUS_UNDEFINED, key, value)
+            self.define_item(STATUS_UNDEFINED, key, value)
             return True
 
     def get_item(self):
+        """
+        Prompt the user to enter an index to one of the
+        items in working_data.
+        """
         while True:
             key = cli_input("Item Index:")
             if key == "":
@@ -135,15 +173,20 @@ class CliForm:
             if ix is None:
                 if key in self.working_data:
                     return self.working_data[key]
-                else:
-                    print("Key '{}' not in collection.".format(key))
-                    continue
+                print(f"Key '{key}' not in collection.")
+                continue
             item = self.item_by_ix(ix)
             if item is not None:
                 return item
-            print("Index '{}' not in collection.".format(ix))
+            print(f"Index '{ix}' not in collection.")
+            return None
 
     def item_by_ix(self, ix):
+        """
+        Scan working_data to find an item based on ix.
+        This needs to be a scan because add / insert
+        can result in the dictionary being out of order.
+        """
         for this in self.working_data.values():
             if this.ix == ix:
                 return this
@@ -160,7 +203,7 @@ class CliForm:
         if item.is_read_only:
             print("Read only item. Caanot be deleted.")
             return False
-        prompt = "Delete [{}. {}: {}]".format(item.ix, item.key, item.value)
+        prompt = f"Delete [{item.ix}. {item.key}: {item.value}]"
         if cli_input_yn(prompt, debug=self.debug):
             self.working_data.pop(item.key)
             return True
@@ -177,11 +220,14 @@ class CliForm:
         if item.is_read_only:
             print("Read only item. Caanot be edited.")
             return False
-        prompt = "Edit [{}. {}: {}]".format(item.ix, item.key, item.value)
+        prompt = f"Edit [{item.ix}. {item.key}: {item.value}]"
         item.value = cli_input(prompt, debug=self.debug)
         return True
 
-    def form_menu(self):
+    def form_menu(self):  # pylint: disable=too-many-return-statements
+        """
+        Prompt the user for a form action.
+        """
         menu_choices = []
         menu_choices.append("Add")
         menu_choices.append("Del")
@@ -192,32 +238,37 @@ class CliForm:
         choice = cli_chooser(menu_choices, debug=self.debug)
         if choice == "q":
             if self.dirty:
-                if not cli_input_yn("Unsaved changes. Do you want to quit?", debug=self.debug):
+                if not cli_input_yn(
+                    "Unsaved changes. Do you want to quit?", debug=self.debug
+                ):
                     return True
             return False
-        elif choice == "s":
+        if choice == "s":
             self.source_data.save(new_data=self.working_data)
             self.dirty = False
             return True
-        elif choice == "a":
+        if choice == "a":
             if self.add_item():
                 self.dirty = True
             return True
-        elif choice == "d":
+        if choice == "d":
             if self.del_item():
                 self.dirty = True
             return True
-        elif choice == "e":
+        if choice == "e":
             if self.edit_item():
                 self.dirty = True
             return True
-        elif choice == "l":
+        if choice == "l":
             self.show_data()
             return True
-        else:
-            return True
+        return True
 
     def form_run(self, show=True):
+        """
+        Display the form and prompt the user for
+        actions until the user quits.
+        """
         if show:
             self.show_data()
         while True:
@@ -225,5 +276,8 @@ class CliForm:
                 break
 
     def show_data(self):
+        """
+        Display working_data
+        """
         for this in self.working_data.values():
             print(this)

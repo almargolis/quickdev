@@ -1,9 +1,8 @@
 """
-DbTableDict is a low level dictionary for raw python
-components of EzDev.
+DbTableDict is a simple dictionary for QuickDev.
 
-This is used by XPython in stand-alone mode, so it can't
-use XPython features.
+This is used by XSynth in stand-alone mode, so it can't
+use XSynth features.
 
 """
 
@@ -23,7 +22,7 @@ class DbDict:
     def add_table(self, table_dict):
         """Add a table to the dictionary."""
         if table_dict.name in self.tables:
-            raise Exception("Duplicate table {}".format(table_dict.name))
+            raise Exception(f"Duplicate table {table_dict.name}")
         self.tables[table_dict.name] = table_dict
         return table_dict
 
@@ -60,9 +59,7 @@ class DbTableDict:
         """Add a column to the table."""
         if column.name in self.columns:
             raise Exception(
-                "Duplicate column name '{}' in table '{}'".format(
-                    column.name, self.name
-                )
+                f"Duplicate column name '{column.name}' in table '{self.name}'"
             )
         self.columns[column.name] = column
         return column
@@ -72,23 +69,24 @@ class DbTableDict:
         Add an index to the table.
         """
         if name in self.indexes:
-            raise Exception(
-                "Duplicate index name '{}' in table '{}'".format(name, self.name)
-            )
+            raise Exception(f"Duplicate index name '{name}' in table '{self.name}'")
         index = Index(name, columns, self, is_unique=is_unique)
         self.indexes[name] = index
         return index
 
-    def defaults(self, all=False):
-        d = {}
+    def defaults(self, all_columns=False):
+        """
+        Return a dictionary of a row initialized with default values.
+        """
+        result_dict = {}
         for this in self.columns.values():
-            if all or (this.default_value is not None):
-                d[this.name] = default_value
-        return d
+            if all_columns or (this.default_value is not None):
+                result_dict[this.name] = this.default_value
+        return result_dict
 
     def sql(self, eol="\n"):
         """Create an sql create table command for this table."""
-        table_def = "CREATE TABLE {} ({}".format(self.name, eol)
+        table_def = f"CREATE TABLE {self.name} ({eol}"
         last_column_ix = len(self.columns) - 1
         for ix, this in enumerate(self.columns.values()):
             table_def += this.sql()
@@ -130,9 +128,7 @@ class Index:  # pylint: disable=too-few-public-methods
         for this in columns:
             if this not in table_dict.columns:
                 raise Exception(
-                    "Invalid index column '{}' for index {}.{}".format(
-                        this, table_dict.name, self.name
-                    )
+                    f"Invalid index column '{this}' for index {table_dict.name}.{self.name}"
                 )
             self.columns.append(this)
         self.is_unique = is_unique
@@ -172,7 +168,7 @@ class Column:  # pylint: disable=too-few-public-methods
         allow_nulls=False,
         default_value=None,
         is_read_only=False,
-    ):
+    ):  # pylint: disable=R0913
         self.name = name
         self.column_type = column_type
         self.allow_nulls = allow_nulls

@@ -10,33 +10,47 @@ and is intentially similar to other EzDev dictionary components.
 
 import sys
 
-PARAMETER_BOOLEAN = 'bool'
-PARAMETER_INTEGER = 'int'
-PARAMETER_STRING = 'str'
+PARAMETER_BOOLEAN = "bool"
+PARAMETER_INTEGER = "int"
+PARAMETER_STRING = "str"
 PARAMETER_TYPES = [PARAMETER_BOOLEAN, PARAMETER_INTEGER, PARAMETER_STRING]
 
-DEFAULT_ACTION_CODE = 'zZ11111'
-DEFAULT_FILE_LIST_CODE = 'zZ22222'
+DEFAULT_ACTION_CODE = "zZ11111"
+DEFAULT_FILE_LIST_CODE = "zZ22222"
 ALL_DEFAULT_ARGUMENT_CODES = [DEFAULT_ACTION_CODE, DEFAULT_FILE_LIST_CODE]
 
+
 def argument_code_str(argument_code):
+    """
+    Return help string representation of an argument.
+    This mainly translates special arguments to a human
+    understandable form.
+    """
     if argument_code in ALL_DEFAULT_ARGUMENT_CODES:
         if argument_code == DEFAULT_FILE_LIST_CODE:
-            argument_code = '<files>'
+            argument_code = "<files>"
         else:
-            argument_code = '<default>'
+            argument_code = "<default>"
     return argument_code
 
-class CliCommandLineItem():
-    __slots__ = ('argument_code', 'help_description', 'parent', 'security')
+
+class CliCommandLineItem:  # pylint: disable=too-few-public-methods
+    """
+    Base container for command line argument elements.
+    This is essentially a virtual class that won't be
+    directly instaniated.
+    """
+
+    __slots__ = ("argument_code", "help_description", "parent", "security")
+
     def __init__(self, argument_code, help_description="", security=None):
         self.argument_code = argument_code
         self.help_description = help_description
         self.parent = None
         self.security = security
 
+
 class CliCommandLineActionItem(CliCommandLineItem):
-    __slots__ = ('action_function', 'function_parameters')
     """
     Describes a command line action and its correspondng function.
 
@@ -46,8 +60,15 @@ class CliCommandLineActionItem(CliCommandLineItem):
     An argument code of DEFAULT_ACTION_CODE is the special case of
     an action to be triggered if no other action is specified.
     """
-    def __init__(self, argument_code, action_function, help="", security=None):
-        super().__init__(argument_code, help_description=help, security=security)
+
+    __slots__ = ("action_function", "function_parameters")
+
+    def __init__(
+        self, argument_code, action_function, help_description="", security=None
+    ):
+        super().__init__(
+            argument_code, help_description=help_description, security=security
+        )
         self.action_function = action_function
         self.function_parameters = []
 
@@ -55,15 +76,21 @@ class CliCommandLineActionItem(CliCommandLineItem):
         repr_args = []
         repr_args.append(self.argument_code)
         repr_args.append(self.action_function.__name__)
-        return "CliCommandLineActionItem({})".format(", ".join(repr_args))
+        return f"CliCommandLineActionItem({'', ''.join(repr_args)})"
 
     def add_parameter(self, parm):
+        """
+        Add a parameter to the action item.
+        """
         if not parm.argument_code in self.parent.items:
-            raise ValueError("Undefined argument_code '{}'.".format(parm.argument_code))
+            raise ValueError(f"Undefined argument_code '{parm.argument_code}'.")
         self.function_parameters.append(parm)
         return parm
 
-class CliCommandLineParameterItem(CliCommandLineItem):
+
+class CliCommandLineParameterItem(
+    CliCommandLineItem
+):  # pylint: disable=too-few-public-methods
     """
     Describes a command line argument/flag or an action function parameter.
 
@@ -82,13 +109,31 @@ class CliCommandLineParameterItem(CliCommandLineItem):
     default value and there being a defaiult value of None. If default_none is
     True, its assumed that default_value is None but that isn't verified.
     """
-    __slots__ = ('default_none', 'default_value', 'is_positional', 'is_required',
-                 'parameter_name', 'value_type')
-    def __init__(self, argument_code, default_none=False, default_value=None,
-                 is_positional=False, is_required=False,
-                 parameter_name=None,
-                 value_type=PARAMETER_BOOLEAN, help="", security=None):
-        super().__init__(argument_code, help_description=help, security=security)
+
+    __slots__ = (
+        "default_none",
+        "default_value",
+        "is_positional",
+        "is_required",
+        "parameter_name",
+        "value_type",
+    )
+
+    def __init__(
+        self,
+        argument_code,
+        default_none=False,
+        default_value=None,
+        is_positional=False,
+        is_required=False,
+        parameter_name=None,
+        value_type=PARAMETER_BOOLEAN,
+        help_description="",
+        security=None,
+    ):  # pylint: disable=too-many-arguments
+        super().__init__(
+            argument_code, help_description=help_description, security=security
+        )
         self.default_none = default_none
         self.default_value = default_value
         if is_positional:
@@ -100,10 +145,11 @@ class CliCommandLineParameterItem(CliCommandLineItem):
 
         self.parameter_name = parameter_name
         if value_type not in PARAMETER_TYPES:
-            raise ValueError("Unknown parameter type '{}'.".format(value_type))
+            raise ValueError("Unknown parameter type '{value_type}'.")
         self.value_type = value_type
 
-class CliCommandLine():
+
+class CliCommandLine:  # pylint: disable=too-many-instance-attributes
     """
     CliCommandLine analyzes the command line and calls an action functions.
 
@@ -113,15 +159,27 @@ class CliCommandLine():
     separately. CliCommandLine is also more explicit about value types
     and is intentially similar to other EzDev dictionary components.
     """
+
     __slots__ = (
-                 'action_function_args', 'action_function_kwargs',
-                 'action_item',
-                 'cli_argv', 'cli_data',
-                 'debug', 'default_action_item',
-                 'err_code', 'err_msg',
-                 'file_list', 'file_list_item',
-                 'items', 'positional_parameters', 'value_item')
-    def __init__(self, cli_argv=sys.argv, debug=0):
+        "action_function_args",
+        "action_function_kwargs",
+        "action_item",
+        "cli_argv",
+        "cli_data",
+        "debug",
+        "default_action_item",
+        "err_code",
+        "err_msg",
+        "file_list",
+        "file_list_item",
+        "items",
+        "positional_parameters",
+        "value_item",
+    )
+
+    def __init__(
+        self, cli_argv=sys.argv, debug=0
+    ):  # pylint: disable=dangerous-default-value
         self.action_function_args = None
         self.action_function_kwargs = None
         self.action_item = None
@@ -133,27 +191,35 @@ class CliCommandLine():
         self.err_msg = None
         self.file_list_item = None
         self.file_list = None
-        self.items = {}                # actions and parameters
+        self.items = {}  # actions and parameters
         self.positional_parameters = []
         self.value_item = None
         if self.debug > 0:
-            print("cli.CliCommandLine(argv={}).".format(cli_argv))
+            print(f"cli.CliCommandLine(argv={cli_argv}).")
 
     def add_item(self, item):
+        """
+        Add argument definition.
+        """
         item.parent = self
         if item.argument_code in self.items:
-            raise ValueError("Duplicate CliCommandLine argument_code '{}'.".format(
-                             argument_code_str(item.argument_code)))
+            raise ValueError(
+                f"Duplicate CliCommandLine argument_code '{argument_code_str(item.argument_code)}'."
+            )
         self.items[item.argument_code] = item
         if item.argument_code == DEFAULT_ACTION_CODE:
             if not isinstance(item, CliCommandLineActionItem):
-                raise ValueError("Argument {} must be an CliCommandLineActionItem.".format(
-                             argument_code_str(item.argument_code)))
+                raise ValueError(
+                    f"Argument {argument_code_str(item.argument_code)}"
+                    f" must be an CliCommandLineActionItem."
+                )
             self.default_action_item = item
         if item.argument_code == DEFAULT_FILE_LIST_CODE:
             if not isinstance(item, CliCommandLineParameterItem):
-                raise ValueError("Argument {} must be an CliCommandLineParameterItem.".format(
-                             argument_code_str(item.argument_code)))
+                raise ValueError(
+                    f"Argument {argument_code_str(item.argument_code)}"
+                    f" must be an CliCommandLineParameterItem."
+                )
             self.file_list_item = item
         if isinstance(item, CliCommandLineParameterItem):
             if item.is_positional:
@@ -161,36 +227,43 @@ class CliCommandLine():
         return item
 
     def show_help(self):
+        """
+        Display command help message.
+        """
         prog = self.cli_argv[0]
-        if prog == '':
-            prog = 'python'
-        elif prog == '-c':
-            prog = 'python -c '
+        if prog == "":
+            prog = "python"
+        elif prog == "-c":
+            prog = "python -c "
         else:
-            prog = 'python ' + prog
-        print("usage {}".format(prog))
+            prog = "python " + prog
+        print(f"usage {prog}")
         for this in self.items.values():
             if isinstance(this, CliCommandLineParameterItem):
-                print("  {} {}".format(argument_code_str(this.argument_code),
-                                   this.help_description))
+                print(
+                    f"  {argument_code_str(this.argument_code)}"
+                    f" {this.help_description}"
+                )
             else:
                 action = "  " + argument_code_str(this.argument_code)
                 for this_parm in this.function_parameters:
-                    action += ' ' + argument_code_str(this_parm.argument_code)
+                    action += " " + argument_code_str(this_parm.argument_code)
                 print(action)
 
-    def process_argument(self, argument_code, prefix, value=None):
+    def process_argument(
+        self, argument_code, prefix, value=None
+    ):  # pylint: disable=too-many-return-statements
         """
         Process an argument_code. If a parameter, either store its value if
         provided/implied or assign self.value_item to get from next element in
         in self.cli_argv.
         """
-        if argument_code == '':
+        if argument_code == "":
             self.err_code = 401
-            self.err_msg = "Missing flags after '{}'.".format(prefix)
+            self.err_msg = f"Missing flags after '{prefix}'."
         if argument_code not in self.items:
             self.err_code = 402
-            self.err_msg = "Unknown argument '{}'.".format(argument_code)
+            self.err_msg = f"Unknown argument '{argument_code}'."
             return False
         argument_item = self.items[argument_code]
         if isinstance(argument_item, CliCommandLineActionItem):
@@ -198,20 +271,21 @@ class CliCommandLine():
             if self.action_item is None:
                 self.action_item = argument_item
                 return True
-            else:
-                self.err_code = 403
-                self.err_msg = "Duplicate actions '{}' and '{}'.".format(
-                      argument_code, self.action_item.argument_code)
-                return False
-        assert(isinstance(argument_item, CliCommandLineParameterItem))
+            self.err_code = 403
+            self.err_msg = (
+                f"Duplicate actions '{argument_code}'"
+                f" and '{self.action_item.argument_code}'"
+            )
+            return False
+        assert isinstance(argument_item, CliCommandLineParameterItem)
         if argument_code in self.cli_data:
             self.err_code = 404
-            self.err_msg = "Duplicate argument '{}'.".format(argument_code)
+            self.err_msg = "Duplicate argument '{argument_code}'."
             return False
         if argument_item.value_type == PARAMETER_BOOLEAN:
             self.cli_data[argument_code] = True
             return True
-        if value in [None, '']:
+        if value in [None, ""]:
             self.value_item = argument_item
             return True
         self.cli_data[argument_code] = value
@@ -226,12 +300,12 @@ class CliCommandLine():
         contatenated flags can be non boolean.
         """
         for this_ix, this in enumerate(flags):
-            value = flags[this_ix+1:]
-            if not self.process_argument(this, '-', value=value):
+            value = flags[this_ix + 1 :]
+            if not self.process_argument(this, "-", value=value):
                 return False
         return True
 
-    def scan_command_line(self):
+    def scan_command_line(self):  # pylint: disable=too-many-branches
         """
         Scan cli_argv elements to determine parameter values and
         identify the action function.
@@ -250,11 +324,11 @@ class CliCommandLine():
                 self.value_item = None
                 continue
             # get the next argument(s)
-            if this[:2] == '--':
-                if not self.process_argument(this[2:], '--'):
+            if this[:2] == "--":
+                if not self.process_argument(this[2:], "--"):
                     break
                 continue
-            if this[0] == '-':
+            if this[0] == "-":
                 if not self.scan_flags(this[1:]):
                     break
                 continue
@@ -263,9 +337,10 @@ class CliCommandLine():
                 # This should maybe be an explicit option or have
                 # more conditions since "this" could be a file name
                 # that happends to be the same as an action argument.
-                if (this in self.items) \
-                        and isinstance(self.items[this], CliCommandLineActionItem):
-                    if not self.process_argument(this, ''):
+                if (this in self.items) and isinstance(
+                    self.items[this], CliCommandLineActionItem
+                ):
+                    if not self.process_argument(this, ""):
                         break
                     continue
             if self.file_list_item is not None:
@@ -276,7 +351,7 @@ class CliCommandLine():
             # this could be a flag(s) without a preceeding dash.
             # this is allowed if the command does not have
             # a file list but is potentially ambiguous.
-            if not self.scan_flags(this, ''):
+            if not self.scan_flags(this):
                 break
         # All self.cli_argv tokens are processed, now cleanup.
         if self.file_list_item is not None:
@@ -284,19 +359,20 @@ class CliCommandLine():
                 self.cli_data[self.file_list_item.argument_code] = self.file_list
         if self.value_item is not None:
             self.err_code = 303
-            self.err_msg = "No value specified for argument '{}'.".format(
-                                        self.value_item.argument_code)
+            self.err_msg = (
+                "No value specified for argument '{self.value_item.argument_code}'."
+            )
         if self.action_item is None:
             self.action_item = self.default_action_item
         if self.action_item is None:
             self.err_code = 101
             self.err_msg = "No action specified."
-        if self.err_code is None:
-            return True
-        else:
-            return False
+        return bool(self.err_code is None)
 
     def cli_run(self):
+        """
+        Evaluate command line and execute requested action.
+        """
         self.build_action_function()
         if self.err_code is not None:
             print(self.err_code, self.err_msg)
@@ -304,14 +380,19 @@ class CliCommandLine():
             sys.exit(-1)
         if self.action_function_args is None:
             return self.action_item.action_function()
-        return self.action_item.action_function(*self.action_function_args,
-                                                **self.action_function_kwargs)
+        return self.action_item.action_function(
+            *self.action_function_args, **self.action_function_kwargs
+        )
 
     def build_action_function(self):
-        # This is separated from cli_run() so it can be tested
-        # repetatively by pytest without actually calling the
-        # action function. self.cli_argv can be replaced
-        # between calls to test different command patterns.
+        """
+        Evaluate command line and construct action function call.
+
+        This is separated from cli_run() so it can be tested
+        repetatively by pytest without actually calling the
+        action function. self.cli_argv can be replaced
+        between calls to test different command patterns.
+        """
         self.action_function_args = None
         self.action_function_kwargs = None
         self.err_code = None
@@ -338,11 +419,12 @@ class CliCommandLine():
                         this_value = this_flag.default_value
             if (this_value is None) and (not this_none) and this.is_required:
                 self.err_code = 102
-                self.err_msg = "No value specified for action '{}' parameter '{}' flag '{}'".format(
-                      argument_code_str(self.action_item.argument_code),
-                      this.parameter_name,
-                      argument_code_str(this.argument_code)
-                      )
+                self.err_msg = (
+                    f"No value specified for action"
+                    f" '{argument_code_str(self.action_item.argument_code)}'"
+                    f" parameter '{this.parameter_name}'"
+                    f" flag '{argument_code_str(this.argument_code)}'"
+                )
                 return False
             if (this_value is None) and (not this_none):
                 continue
