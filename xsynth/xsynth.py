@@ -12,8 +12,21 @@ EzDev modules but XSynth can use XSynth features.
 """
 
 import os
-import stat
-import sys
+
+from qdbase import qdsqlite
+from qdbase import cliargs
+from qdbase import exenv
+from . import xsource
+
+try:
+    from qdcore import qdsite
+
+    BOOTSTRAP_MODE = False
+except (ModuleNotFoundError, SyntaxError):
+    # May not be found because its an xpy that might not
+    # have been gen'd.
+    BOOTSTRAP_MODE = True
+    qdsite = None  # pylint: disable=invalid-name
 
 # These paths and the qdcore import exception logic below are
 # required for when xpython is run before qdstart has
@@ -21,10 +34,10 @@ import sys
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
 XSYNTH_DIR = os.path.dirname(THIS_MODULE_PATH)
-IGNORE_FILE_NAMES = ['.DS_Store']
-IGNORE_FILE_EXTENSIONS = ['pyc']
-IGNORE_DIRECTORY_NAMES = ['.git', '.pytest_cache', '__pycache__']
-IGNORE_DIRECTORY_EXTENSIONS = ['venv']
+IGNORE_FILE_NAMES = [".DS_Store"]
+IGNORE_FILE_EXTENSIONS = ["pyc"]
+IGNORE_DIRECTORY_NAMES = [".git", ".pytest_cache", "__pycache__"]
+IGNORE_DIRECTORY_EXTENSIONS = ["venv"]
 
 """
 The first import from qdcore has exception processing in
@@ -37,33 +50,6 @@ they may have reduced capabiities due to the system not
 being fully configured.
 """
 
-BOOTSTRAP_MODE = False
-
-import qdbase.qdsqlite as qdsqlite
-"""
-try:
-    from qdcore import qdsqlite
-except ModuleNotFoundError:
-    qdsqlite = None
-if qdsqlite is None:
-    sys.path.append(EZCORE_PATH)
-    from qdcore import qdsqlite
-"""
-from qdbase import cliargs
-from qdbase import exenv
-from . import xsource
-
-try:
-    from qdcore import qdconst
-    from qdcore import qdsite
-    from qdcore import inifile
-except (ModuleNotFoundError, SyntaxError):
-    # May not be found because its an xpy that might not
-    # have been gen'd.
-    BOOTSTRAP_MODE = True
-    qdconst = None
-    qdsite = None
-    inifile = None
 
 #
 # Permutations of processing to consider:
@@ -74,25 +60,50 @@ except (ModuleNotFoundError, SyntaxError):
 # - - file no longer exists (it has been deleted or renamed)
 # - - a non-synthesised file has been changed to sysnthesized or vice-versa
 #
-class XSynth:
-    """ Main XSynth implementation class."""
-    __slots__ = ('db', 'debug',
-                    'synthesis_db_path', 'quiet',
-                    'site',
-                    'sources', 'source_dirs', 'source_files', 'no_site',
-                    'verbose',
-                    'xpy_files', 'xpy_files_changed')
+class XSynth:  # pylint: disable=too-many-instance-attributes
+    """Main XSynth implementation class."""
 
-    def __init__(self, site=None, db_location=None, db_reset=False,
-                 scan_all_dirs=True, no_site=False,
-                 synth_all=False,
-                 sources=[], quiet=False, verbose=False, debug=0):
+    __slots__ = (
+        "db",
+        "debug",
+        "synthesis_db_path",
+        "quiet",
+        "site",
+        "sources",
+        "source_dirs",
+        "source_files",
+        "no_site",
+        "verbose",
+        "xpy_files",
+        "xpy_files_changed",
+    )
+
+    def __init__(
+        self,
+        site=None,
+        db_location=None,
+        db_reset=False,
+        scan_all_dirs=True,
+        no_site=False,
+        synth_all=False,
+        sources=None,
+        quiet=False,
+        verbose=False,
+        debug=0,
+    ):  # pylint: disable=too-many-arguments, too-many-branches, too-many-statements
+        # When I get a chance, break this into pieces to make pylint happy.
+        # I'm note sure it will actually simplify things, but it can't hurt.
         self.debug = debug
         self.verbose = verbose
         if self.debug > 0:
             self.verbose = True
-            print("XSynth.__init__[start](site={}, sources={}, no_site={}, quiet={}, debug={})".format(
-                  site, sources, no_site, quiet, debug))
+            print(
+                f"XSynth.__init__[start](site={site},"
+                f" sources={sources},"
+                f" no_site={no_site},"
+                f" quiet={quiet},"
+                f" debug={debug})"
+            )
         self.no_site = no_site
         self.quiet = quiet
         #
@@ -101,7 +112,9 @@ class XSynth:
         if BOOTSTRAP_MODE or no_site:
             self.site = None
         else:
-            self.site = qdsite.identify_site(site)
+            self.site = qdsite.identify_site(  # pylint: disable=assignment-from-none
+                site
+            )
         #
         # Open synthesis database
         #
@@ -109,8 +122,7 @@ class XSynth:
         self.synthesis_db_path = None
         if db_location is not None:
             if os.path.isdir(db_location):
-                db_location = os.path.join(db_location,
-                                           xsource.XDB_DATABASE_FN)
+                db_location = os.path.join(db_location, xsource.XDB_DATABASE_FN)
 
             self.synthesis_db_path = os.path.abspath(db_location)
         elif no_site or (site is None):
@@ -120,15 +132,19 @@ class XSynth:
         if self.synthesis_db_path is None:
             self.synthesis_db_path = qdsqlite.SQLITE_IN_MEMORY_FN
         if debug > 0:
-            msg = "XSynth.__init__() [DB] db_location: '{}' self.synthesis_db_path: '{}'"
+            msg = (
+                "XSynth.__init__() [DB] db_location: '{}' self.synthesis_db_path: '{}'"
+            )
             msg += " site.synthesis_db_path: '{}'"
-            msg = msg.format(db_location, self.synthesis_db_path, site.synthesis_db_path)
+            msg = msg.format(
+                db_location, self.synthesis_db_path, site.synthesis_db_path
+            )
             print(msg)
         db_debug = self.debug
         db_debug = 0
-        self.db = xsource.open_xdb(self.synthesis_db_path,
-                                   db_reset=db_reset,
-                                   debug=db_debug)
+        self.db = xsource.open_xdb(
+            self.synthesis_db_path, db_reset=db_reset, debug=db_debug
+        )
         #
         # Handle CLI directory / file list
         #
@@ -148,60 +164,84 @@ class XSynth:
         if scan_all_dirs:
             self.prepare_db_to_scan_all_directories()
         if debug > 0:
-            print("XSynth.__init__[end](site={}, dirs={}. sources={}, no_site={}, quiet={}, debug={})".format(
-                  self.site, self.sources, self.no_site, self.source_dirs, self.quiet, self.debug))
+            print(
+                f"XSynth.__init__[end](site={self.site},"
+                f" dirs={self.source_dirs}."
+                f" sources={self.sources},"
+                f" no_site={self.no_site},"
+                f" quiet={self.quiet},"
+                f" debug={self.debug})"
+            )
         for this in self.source_files:
             xsource.post_files_table(self.db, xsource.FileInfo(this))
         for this in self.source_dirs:
-            self.scan_directory(this,
-                                recursive=True)
+            self.scan_directory(this, recursive=True)
         self.update_db_after_scan()
         if synth_all:
-            self.db.update(xsource.XDB_MODULES,
-                           {'status': xsource.MODULE_STATUS_READY},
-                            where={'module_type': xsource.MODULE_TYPE_SYNTH})
+            self.db.update(
+                xsource.XDB_MODULES,
+                {"status": xsource.MODULE_STATUS_READY},
+                where={"module_type": xsource.MODULE_TYPE_SYNTH},
+            )
         self.process_xpy_files()
 
     def prepare_db_to_scan_all_directories(self):
+        """
+        Initialize database to prepare for full directory scan.
+        """
         if self.debug > 0:
             print("XSynth.prepare_db_to_scan_all_directories()")
-        self.db.update(xsource.XDB_MODULES,
-                {
-                'module_type': xsource.MODULE_TYPE_UNKNOWN,
-                'status': xsource.MODULE_STATUS_READY,
-                'source_found': 'N',
-                'target_found': 'N'
-                })
-        self.db.update(xsource.XDB_FILES,
-                {
-                'found': 'N',
-                })
-        self.db.update(xsource.XDB_DIRS,
-                {'found': 'N'})
+        self.db.update(
+            xsource.XDB_MODULES,
+            {
+                "module_type": xsource.MODULE_TYPE_UNKNOWN,
+                "status": xsource.MODULE_STATUS_READY,
+                "source_found": "N",
+                "target_found": "N",
+            },
+        )
+        self.db.update(
+            xsource.XDB_FILES,
+            {
+                "found": "N",
+            },
+        )
+        self.db.update(xsource.XDB_DIRS, {"found": "N"})
 
     def update_db_after_scan(self):
+        """
+        Update database after scanning directories.
+        """
         if self.debug > 0:
             print("XSynth.update_db_after_scan()")
-        self.db.update(xsource.XDB_MODULES,
-                {'module_type': xsource.MODULE_TYPE_SYNTH},
-                where={'source_found': 'Y'})
-        self.db.update(xsource.XDB_MODULES,
-                {'module_type': xsource.MODULE_TYPE_NO_SYNTH},
-                where={'source_found': 'N', 'target_found': 'Y'})
-        self.db.update(xsource.XDB_MODULES,
-                {'status': xsource.MODULE_STATUS_SYNTHESIZED},
-                where={'module_type': 'MODULE_TYPE_SYNTH',
-                'target_modification_time':
-                ('>', qdsqlite.AttributeName('source_modification_time'))})
+        self.db.update(
+            xsource.XDB_MODULES,
+            {"module_type": xsource.MODULE_TYPE_SYNTH},
+            where={"source_found": "Y"},
+        )
+        self.db.update(
+            xsource.XDB_MODULES,
+            {"module_type": xsource.MODULE_TYPE_NO_SYNTH},
+            where={"source_found": "N", "target_found": "Y"},
+        )
+        self.db.update(
+            xsource.XDB_MODULES,
+            {"status": xsource.MODULE_STATUS_SYNTHESIZED},
+            where={
+                "module_type": "MODULE_TYPE_SYNTH",
+                "target_modification_time": (
+                    ">",
+                    qdsqlite.AttributeName("source_modification_time"),
+                ),
+            },
+        )
 
     def scan_directory(self, search_dir, recursive=False):
         """
         Scan a direcory tree and update the sources database.
         """
         if self.verbose:
-            print("XSynth.scan_directory({}, recursive={}).".format(
-                  search_dir, recursive
-            ))
+            print("XSynth.scan_directory({search_dir}, recursive={search_dir}).")
         dir_all = os.listdir(search_dir)
         dir_dir = []
         for this_file_name in dir_all:
@@ -226,31 +266,60 @@ class XSynth:
                 self.scan_directory(this_subdir, recursive=True)
 
     def process_xpy_files(self):
+        """
+        Process all the *.x* source files that we found.
+        """
         if self.debug > 0:
             print("XSynth.process_xpy_files()")
         while True:
             # We re-select for each source because XSource
             # may process multiple sources recursively.
             # The to-do list is not static.
-            sql_data = self.db.select(xsource.XDB_MODULES, '*',
-                                       where={'module_type': xsource.MODULE_TYPE_SYNTH,
-                                              'status': xsource.MODULE_STATUS_READY
-                                              },
-                                       limit=1)
+            sql_data = self.db.select(
+                xsource.XDB_MODULES,
+                "*",
+                where={
+                    "module_type": xsource.MODULE_TYPE_SYNTH,
+                    "status": xsource.MODULE_STATUS_READY,
+                },
+                limit=1,
+            )
             if len(sql_data) < 1:
                 break
-            xsource.XSource(module_name=sql_data[0]['module_name'], db=self.db,
-                            source_ext=sql_data[0]['source_ext'],
-                            source_path=sql_data[0]['source_path'],
-                            debug=self.debug
-                            )
+            xsource.XSource(
+                module_name=sql_data[0]["module_name"],
+                db=self.db,
+                source_ext=sql_data[0]["source_ext"],
+                source_path=sql_data[0]["source_path"],
+                debug=self.debug,
+            )
 
 
-def synth_site(site=None, db_location=None, no_site=None, sources=None,
-               quiet=False, verbose=False, debug=0):
-    XSynth(site=site, db_location=db_location, no_site=no_site, db_reset=True,
-           sources=sources, synth_all=True, quiet=quiet, debug=debug)
+def synth_site(
+    site=None,
+    db_location=None,
+    no_site=None,
+    sources=None,
+    quiet=False,
+    verbose=False,
+    debug=0,
+):  # pylint: disable=too-many-arguments
+    """
+    Action function to synthesise a site.
+    """
+    XSynth(
+        site=site,
+        db_location=db_location,
+        no_site=no_site,
+        db_reset=True,
+        sources=sources,
+        synth_all=True,
+        quiet=quiet,
+        verbose=verbose,
+        debug=debug,
+    )
     print("Execution Complete")
+
 
 def main(debug=0):
     """
@@ -277,34 +346,56 @@ def main(debug=0):
     exenv.command_line_quiet(menu)
     exenv.command_line_verbose(menu)
 
-    menu.add_item(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
-                  help="Specify files or directory to synthesise in stand-alone mode.",
-                  value_type=cliargs.PARAMETER_STRING
-                  ))
+    menu.add_item(
+        cliargs.CliCommandLineParameterItem(
+            cliargs.DEFAULT_FILE_LIST_CODE,
+            help_description="Specify files or directory to synthesise in stand-alone mode.",
+            value_type=cliargs.PARAMETER_STRING,
+        )
+    )
 
-    m = menu.add_item(cliargs.CliCommandLineActionItem(cliargs.DEFAULT_ACTION_CODE,
-                                                   synth_site,
-                                                   help="Synthesize directory."))
-    m.add_parameter(cliargs.CliCommandLineParameterItem('n', parameter_name='no_site',
-                                                    default_value=False,
-                                                    is_positional=False))
-    m.add_parameter(cliargs.CliCommandLineParameterItem(exenv.ARG_D_DEBUG,
-                                                    parameter_name='debug',
-                                                    default_value=debug,
-                                                    is_positional=False))
-    m.add_parameter(cliargs.CliCommandLineParameterItem('l', parameter_name='db_location',
-                                                    default_value=None,
-                                                    is_positional=False))
-    m.add_parameter(cliargs.CliCommandLineParameterItem('q', parameter_name='quiet',
-                                                    is_positional=False))
-    m.add_parameter(cliargs.CliCommandLineParameterItem(cliargs.DEFAULT_FILE_LIST_CODE,
-                                                    parameter_name='sources',
-                                                    default_value=None,
-                                                    is_positional=False))
-
+    action_item = menu.add_item(
+        cliargs.CliCommandLineActionItem(
+            cliargs.DEFAULT_ACTION_CODE,
+            synth_site,
+            help_description="Synthesize directory.",
+        )
+    )
+    action_item.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "n", parameter_name="no_site", default_value=False, is_positional=False
+        )
+    )
+    action_item.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            exenv.ARG_D_DEBUG,
+            parameter_name="debug",
+            default_value=debug,
+            is_positional=False,
+        )
+    )
+    action_item.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "l", parameter_name="db_location", default_value=None, is_positional=False
+        )
+    )
+    action_item.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "q", parameter_name="quiet", is_positional=False
+        )
+    )
+    action_item.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            cliargs.DEFAULT_FILE_LIST_CODE,
+            parameter_name="sources",
+            default_value=None,
+            is_positional=False,
+        )
+    )
 
     exenv.execution_env.set_run_name(__name__)
     menu.cli_run()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
