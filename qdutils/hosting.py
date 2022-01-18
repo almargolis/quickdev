@@ -17,29 +17,28 @@ from qdbase import pdict
 from qdbase import qdsqlite
 
 from qdcore import qdsite
+from qdcore import qdconst
 
 from . import apache
 from . import qdstart
 
-HDB_SITES = "sites"
-HDB_WEBSITES = "website"
-
 hdb_dict = pdict.DbDict()
 
-d = hdb_dict.add_table(pdict.DbTableDict(HDB_SITES))
+d = hdb_dict.add_table(pdict.DbTableDict(qdsite.HDB_DEVSITES))
 d.add_column(pdict.Text(qdsite.CONF_PARM_ACRONYM))
 d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
 d.add_column(pdict.Text(qdsite.CONF_PARM_SITE_DPATH))
 d.add_column(pdict.Text(qdsite.CONF_PARM_SITE_UDI))
 d.add_index("ix_acronym", qdsite.CONF_PARM_ACRONYM)
 d.add_index("ix_uuid", qdsite.CONF_PARM_UUID)
-d.add_index("ix_site_dpath", qdsite.CONF_PARM_SITE_DPATH)
+d.add_index("ix_qdsite_dpath", qdsite.CONF_PARM_SITE_DPATH)
 d.add_index("ix_udi", qdsite.CONF_PARM_SITE_UDI)
 
-d = hdb_dict.add_table(pdict.DbTableDict(HDB_WEBSITES))
-d.add_column(pdict.Text(qdsite.CONF_PARM_DOMAIN_NAME))
+d = hdb_dict.add_table(pdict.DbTableDict(qdsite.HDB_WEBSITES))
+d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
+d.add_column(pdict.Text(qdsite.CONF_PARM_HOST_NAME))
 d.add_column(pdict.Text(qdsite.CONF_PARM_WEBSITE_SUBDIR))
-d.add_index("ix_domain", qdsite.CONF_PARM_DOMAIN_NAME)
+d.add_index("ix_host_name", qdsite.CONF_PARM_HOST_NAME)
 
 #
 # the following are host dependent globals
@@ -96,13 +95,13 @@ def verify_site_registration(site):
     """
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
     site_acronym = site.ini_data.get(qdsite.CONF_PARM_ACRONYM, "")
-    site_dpath = site.ini_data.get(qdsite.CONF_PARM_SITE_DPATH, "")
+    qdsite_dpath = site.ini_data.get(qdsite.CONF_PARM_SITE_DPATH, "")
     site_uuid = site.ini_data.get(qdsite.CONF_PARM_UUID, "")
     site_udi = site.ini_data.get(qdsite.CONF_PARM_SITE_UDI, "")
-    where = {qdsite.CONF_PARM_SITE_DPATH: site_dpath}
-    db_rows = db.select(HDB_SITES, where=where)
+    where = {qdsite.CONF_PARM_SITE_DPATH: qdsite_dpath}
+    db_rows = db.select(qdsite.HDB_DEVSITES, where=where)
     if len(db_rows) != 1:
-        print("Ambiguous site_dpath '{}'".format(site_dpath))
+        print("Ambiguous qdsite_dpath '{}'".format(qdsite_dpath))
         return False
     if db_rows[0][qdsite.CONF_PARM_ACRONYM] != site_acronym:
         print(
@@ -134,25 +133,25 @@ def check_if_site_registered(db, site):
     site_udi = site.ini_data.get(qdsite.CONF_PARM_SITE_UDI, "")
     if (site_uuid != "") or (site_udi != ""):
         return True
-    where = {qdsite.CONF_PARM_SITE_DPATH: site.site_dpath}
-    db_rows = db.select(HDB_SITES, where=where)
+    where = {qdsite.CONF_PARM_SITE_DPATH: site.qdsite_dpath}
+    db_rows = db.select(qdsite.HDB_DEVSITES, where=where)
     if len(db_rows) > 0:
         return True
     return False
 
 
-def register_site(site_dpath=None):
+def register_qdsite(qdsite_dpath=None):
     """
-    Register a site that has not previously been registered.
+    Register a qdsite that has not previously been registered.
     """
-    site = qdsite.QdSite(site_dpath=site_dpath)
+    site = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
     if check_if_site_registered(db, site):
         print("Site appears to already be registered.")
         return
     site_uuid = str(uuid.uuid4().bytes)
     max_func = "MAX({})".format(qdsite.CONF_PARM_SITE_UDI)
-    sum_rows = db.select(HDB_SITES, max_func)
+    sum_rows = db.select(qdsite.HDB_DEVSITES, max_func)
     max_udi = sum_rows[0][max_func]
     if max_udi is None:  # if table is empty
         max_udi = 0
@@ -160,12 +159,12 @@ def register_site(site_dpath=None):
     site_udi = str(max_udi)
 
     # Update hosting database
-    devsite_row = {}
-    devsite_row[qdsite.CONF_PARM_ACRONYM] = site.ini_data[qdsite.CONF_PARM_ACRONYM]
-    devsite_row[qdsite.CONF_PARM_SITE_DPATH] = site.site_dpath
-    devsite_row[qdsite.CONF_PARM_UUID] = site_uuid
-    devsite_row[qdsite.CONF_PARM_SITE_UDI] = site_udi
-    db.insert(HDB_SITES, devsite_row)
+    qdsite_row = {}
+    qdsite_row[qdsite.CONF_PARM_ACRONYM] = site.ini_data[qdsite.CONF_PARM_ACRONYM]
+    qdsite_row[qdsite.CONF_PARM_SITE_DPATH] = site.qdsite_dpath
+    qdsite_row[qdsite.CONF_PARM_UUID] = site_uuid
+    qdsite_row[qdsite.CONF_PARM_SITE_UDI] = site_udi
+    db.insert(qdsite.HDB_DEVSITES, qdsite_row)
 
     # Update develelopment site conf file
     site.ini_data[qdsite.CONF_PARM_UUID] = site_uuid
@@ -189,7 +188,7 @@ if __name__ == "__main__":
     )
     m.add_parameter(
         cliargs.CliCommandLineParameterItem(
-            exenv.ARG_L_CONF_LOC, parameter_name="site_dpath"
+            exenv.ARG_L_CONF_LOC, parameter_name="qdsite_dpath"
         )
     )
     menu.add_item(

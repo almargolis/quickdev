@@ -54,6 +54,7 @@ ARG_W_WEBSITE = "w"
 SYMLINK_TYPE_DIR = "d"
 SYMLINK_TYPE_FILE = "f"
 
+OS_ENV_VIRTUAL_ENV = "VIRTUAL_ENV"
 
 def safe_join(*args):
     """
@@ -88,15 +89,15 @@ class ExenvGlobals:  # pylint: disable=too-many-instance-attributes, too-few-pub
         self.qdhost_websites_dpath = os.path.join(
             self.qdhost_dpath, self.qdhost_websites_subdir
         )
-        self.qdhost_devsites_subdir = "devsites"
-        self.qdhost_devsites_dpath = os.path.join(
-            self.qdhost_dpath, self.qdhost_devsites_subdir
+        self.qdhost_qdsites_subdir = "qdsites"
+        self.qdhost_qdsites_dpath = os.path.join(
+            self.qdhost_dpath, self.qdhost_qdsites_subdir
         )
         self.qdhost_all_subdirs = [
             self.qdhost_websites_subdir,
-            self.qdhost_devsites_subdir,
+            self.qdhost_qdsites_subdir,
         ]
-        self.devsites_dpath = os.path.join(root, "var/www")
+        self.qdsites_dpath = os.path.join(root, "var/www")
 
 
 return_code = 0  # pylint: disable=invalid-name

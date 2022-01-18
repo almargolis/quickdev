@@ -3,7 +3,7 @@ SimpleLex is a simple lexical scanner. It scans one source line and returns
 a list of tokens.
 
 This is used by the XSource code generator. Because it is
-use for bootstraping the EzDev environment, it cannot use any XPython
+use for bootstraping the QuickDev environment, it cannot use any XSource
 features.
 
 """

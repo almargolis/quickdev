@@ -39,7 +39,12 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
             print(f"cli_input() ix={debug_input_ix} '{resp}'")
             debug_input_ix += 1
         else:
-            resp = debug_input_answers.get(prompt, input(f"{prompt}{value_prompt}"))
+            # The following can't be a get() because input()
+            # gets evaluated every time.
+            if prompt in debug_input_answers:
+                resp = debug_input_answers[prompt]
+            else:
+                resp = input(f"{prompt}{value_prompt}")
         if (regex is None) or regex.match(resp):
             break
     if lower:

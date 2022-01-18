@@ -108,7 +108,7 @@ def add_additional_action(menu):
     )
     menu_item.add_parameter(
         cliargs.CliCommandLineParameterItem(
-            "s", parameter_name="site_dpath", default_none=True, is_positional=False
+            "s", parameter_name="qdsite_dpath", default_none=True, is_positional=False
         )
     )
     return menu_item

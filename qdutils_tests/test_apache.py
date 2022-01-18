@@ -1,11 +1,16 @@
 """
 Tests apache utility functions.
 """
-from qdutils import apache
-from qdbase import exenv
-from qdcore import inifile
 import os
-from . import test_hosting
+
+
+from qdbase import exenv
+
+from qdcore import inifile
+
+from qdutils import apache
+
+from . import test_qdstart
 
 SITES_CONF_SELECTOR = "/etc/apache2/sites_available/*.conf"
 
@@ -64,19 +69,19 @@ class MakeDevSite:
     def __init__(self, acronym, apache_host):
         self.acronym = acronym
         self.apache_host = apache_host
-        self.site_dpath = os.path.join(exenv.g.devsites_dpath, acronym)
+        self.qdsite_dpath = os.path.join(exenv.g.qdsites_dpath, acronym)
         self.website_subdir = 'html'
-        self.website_dpath = os.path.join(self.site_dpath, self.website_subdir)
+        self.website_dpath = os.path.join(self.qdsite_dpath, self.website_subdir)
         self.domain_name = 'www.{}.com'.format(acronym)
         www_ini_fn = os.path.join(exenv.g.qdhost_websites_dpath, acronym+'.ini')
         with open(www_ini_fn, 'w', encoding='utf-8') as www_ini_file:
             www_ini_file.write('acronym={}\ndomain_name={}\n'.format(acronym, self.domain_name))
-        dev_ini_fn = os.path.join(exenv.g.qdhost_devsites_dpath, acronym+'.ini')
+        dev_ini_fn = os.path.join(exenv.g.qdhost_qdsites_dpath, acronym+'.ini')
         with open(dev_ini_fn, 'w', encoding='utf-8') as dev_ini_file:
-            dev_ini_file.write('acronym={}\nsite_dpath={}\n'.format(acronym, self.site_dpath))
-        os.mkdir(self.site_dpath)
+            dev_ini_file.write('acronym={}\nqdsite_dpath={}\n'.format(acronym, self.qdsite_dpath))
+        os.mkdir(self.qdsite_dpath)
         os.mkdir(self.website_dpath)
-        conf_dpath = os.path.join(self.site_dpath, 'conf')
+        conf_dpath = os.path.join(self.qdsite_dpath, 'conf')
         os.mkdir(conf_dpath)
         conf_fpath = os.path.join(conf_dpath, 'site.conf')
         with open(conf_fpath, 'w', encoding='utf-8') as site_ini_file:
@@ -119,10 +124,10 @@ def test_config_vhosts(tmpdir):
     """
     Test apache2 vhost generation.
 
-    Uses test_hosting.MakeQdev() to create test environment so
+    Uses test_qdstart.MakeQdev() to create test environment so
     nothing should try to write to actual system files.
     """
-    test_hosting.MakeQdev(tmpdir)
+    test_qdstart.MakeQdev(tmpdir)
     apache_host = apache.ApacheHosting()
     dev1 = MakeDevSite('xx1', apache_host)
     apache.config_vhosts()

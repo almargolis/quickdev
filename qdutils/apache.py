@@ -6,11 +6,14 @@ from . import qdstart
 from qdbase import cliargs
 from qdbase import cliinput
 from qdbase import exenv
+from qdbase import pdict
+
 from qdcore import filedriver
 from qdcore import textfile
 from qdcore import virtfile
 from qdcore import utils
 from qdcore import inifile
+from qdcore import qdconst
 from qdcore import qdsite
 
 
@@ -322,12 +325,12 @@ class ApacheHosting():
         site_ini is owned by application developers.
         """
         site_acronym = host_ini[qdsite.CONF_PARM_ACRONYM]
-        site_dpath = host_ini[qdsite.CONF_PARM_SITE_DPATH]
-        domain_name = www_ini[qdsite.CONF_PARM_DOMAIN_NAME]
+        qdsite_dpath = host_ini[qdsite.CONF_PARM_SITE_DPATH]
+        domain_name = www_ini[qdsite.CONF_PARM_HOST_NAME]
         website_subdir = site_ini[qdsite.CONF_PARM_WEBSITE_SUBDIR]
 
         apache_conf_path = os.path.join(self.sites_available_dir_path, site_acronym+'.conf')
-        document_root = os.path.join(site_dpath, website_subdir)
+        document_root = os.path.join(qdsite_dpath, website_subdir)
         access_log = os.path.join(self.log_base_dir, site_acronym + ACCESS_LOG_SUFFIX)
         error_log = os.path.join(self.log_base_dir, site_acronym + ERROR_LOG_SUFFIX)
 
@@ -371,11 +374,36 @@ def config_vhosts():
         wwww_ini_path = os.path.join(exenv.g.qdhost_websites_dpath, this)
         host_www_ini = inifile.IniReader(file_name=wwww_ini_path)
         site_acronym = site_acronym = host_www_ini['acronym']
-        devsite = qdsite.get_site_by_acronym(site_acronym)
-        apache_host.create_virtual_host(devsite.host_site_data, host_www_ini, devsite.ini_data)
+        qdsite_info = qdsite.get_site_by_acronym(site_acronym)
+        apache_host.create_virtual_host(qdsite_info.host_site_data, host_www_ini, qdsite_info.ini_data)
 
 def show_hosting():
     pass
+
+webini_dict = pdict.TupleDict()
+webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
+webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_HOST_NAME))
+webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_WEBSITE_SUBDIR))
+
+def register_website(qdsite_dpath=None, api_data=None):
+    """
+    Register a website that has not previously been registered.
+    """
+    site = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
+    db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
+
+    # Update hosting database
+    website_row = {}
+    website_row[qdsite.CONF_PARM_UUID] = site_uuid
+    website_row[qdsite.CONF_PARM_HOST_NAME] = site.ini_data[qdsite.CONF_PARM_ACRONYM]
+    website_row[qdsite.CONF_PARM_WEBSITE_SUBDIR] = site.qdsite_dpath
+    db.insert(qdsite.HDB_WEBSITES, website_row)
+
+    # Update develelopment site conf file
+    site.ini_data[qdsite.CONF_PARM_UUID] = site_uuid
+    site.ini_data[qdsite.CONF_PARM_SITE_UDI] = site_udi
+    site.write_site_ini()
+
 
 if __name__ == '__main__':
     # There is a great deal of symetry between hosting.py and apache.py

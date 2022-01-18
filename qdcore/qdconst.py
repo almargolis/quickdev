@@ -10,3 +10,6 @@ SITE_DB_DIR_NAME = 'db'
 SITE_CONF_FILE_NAME = 'site.' + CONF_EXT
 PROJECT_DB_FN = 'project_db.sql'
 
+HDB_DEVSITES = "qdsites"
+HDB_WEBSITES = "website"
+

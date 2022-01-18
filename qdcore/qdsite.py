@@ -9,17 +9,22 @@ from qdbase import exenv
 from qdcore import qdconst
 from qdcore import inifile
 
-CONF_ETC_ORG = 'etc_org'
+CONF_ETC_ORG = "etc_org"
 
 CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
 
-CONF_PARM_ACRONYM = 'acronym'
-CONF_PARM_UUID = 'uuid'
-CONF_PARM_DOMAIN_NAME = 'domain_name'
-CONF_PARM_WEBSITE_SUBDIR = 'website_subdir'
-CONF_PARM_SITE_DPATH = 'site_dpath'
-CONF_PARM_SITE_UDI = 'site_udi'
-CONF_PARM_VENV_DPATH = 'venv_dpath'
+HDB_DEVSITES = "qdsites"
+HDB_WEBSITES = "website"
+
+CONF_PARM_ACRONYM = "acronym"
+CONF_PARM_UUID = "uuid"
+CONF_PARM_HOST_NAME = "domain_name"
+CONF_PARM_WEBSITE_SUBDIR = "website_subdir"
+CONF_PARM_SITE_DPATH = "qdsite_dpath"
+CONF_PARM_SITE_UDI = "site_udi"
+CONF_PARM_VENV_DPATH = "venv_dpath"
+
+VENV_ACTIVATE_SUB_FPATH = 'bin/activate'
 
 def identify_site(site=None):
     """
@@ -29,39 +34,43 @@ def identify_site(site=None):
     cwd = os.getcwd()
     return None
 
-class hold():
+
+class hold:
     def init_qddev(self, args):
         if qdconst is None:
-            print('QdDev not inintialied. Run {}. (E1)'.format(qdstart.QDSTART_PATH))
+            print("QdDev not inintialied. Run {}. (E1)".format(qdstart.QDSTART_PATH))
             return False
 
-        self.conf_dir_path = os.path.join(self.base_dir,
-                                                  qdconst.SITE_CONF_DIR_NAME)
-        self.project_db_path = os.path.join(self.conf_dir_path,
-                                            qdconst.PROJECT_DB_FN)
+        self.conf_dir_path = os.path.join(self.base_dir, qdconst.SITE_CONF_DIR_NAME)
+        self.project_db_path = os.path.join(self.conf_dir_path, qdconst.PROJECT_DB_FN)
         if not os.path.isdir(self.conf_dir_path):
-            print('QdDev not inintialied. Run {}. (E2)'.format(qdstart.QDSTART_PATH))
+            print("QdDev not inintialied. Run {}. (E2)".format(qdstart.QDSTART_PATH))
             return False
         if not self.load_conf():
-            print('XSynth source files not processed.')
+            print("XSynth source files not processed.")
             return False
         return True
 
     def load_conf(self):
-        self.conf_info = inifile.read_ini_directory(dir=self.conf_dir_path,
-                                                    ext=qdconst.CONF_EXT)
+        self.conf_info = inifile.read_ini_directory(
+            dir=self.conf_dir_path, ext=qdconst.CONF_EXT
+        )
         if self.conf_info is None:
             return False
-        self.sources = self.conf_info['site.sources']
+        self.sources = self.conf_info["site.sources"]
         return True
 
-def get_site_by_acronym(acronym):
-    dev_ini_fpath = werkzeug.utils.safe_join(exenv.g.qdhost_devsites_dpath, acronym + '.ini')
-    dev_ini_data = inifile.IniReader(file_name=dev_ini_fpath)
-    site_dpath = dev_ini_data['site_dpath']
-    return QdSite(site_dpath=site_dpath, host_site_ini=dev_ini_data)
 
-class QdSite():
+def get_site_by_acronym(acronym):
+    dev_ini_fpath = werkzeug.utils.safe_join(
+        exenv.g.qdhost_qdsites_dpath, acronym + ".ini"
+    )
+    dev_ini_data = inifile.IniReader(file_name=dev_ini_fpath)
+    qdsite_dpath = dev_ini_data["qdsite_dpath"]
+    return QdSite(qdsite_dpath=qdsite_dpath, host_site_ini=dev_ini_data)
+
+
+class QdSite:
     """
     QdSite is a container for core information regarding a site.
 
@@ -75,34 +84,64 @@ class QdSite():
     for QdDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
     """
-    __slots__ = ('conf_dpath', 'host_site_data', 'ini_data', 'ini_fpath', 'site_dpath')
-    def __init__(self, site_dpath=None, host_site_ini=None):
-        if site_dpath is None:
-            site_dpath = os.getcwd()
-        self.site_dpath = os.path.abspath(site_dpath)
-        self.conf_dpath = os.path.join(self.site_dpath, qdconst.SITE_CONF_DIR_NAME)
+
+    __slots__ = ("conf_dpath", "host_site_data", "ini_data", "ini_fpath", "qdsite_dpath")
+
+    def __init__(self, qdsite_dpath=None, host_site_ini=None):
+        if qdsite_dpath is None:
+            qdsite_dpath = os.getcwd()
+        self.qdsite_dpath = os.path.abspath(qdsite_dpath)
+        if not os.path.isdir(self.qdsite_dpath):
+            raise ValueError(f"Invalid qdsite path '{self.qdsite_dpath}'.'")
+        acronym = os.path.basename(self.qdsite_dpath)
+        if acronym == "":
+            raise ValueError(f"Invalid qdsite acronym '{self.qdsite_dpath}' '{acronym}'")
+        self.conf_dpath = os.path.join(self.qdsite_dpath, qdconst.SITE_CONF_DIR_NAME)
         self.ini_fpath = os.path.join(self.conf_dpath, qdconst.SITE_CONF_FILE_NAME)
         self.ini_data = inifile.IniReader(file_name=self.ini_fpath)
+        ini_data_changed = False
         if self.ini_data is None:
             self.ini_data = {}
-        if self.ini_data.get(CONF_PARM_SITE_DPATH, '') != self.site_dpath:
-            # We should only get here for new conf file but it is also
-            # a safety valve so we can always trust the ini file entry.
-            self.ini_data[CONF_PARM_SITE_DPATH] = self.site_dpath
+        if not CONF_PARM_SITE_DPATH in self.ini_data:
+            self.ini_data[CONF_PARM_SITE_DPATH] = self.qdsite_dpath
+            ini_data_changed = True
+        if not CONF_PARM_ACRONYM in self.ini_data:
+            self.ini_data[CONF_PARM_ACRONYM] = acronym
+            ini_data_changed = True
+        if ini_data_changed:
             if os.path.isdir(self.conf_dpath):
                 # The directory may not exist yet, particularly if called
                 # by QdStart()
                 self.write_site_ini()
+        if (self.ini_data.get(CONF_PARM_SITE_DPATH, "") != self.qdsite_dpath) or (
+            self.ini_data.get(CONF_PARM_ACRONYM, "") != acronym
+        ):
+            raise ValueError(f"Invalid qdsite ini '{self.qdsite_dpath}' '{acronym}' {self.ini_data}")
         self.host_site_data = host_site_ini
 
     def __str__(self):
-        return "{site_dpath}, {ini_path}: {ini_data}.".format(
-               site_dpath=self.site_dpath, ini_path=self.ini_fpath,
-               ini_data=str(self.ini_data))
+        return f"{self.qdsite_dpath}, {self.ini_fpath}: {self.ini_data}."
+
+    def get_venv_activate_fpath(self):
+        """
+        This attempts to get the fpath to the VENV activate script.
+        If the site hasn't been fully configured, it uses the current VENV
+        if it finds one.
+        """
+        venv_dpath = self.ini_data.get(CONF_PARM_VENV_DPATH, None)
+        if venv_dpath is None:
+            venv_dpath = os.environ.get(exenv.OS_ENV_VIRTUAL_ENV, None)
+        if venv_dpath is None:
+            return None
+        return os.path.join(venv_dpath, VENV_ACTIVATE_SUB_FPATH)
 
     def write_site_ini(self, debug=0):
-        if not inifile.write_ini_file(source=self.ini_data, fpath=self.ini_fpath, debug=debug):
-            raise Exception("Unable to write site ini file '{}'.".format(self.ini_fpath))
+        if not inifile.write_ini_file(
+            source=self.ini_data, fpath=self.ini_fpath, debug=debug
+        ):
+            raise Exception(
+                "Unable to write site ini file '{}'.".format(self.ini_fpath)
+            )
 
     @property
     def synthesis_db_path(self):
