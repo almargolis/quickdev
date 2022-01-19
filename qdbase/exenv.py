@@ -18,6 +18,9 @@
     Some of this code has been brought forward from an
     earlier iteration of my framework. There may be some
     overlap with newer code and unused artifacts.
+
+    This is used by XSynth in stand-alone mode, so it can't
+    use XSynth features.
 """
 
 import os

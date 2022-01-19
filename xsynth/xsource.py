@@ -633,7 +633,7 @@ class XSource:  # pylint: disable=too-many-instance-attributes
         if item_property == "as_dict_extract_list":
             flds = []
             for this in sql_data:
-                fld_str = "{}['{}']".format(
+                fld_str = "{}['{}']".format(  # pylint: disable=consider-using-f-string
                     # use format because pylint seems not to handle complex quotes
                     parms[0],
                     this["element_name"],
