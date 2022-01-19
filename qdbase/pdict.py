@@ -11,7 +11,7 @@ import numbers
 
 class DbDict:
     """
-    Database dictionary primarily for use with sqlite_ez.
+    Database dictionary primarily for use with qdsqlite.
     """
 
     __slots__ = ("tables",)
@@ -26,8 +26,8 @@ class DbDict:
         self.tables[table_dict.name] = table_dict
         return table_dict
 
-    def sql_list(self):
-        """Create a list of sql create statements to create database."""
+    def sql_create_list(self):
+        """Create a list of sql create statements to create a database."""
         create_list = []
         for this in self.tables.values():
             create_list.append(this.sql())

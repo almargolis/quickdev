@@ -41,7 +41,7 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
         else:
             # The following can't be a get() because input()
             # gets evaluated every time.
-            if prompt in debug_input_answers:
+            if prompt in debug_input_answers:  # pylint: disable=consider-using-get
                 resp = debug_input_answers[prompt]
             else:
                 resp = input(f"{prompt}{value_prompt}")

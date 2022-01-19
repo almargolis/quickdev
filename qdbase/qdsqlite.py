@@ -1,8 +1,8 @@
 """
 SqliteEz is a stand-alone pythonic wrapper around SqLite3.
 
-This is used by XPython in stand-alone mode, so it can't
-use XPython features.
+This is used by XSynth in stand-alone mode, so it can't
+use XSynth features.
 """
 
 import sqlite3
@@ -22,7 +22,7 @@ class AttributeName:  # pylint: disable=too-few-public-methods
         self.name = name
 
 
-def dict_to_sql_equal(source_dict, seperator):
+def dict_to_sql_expression(source_dict, seperator):
     """
     Convert a dictionary to a string of comma separated
     sql "fld = ?" statements plus a list of substituion
@@ -127,9 +127,9 @@ class QdSqlite:
         self.db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [v[0] for v in self.db_cursor.fetchall() if v[0] != "sqlite_sequence"]
         if len(tables) == 0:
-            self.db_init()
+            self.db_create()
 
-    def db_init(self):
+    def db_create(self):
         """
         Create tables and indexes for a database.
 
@@ -137,7 +137,7 @@ class QdSqlite:
         of sql statements or a pdict dictionary.
         """
         if self.db_dict is not None:
-            self.sql_create = self.db_dict.sql_list()
+            self.sql_create = self.db_dict.sql_create_list()
             if self.debug > 0:
                 print(self.sql_create)
         if self.sql_create is not None:
@@ -150,7 +150,7 @@ class QdSqlite:
         """Perform SQL delete command."""
         sql = f"DELETE FROM {table}"
         if where is not None:
-            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            where_sql, where_values = dict_to_sql_expression(where, " AND ")
             sql += " WHERE " + where_sql
         else:
             where_values = []
@@ -231,7 +231,7 @@ class QdSqlite:
         if where is None:
             where_values = []
         else:
-            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            where_sql, where_values = dict_to_sql_expression(where, " AND ")
             sql += " WHERE " + where_sql
         if limit > 0:
             sql += f" LIMIT {limit}"
@@ -281,13 +281,14 @@ class QdSqlite:
 
     def update(self, table, flds, where=None):
         """Perform SQL update command."""
-        flds_sql, flds_values = dict_to_sql_equal(flds, ", ")
+        flds_sql, flds_values = dict_to_sql_expression(flds, ", ")
         sql = f"UPDATE {table} SET {flds_sql}"
         if where is not None:
-            where_sql, where_values = dict_to_sql_equal(where, " AND ")
+            where_sql, where_values = dict_to_sql_expression(where, " AND ")
             sql += " WHERE " + where_sql
             flds_values += where_values
         sql += ";"
         if self.debug > 0:
             print(f"SQL {sql} {flds_values}")
         self.db_cursor.execute(sql, tuple(flds_values))
+        self.db_conn.commit()

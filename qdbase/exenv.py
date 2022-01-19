@@ -56,6 +56,7 @@ SYMLINK_TYPE_FILE = "f"
 
 OS_ENV_VIRTUAL_ENV = "VIRTUAL_ENV"
 
+
 def safe_join(*args):
     """
     extension of os.path.join() that is less susceptible to
