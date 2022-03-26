@@ -335,12 +335,14 @@ def load_csv_file(
 						RecordLimit=None,
 						ReturnDataStore=True,
 						StripAll=False,
-						Debug=0):
+						debug=0):
     if isinstance(parmFn, str):
         csv_file = open(parmFn, mode='r')
     else:
         csv_file = parmFn
     if csv_file is None:
+        if debug > 0:
+            print(f"load_csv_file() unable to open file '{parmFn}'.")
         return None
     csv_file_header = None
     while csv_file_header is None:

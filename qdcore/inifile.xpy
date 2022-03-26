@@ -26,24 +26,29 @@ from . import textfile
 #
 
 
-def AsIniText(parmData, Level=0, ParentName=''):
-    wsIni = ''
-    wsChildRecordNames = []
-    for (wsChildName, wsChildData) in list(parmData.items()):
-        if hasattr(parmData, 'items'):
-            wsChildRecordNames.append(wsChildName)
+def dict_to_ini_string(ini_data, ini_level=0, parent_name=''):
+    ini_string = ''
+    child_dict_keys = []
+    for (child_key, child_value) in list(ini_data.items()):
+        if hasattr(ini_data, 'items'):
+            child_dict_keys.append(child_key)
         else:
             # This is an atomic data type
-            wsIni += '%s = %s\n' % (wsChildName, wsChildData)
-    for wsThisRecordName in wsChildRecordNames:
-        if Level > 0:
-            wsSectionName = ParentName + '.' + wsThisRecordName
+            ini_string += f"{child_key} = {child_value}\n"
+    for this_child_dict_key in child_dict_keys:
+        if ini_level > 0:
+            section_name = parent_name + '.' + this_child_dict_key
         else:
-            wsSectionName = wsThisRecordName
-        wsIni += '[%s]\n' % (wsThisRecordName)
-        wsIni += AsIniText(parmData[wsThisRecordName], Level=Level+1,
-                           ParentName=wsSectionName)
-    return wsIni
+            section_name = this_child_dict_key
+        ini_string += f"[{section_name}]\n"
+        ini_string += dict_to_ini_string(ini_data[this_child_dict_key], ini_level=ini_level+1,
+                           parent_name=section_name)
+    return ini_string
+
+def write_ini_file(ini_fpath, ini_data):
+    with open(ini_fpath, "w") as f:
+        f.write(dict_to_ini_string(ini_data))
+        
 
 INI_PARSE_STATE_INIT		= 0
 INI_PARSE_STATE_NORMAL_LINE	= 1

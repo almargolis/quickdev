@@ -74,6 +74,32 @@ def safe_join(*args):
     return werkzeug.utils.safe_join(*args)  # pylint: disable=no-value-for-parameter
 
 
+def check_venv(venv_dpath):  # pylint: disable=too-many-return-statements
+    """
+    Check if the specified venv_dpath is a (reasonably likely) virtual
+    environment directory.
+
+    Returns None if not a venv directory.
+    Returns the Python version in the format "python3.7" if it is a venv.
+
+    """
+    if not os.path.isfile(venv_dpath):
+        return None
+    if not os.path.isfile(os.path.join(venv_dpath, "pyvenv.cfg")):
+        return None
+    if not os.path.isdir(os.path.join(venv_dpath, "bin")):
+        return None
+    if not os.path.isdir(os.path.join(venv_dpath, "include")):
+        return None
+    lib_dpath = os.path.join(venv_dpath, "lib")
+    if not os.path.isdir(lib_dpath):
+        return None
+    for this in os.listdir(lib_dpath):
+        if this.startswith("python"):
+            return this
+    return None
+
+
 class ExenvGlobals:  # pylint: disable=too-many-instance-attributes, too-few-public-methods
     """
     This is a container for global application environment

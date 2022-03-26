@@ -14,7 +14,7 @@ CONF_ETC_ORG = "etc_org"
 CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
 
 HDB_DEVSITES = "qdsites"
-HDB_WEBSITES = "website"
+HDB_WEBSITES = "websites"
 
 CONF_PARM_ACRONYM = "acronym"
 CONF_PARM_UUID = "uuid"
