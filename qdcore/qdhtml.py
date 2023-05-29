@@ -15,6 +15,11 @@ html_elements = qddict.QdDict()
 for this in ["html", "body", "b", "h1", "p"]:
     e = html_element(this)
     html_elements.append(e.name, e)
+for this in ["hr", "img"]:
+    e = html_element(this)
+    e.is_empty = True
+    html_elements.append(e.name, e)
+
 
 
 class HtmlContent:
