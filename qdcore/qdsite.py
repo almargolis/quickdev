@@ -3,7 +3,11 @@ QdSite provides access to site information.
 """
 
 import os
-import werkzeug
+
+try:
+    import werkzeug
+except ModuleNotFoundError:
+    werkzeug = None
 
 from qdbase import exenv
 from qdcore import qdconst

@@ -103,7 +103,7 @@ def Compare(a, b, parmKeys):
     return 0
 
 #
-# Query Support Actions
+# query Support Actions
 #
 
 
@@ -154,7 +154,7 @@ def MakeRpnExpressionForWhereClause(parmWhere):
     return wsExpression
 
 
-def MakeLookupQuery(
+def MakeLookupquery(
         parmExeController,
         parmTableReferenceName,
         parmLookupFieldName,
@@ -208,12 +208,12 @@ def MakeLookupQuery(
                      'OR'))
     else:
         parmExeController.errs.AddUserInfoMessage(
-            'MakeLookupQuery() unexpected role "%s" for element "%s".' %
+            'MakeLookupquery() unexpected role "%s" for element "%s".' %
             (wsTDictElement.role, parmLookupFieldName))
         return None
     wsLookupTable.Select(parmWhere=wsWhere)
     if Debug > 0:
-        print(wsLookupTable.lastQuery)
+        print(wsLookupTable.lastquery)
     return wsLookupTable
 
 
@@ -544,7 +544,7 @@ class DataStoreObject(DataTreeBranch):
     __slots__ = ('_tuples', '_s', 'rdbmsTDict',
                  '_indices',
                  '_lastAppendUdi', '_lastTuple',
-                 '_lastErrorMsg', '_lastQuery')
+                 '_lastErrorMsg', '_last_query')
 
     def __init__(self,
                  ExeController=None,
@@ -582,7 +582,7 @@ class DataStoreObject(DataTreeBranch):
         self._lastAppendUdi = 0
         self._lastTuple = None
         self._lastErrorMsg = ''
-        self._lastQuery = None				# needed so it can look like a DB set
+        self._last_query = None				# needed so it can look like a DB set
 
     def __getitem__(self, parmIx):
         return self._tuples[parmIx]
@@ -660,12 +660,12 @@ class DataStoreObject(DataTreeBranch):
         return wsTuple
 
     @property
-    def lastQuery(self):
-        return self._lastQuery
+    def lastquery(self):
+        return self._last_query
 
-    @lastQuery.setter
-    def lastQuery(self, parmValue):
-        self._lastQuery = parmValue
+    @lastquery.setter
+    def lastquery(self, parmValue):
+        self._last_query = parmValue
 
     def Lookup(self, parmFieldName, parmFieldValue):
         for wsThisTuple in self._tuples:
@@ -708,13 +708,13 @@ class DataStoreObject(DataTreeBranch):
         return wsChild
 
     # DataStoreObject
-    def ClearAll(self):
+    def clear_all(self):
         self._tuples = []
         self._tdict = None
 
-    def ClearData(self, Query=''):
+    def clear_data(self, query=''):
         self._tuples = []
-        self._lastQuery = Query
+        self._last_query = query
 
     def Dup(self):
         # Dup() creates a new object as a fairly shallow copy
@@ -919,7 +919,7 @@ class TupleObject(DataTreeBranch):
         return self.__getitem__(parmKey)
 
     # TupleObject
-    def ClearAll(self):
+    def clear_all(self):
         self._datums = []
         self._isTupleModified = False
         self._modifiedDatums = []
@@ -929,7 +929,7 @@ class TupleObject(DataTreeBranch):
         else:
             self._tdict.Clear()
 
-    def _ClearData(self):
+    def _clear_data(self):
         self._datums = []
         self._isTupleModified = False
         self._modifiedDatums = []

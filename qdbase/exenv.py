@@ -29,7 +29,10 @@ import shutil
 import sys
 import traceback
 
-import werkzeug
+try:
+    import werkzeug
+except ModuleNotFoundError:
+    werkzeug = None
 
 from . import cliargs
 from . import cliinput
@@ -269,7 +272,7 @@ def make_directory(
             return_code = 101
             return False
     else:
-        if force or cliinput.cli_input_yn("Create directory '{path}'?"):
+        if force or cliinput.cli_input_yn(f"Create directory '{path}'?"):
             try:
                 os.mkdir(path, mode=mode)
             except PermissionError:
@@ -281,7 +284,7 @@ def make_directory(
             return_code = 102
             return False
     if not quiet:
-        print("{name} directory: {path}.")
+        print(f"{name} directory: {path}.")
     return True
 
 

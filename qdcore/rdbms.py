@@ -43,44 +43,44 @@
 #  5/12/2001:  Move iterator logic and FldAsType action to
 # 		to datastoreObject and TupleObject because they generally
 # 		useful in record oriented applications.
-#  5/12/2001:  Add convenence action Query to class Rdbms
-#  1/19/2002:  Add host to Connect() to access remote databases.
+#  5/12/2001:  Add convenence action query to class Rdbms
+#  1/19/2002:  Add host to connect() to access remote databases.
 # 		Generalize test options to take all constants
 # 		from command line.
 #  1/25/2002:  RdbmsCursor.__init__() failed if database invalid,
 # 		make db dependencies conditional.
-#  2/15/2003:  Add Update()
-#  2/22/2003:  Add Delete()
-#  2/23/2003:  Add AutoId(), modify Update() with increment syntax
-#  3/ 8/2003:  Add Select().  Fix Select() and Lookup() to support
+#  2/15/2003:  Add update()
+#  2/22/2003:  Add delete()
+#  2/23/2003:  Add auto_id(), modify update() with increment syntax
+#  3/ 8/2003:  Add select().  Fix select() and lookup() to support
 # 		numeric WHERE values instead of quoting everything
 # 		-- this needs to be replicated throughout. Fix
-# 		error in Update() increment syntax.  Add Lookup2()
+# 		error in update() increment syntax.  Add lookup2()
 #  3/22/2003:  Fix command line load option.  Add "l" to bzCmdArgs()
 # 		to get file name.  Add print line to verify file name.
 # 		Add "-s" to indicate that the load file is a simple
 # 		comma delimited file.  Move type-aware value list
-# 		code from Update() to MakeValueList().  Add call to
-# 		MakeValueList() to Insert() so it can properly handle
-# 		numeric fields.  Create GetFieldList() from Update()
-# 		and add to Insert().  Need to go through all methods
+# 		code from update() to MakeValueList().  Add call to
+# 		MakeValueList() to insert() so it can properly handle
+# 		numeric fields.  Create GetFieldList() from update()
+# 		and add to insert().  Need to go through all methods
 # 		to replace ad-hoc code with updated actions.
-#  3/29/2003:  Modify Select(), Update() and Delete() to use Where()
-#  4/06/2003:  Add parmOrder to Select()
-#  6/28/2003:  Add error checking to OpenTable() and LoadTables()
-#  8/27/2005:  Add SelectKeyList() and LookupTuple()
-#  4/14/2006:  Change Lookup() to use Select() instead of specific code.
-# 10/25/2006:  Add JOIN capability to Select() and Where()
+#  3/29/2003:  Modify select(), update() and delete() to use where()
+#  4/06/2003:  Add parmOrder to select()
+#  6/28/2003:  Add error checking to open_table() and LoadTables()
+#  8/27/2005:  Add select_key_list() and lookup_tuple()
+#  4/14/2006:  Change lookup() to use select() instead of specific code.
+# 10/25/2006:  Add JOIN capability to select() and where()
 # 10/27/2006:  Change DB open to not open all tables when DB opens.
 # 		Change table open to capture all field description info
 # 		instead of just the field format.
-#  3/30/2007:  Add UpdateCommonFields()
+#  3/30/2007:  Add update_common_fields()
 # 28 Sep 2009: Add FieldSpecs()
 # 04 May 2011: There has been some intermediate maintenance, but nothing significant
 # 		for quite a while, till today.
-# 		- Change GetFieldList() to GetFieldsAndValues(), adding capability to use
+# 		- Change GetFieldList() to get_fields_and_values(), adding capability to use
 # 			a dict to supply both fields and values.
-# 		- Change MakeValueList() to MakeValueAssignments(), taking tuple from GetFieldsAndValue()
+# 		- Change MakeValueList() to make_value_assignments(), taking tuple from GetFieldsAndValue()
 # 		- Clean up code style in methods impacted by above.
 # 29 Jul 2011: Major clean-up.
 # 		- Convert from TupleObject to bzComposition to integrate into Erd environment.
@@ -89,7 +89,12 @@
 #
 #############################################
 
-import MySQLdb  # from pip install mysqlclient
+try:
+    import MySQLdb  # from pip install mysqlclient
+except ModuleNotFoundError:
+    # Make MySql optional. Python includes mysqllite
+    MySQLdb = None
+
 import os
 import string
 import sys
@@ -173,13 +178,13 @@ FieldPrivelegesKey = "Priveleges"
 LEFTOUTERJOIN = "LOJ"
 
 
-def DumpStructure(parmCursor):
+def dump_structure(parmCursor):
     print("************** Description ************")
     for fld in parmCurs.description:
         print("--> " + repr(fld) + " <--")
 
 
-def PrintError(parmSource):
+def print_error(parmSource):
     wsExceptionInfo = sys.exc_info()  # (type, value, traceback)
     print(
         "%s failed: %s: %s !!!"
@@ -189,7 +194,7 @@ def PrintError(parmSource):
         print(wsExceptionInfo[2])
 
 
-def TranslateErdPhysicalFieldTypeAndLenToMySqlFieldFormatAndType(
+def translate_erd_physical_field_type_and_len_to_mysql_field_format_and_type(
     parmDataTypes, parmErdPhysicalFieldType, parmFieldLen
 ):
     wsMySqlFieldFormat = None
@@ -202,28 +207,28 @@ def TranslateErdPhysicalFieldTypeAndLenToMySqlFieldFormatAndType(
     return (wsMySqlFieldFormat, wsMySqlFieldType)
 
 
-def TableIsOpen(parmTable, Debug=0):
+def table_is_open(parmTable, Debug=0):
     if parmTable is None:
         if Debug >= 1:
-            print("TableIsOpen(): No table object")
+            print("table_is_open(): No table object")
         return False
     if not isinstance(parmTable, RdbmsTable):
         if Debug >= 1:
             print(
-                "TableIsOpen(): Not a table object (%s) value: %s"
+                "table_is_open(): Not a table object (%s) value: %s"
                 % (parmTable.__class__, repr(parmTable))
             )
         return False
     if parmTable.rdbmsTDict is None:
         if Debug >= 1:
-            print("TableIsOpen(): No fields object")
+            print("table_is_open(): No fields object")
         return False
     if len(parmTable.rdbmsTDict.elements) > 0:
         if Debug >= 1:
-            print("TableIsOpen(): table is open")
+            print("table_is_open(): table is open")
         return True
     if Debug >= 1:
-        print("TableIsOpen(): default")
+        print("table_is_open(): default")
     return False
 
 
@@ -248,12 +253,19 @@ class Reference(object):
 
 
 class RdbmsTable(datastore.DataStoreObject):
-    __slots__ = ("cursor", "db", "_lastRequest", "modelTDict", "tableName")
+    __slots__ = (
+        "cursor",
+        "db",
+        "_last_query",
+        "_last_request",
+        "model_tdict",
+        "table_name",
+    )
 
     def __init__(
-        self, TableName=None, Db=None, ExeController=None, ModelTDict=None, Debug=None
+        self, table_name=None, Db=None, ExeController=None, model_tdict=None, Debug=None
     ):
-        # Db is a RdbmsConnector
+        # Db is a Rdbmsconnector
         wsExeController = ExeController
         if (wsExeController is None) and (Db is not None):
             wsExeController = Db.exeController
@@ -266,15 +278,15 @@ class RdbmsTable(datastore.DataStoreObject):
         self.cursor = None
         if (self.db is not None) and (self.db.db is not None):
             self.cursor = self.db.db.cursor()
-        self._lastQuery = ""
-        self.modelTDict = ModelTDict
-        self.tableName = TableName
+        self._last_query = ""
+        self.model_tdict = model_tdict
+        self.table_name = table_name
         self.rdbmsTDict = None
-        if (self.tableName is not None) and (self.tableName != ""):
-            self.rdbmsTDict = self.BuildTDictForTable()
+        if (self.table_name is not None) and (self.table_name != ""):
+            self.rdbmsTDict = self.build_tdict_for_table()
 
     #
-    # BuildTDictForQueryResult()
+    # build_tdict_for_query_result()
     #
     # self.cursor.description returns an array of tuples corresponding
     # to each field in the result. The tuple elements are:
@@ -288,14 +300,14 @@ class RdbmsTable(datastore.DataStoreObject):
     # 	[5]
     # 	[6] 0 = Primary Key, 1 = Not
     #
-    def BuildTDictForQueryResult(self):
+    def build_tdict_for_query_result(self):
         self._tdict = tupledict.TupleDict(ExeController=self.exeController)
         for wsFld in self.cursor.description:
             # print "XYZ", `self.cursor.description`
             wsMySqlFieldName = wsFld[0]
             wsMySqlMaxLength = wsFld[3]
             wsElementPhysicalType = None
-            wsElementPhysicalType = self.db.TranslateFieldType(Fld=wsFld, Table=self)
+            wsElementPhysicalType = self.db.translate_field_type(Fld=wsFld, Table=self)
             wsElement = self._tdict.AddScalarElement(
                 wsMySqlFieldName,
                 PhysicalType=wsElementPhysicalType,
@@ -304,48 +316,49 @@ class RdbmsTable(datastore.DataStoreObject):
             if wsFld[6] == 0:
                 wsElement.ConfigureAsUnique()
 
-    def QueryRecordsFound(self):
+    def query_records_found(self):
         if len(self) > 0:
             return True
         else:
             return False
 
     #
-    # RunQuery() Executes a query
-    # 		It calls ClearData() even if no return dat is expected in order
-    # 			to avoid confusion regarding data left from prior RunDataQuery()
+    # run_query() Executes a query
+    # 		It calls clear_data() even if no return dat is expected in order
+    # 			to avoid confusion regarding data left from prior run_data_query()
     # 		Returns True if query executes. That just means that the database
     # 			considered it valid SQl, not that it did what you want.
     # 			False means it could not be exeucted.
     #
-    def RunQuery(self, parmQuery, parmParms=()):
-        if parmQuery[-1] != ";":
-            parmQuery += ";"
+    def run_query(self, query_string, parmParms=()):
+        if query_string[-1] != ";":
+            query_string += ";"
         if self._debug > 0:
-            print("Query: " + parmQuery)
-        self.ClearData(Query=parmQuery)
+            print("query: " + query_string)
+        self.clear_data(query=query_string)
         if self.cursor is None:
             self._lastErrorMsg = "RDBMS table cursor closed."
             return False
         try:
-            # print "QQQ", parmQuery
+            # print "QQQ", query_string
             # print "ZZZ", parmParms
             if parmParms is None:
                 # SqLite raises an exception is parms are None or ()
-                self.cursor.execute(parmQuery)
+                self.cursor.execute(query_string)
             else:
-                self.cursor.execute(parmQuery, parmParms)
+                self.cursor.execute(query_string, parmParms)
             if self._debug > 0:
-                print("Query successful")
-            self._lastRequest = parmQuery
-            self._lastQuery = self.db.GetLastQuery(Table=self, Query=parmQuery)
+                print("query successful")
+            self._last_request = query_string
+            self._last_query = self.db.get_last_query(Table=self, query=query_string)
         except:
             if self._debug > 0:
-                PrintError("Query")
+                print_error("query")
             self._lastErrorMsg = "RDBMS query failed:"
             if self.exeController is not None:
                 self.exeController.errs.AddDevCriticalMessage(
-                    "RunQuery() exception for '%s' (%s)." % (parmQuery, repr(parmParms))
+                    "run_query() exception for '%s' (%s)."
+                    % (query_string, repr(parmParms))
                 )
                 self.exeController.errs.AddTraceback()
                 return False
@@ -355,41 +368,42 @@ class RdbmsTable(datastore.DataStoreObject):
         return True
 
     #
-    # RunDataQuery() Executes a query that returns data.
+    # run_data_query() Executes a query that returns data.
     # 			It is execute() and fetchall into _tuples.
     # 		Returns None is the query causes an exception. It returns
     # 		_tuples in the case of successful execution. That will be
     # 		zero length if the query doesn't find data.
     #
-    def RunDataQuery(self, parmQuery, parmParms=None):
-        if not self.RunQuery(parmQuery, parmParms=parmParms):
-            return None  # self._lastErrorMsg set by RunQuery()
-        self.BuildTDictForQueryResult()
-        wsQueryResult = self.cursor.fetchall()
-        if len(wsQueryResult) >= 1:
-            for wsThisRow in wsQueryResult:
+    def run_data_query(self, query_string, parmParms=None):
+        if not self.run_query(query_string, parmParms=parmParms):
+            return None  # self._lastErrorMsg set by run_query()
+        self.build_tdict_for_query_result()
+        query_tableResult = self.cursor.fetchall()
+        if len(query_tableResult) >= 1:
+            for wsThisRow in query_tableResult:
+                print("run_data_query()", wsThisRow)
                 self.AppendData(wsThisRow)
         return self._tuples
 
-    def PrintList(self):
-        wsQuery = "SELECT * FROM " + self.tableName
-        wsAnswer = self.RunDataQuery(wsQuery)
+    def print_list(self):
+        query_table = "SELECT * FROM " + self.table_name
+        wsAnswer = self.run_data_query(query_table)
         if wsAnswer:
             for wsRec in wsAnswer:
                 print("--> " + repr(wsRec) + " <--")
         else:
-            print("Query " + repr(wsQuery) + " failed")
+            print("query " + repr(query_table) + " failed")
 
-    def QueryResultCt(self):
+    def query_result_ct(self):
         return len(self.data)
 
     # RdbmsTable
-    def BuildTDictForTable(self):
-        wsTDict = self.db.BuildTDictForTable(Table=self)
-        self.ClearData()  # clear fields from record buffer
+    def build_tdict_for_table(self):
+        wsTDict = self.db.build_tdict_for_table(Table=self)
+        self.clear_data()  # clear fields from record buffer
         return wsTDict
 
-    def AutoId(self):
+    def auto_id(self):
         # return self.cursor.insert_id()
         return self.cursor.lastrowid
 
@@ -453,19 +467,19 @@ class RdbmsTable(datastore.DataStoreObject):
     # Case Sensitivity: Sqlite NOCASE only considers English letters (ASCII letters) which is good enough
     # for me know, but could be confusing if internationalization ever matters.
     #
-    def CreateTableFromTDict(self, parmTDict, TableName=None):
-        self.tableName = TableName
-        if self.tableName is None:
-            self.tableName = parmTDict._name
-        if self.tableName is None:
+    def create_tableFromTDict(self, parmTDict, table_name=None):
+        self.table_name = table_name
+        if self.table_name is None:
+            self.table_name = parmTDict._name
+        if self.table_name is None:
             # Class names are typically hungarian notation with an app prefix.
             # If not specified, use the module name for the table name
             wsClassName = parmTDict.__class__.__name__
             wsIx = utils.FindFirstUpperCaseLetter(wsClassName)
             if wsIx >= 0:
-                self.tableName = wsClassName[wsIx:]
+                self.table_name = wsClassName[wsIx:]
         wsFieldCt = 0
-        wsQuery = "CREATE TABLE " + self.tableName + " ("
+        query_table = "CREATE TABLE " + self.table_name + " ("
         for wsThisTDictElement in parmTDict.Elements():
             if wsThisTDictElement.roleType in ertypes.Core_VirtualRoleCodes:
                 continue
@@ -474,34 +488,34 @@ class RdbmsTable(datastore.DataStoreObject):
             if wsThisTDictElement.roleType == ertypes.Core_SecondaryParticipantRoleCode:
                 continue
             wsFieldCt += 1
-            wsFieldSpec = self.db.MakeColumnDefFromTDictElement(wsThisTDictElement)
+            wsFieldSpec = self.db.make_column_def_from_tdict_element(wsThisTDictElement)
             if wsFieldCt > 1:
-                wsQuery += ", "
-            wsQuery += wsFieldSpec
-        wsQuery += ")"
-        if self.RunQuery(wsQuery):
-            self.rdbmsTDict = self.BuildTDictForTable()
+                query_table += ", "
+            query_table += wsFieldSpec
+        query_table += ")"
+        if self.run_query(query_table):
+            self.rdbmsTDict = self.build_tdict_for_table()
             return self
         else:
             self.rdbmsTDict = None
             return None
 
     def Drop(self):
-        self.RunQuery("DROP TABLE " + self.tableName)
+        self.run_query("DROP TABLE " + self.table_name)
         return None
 
     def AddField(self, parmTDictElement):
         wsFieldSpec = self.MakeMySqlColumnDefFromTDictElement(parmTDictElement)
-        wsQuery = "alter table %s add column %s" % (self.tableName, wsFieldSpec)
-        return self.RunQuery(wsQuery)
+        query_table = "alter table %s add column %s" % (self.table_name, wsFieldSpec)
+        return self.run_query(query_table)
 
     def Post(self, parmValues):
-        if self.modelTDict is None:
-            self.modelTDict = self.exeController.GetDbTableModel(self.tableName)
-        if self.modelTDict is None:
+        if self.model_tdict is None:
+            self.model_tdict = self.exeController.GetDbTableModel(self.table_name)
+        if self.model_tdict is None:
             self._lastErrorMsg = "Model TDict required for Post()."
             return False
-        if not self.modelTDict.ValidateObject(
+        if not self.model_tdict.ValidateObject(
             parmValues, InstancePhysicalType=ertypes.Core_MapDictTypeCode
         ):
             return False
@@ -517,39 +531,39 @@ class RdbmsTable(datastore.DataStoreObject):
             wsPostAction = "I"
             wsWhere = None
         wsTimestamp = utils.DateToYMDHMS()
-        if self.modelTDict.updateTimestamp is not None:
-            parmValues[self.modelTDict.updateTimestamp._name] = wsTimestamp
+        if self.model_tdict.updateTimestamp is not None:
+            parmValues[self.model_tdict.updateTimestamp._name] = wsTimestamp
         if wsPostAction == "I":
-            if self.modelTDict.createTimestamp is not None:
-                parmValues[self.modelTDict.createTimestamp._name] = wsTimestamp
-            wsResult = self.Insert(parmValues)
-            parmValues[wsUdiFieldName] = self.AutoId()
+            if self.model_tdict.createTimestamp is not None:
+                parmValues[self.model_tdict.createTimestamp._name] = wsTimestamp
+            wsResult = self.insert(parmValues)
+            parmValues[wsUdiFieldName] = self.auto_id()
         else:
-            wsResult = self.Update(parmValues, Where=wsWhere)
+            wsResult = self.update(parmValues, Where=wsWhere)
         return wsResult
 
-    def Insert(self, parmValues, parmFieldList=None):
+    def insert(self, parmValues, parmFieldList=None):
         # This is a relatively thin wrapper around the DBMS insert. It just takes a list of field names
         # names and values, constructs SQL and then lets the database do its thing.
         # Use Post() to add records with full TDict control logic.
-        wsFieldsAndValues = self.GetFieldsAndValues(parmValues, parmFieldList)
+        wsFieldsAndValues = self.get_fields_and_values(parmValues, parmFieldList)
         if not wsFieldsAndValues:
-            return None  # GetFieldsAndValues() sets self._lastErrorMsg
-        (wsFieldsStr, wsValuesStr, wsValueParms) = self.MakeValueAssignments(
+            return None  # get_fields_and_values() sets self._lastErrorMsg
+        (wsFieldsStr, wsValuesStr, wsValueParms) = self.make_value_assignments(
             wsFieldsAndValues
         )
         if wsValuesStr is None:
-            return False  # MakeValueAssignments() sets self._lastErrorMsg
-        wsQuery = (
-            "INSERT INTO {TableName} ({FieldNames}) VALUES ({FieldValues})".format(
-                TableName=self.tableName,
+            return False  # make_value_assignments() sets self._lastErrorMsg
+        query_table = (
+            "INSERT INTO {table_name} ({FieldNames}) VALUES ({FieldValues})".format(
+                table_name=self.table_name,
                 FieldNames=wsFieldsStr,
                 FieldValues=wsValuesStr,
             )
         )
-        return self.RunQuery(wsQuery, wsValueParms)
+        return self.run_query(query_table, wsValueParms)
 
-    def IsOpen(self):
+    def is_open(self):
         if self.rdbmsTDict is None:
             return False
         if len(self.rdbmsTDict) < 0:
@@ -557,19 +571,19 @@ class RdbmsTable(datastore.DataStoreObject):
         return True
 
     # RdbmsTable
-    def MakeValueAssignments(self, parmFieldsAndValues, SetMode=False):
+    def make_value_assignments(self, parmFieldsAndValues, SetMode=False):
         # Make field list, value list and value parameters for insert.
         # This used to make a value string with quoted values, now it sets things up for
         # the python library to quote.
         #
-        if not self.IsOpen():
+        if not self.is_open():
             self._lastErrorMsg = "Table Not Open"
             return (None, None)
         wsFieldsStr = ""
         wsValuesStr = ""
         wsValueParameters = []
 
-        for (wsFieldIx, wsThisValue) in enumerate(parmFieldsAndValues[1]):
+        for wsFieldIx, wsThisValue in enumerate(parmFieldsAndValues[1]):
             # In SetMode, field names and vailue go in one string.
             # Otherwise we create separate fieldn name and values strings
             wsFieldName = parmFieldsAndValues[0][wsFieldIx]
@@ -589,7 +603,7 @@ class RdbmsTable(datastore.DataStoreObject):
                 wsValueParameters.append(wsThisValue)
         return (wsFieldsStr, wsValuesStr, tuple(wsValueParameters))
 
-    def FormatValue(self, parmFieldName, parmValue):
+    def format_value(self, parmFieldName, parmValue):
         return parmValue
         # This formats value per dictionary. May not be needed now that I am letting
         # the library do the quoting. Might still need to take care of some special cases.
@@ -628,9 +642,9 @@ class RdbmsTable(datastore.DataStoreObject):
         return wsThisValue
 
     # RdbmsTable
-    def GetFieldsAndValues(self, parmValues, FieldList=None, OmitUdi=False):
-        # This gets the field name and values parameters of Insert and Update and converts
-        # them to corresponding arrays for use in creating the query in MakeValueAssignments().
+    def get_fields_and_values(self, parmValues, FieldList=None, OmitUdi=False):
+        # This gets the field name and values parameters of insert and Update and converts
+        # them to corresponding arrays for use in creating the query in make_value_assignments().
         #
         if self.rdbmsTDict is None:
             self._lastErrorMsg = "Table not open - no operations allowed."
@@ -643,7 +657,7 @@ class RdbmsTable(datastore.DataStoreObject):
             # It looks like we got a dict or tuple.
             wsValueList = []
             wsFieldList = []
-            for (wsThisKey, wsThisValue) in wsItemList:
+            for wsThisKey, wsThisValue in wsItemList:
                 # Only take valid field names. ignore extraneous fields.
                 #
                 wsElement = self.rdbmsTDict.Element(wsThisKey)
@@ -704,23 +718,23 @@ class RdbmsTable(datastore.DataStoreObject):
                 wsFieldList.append(wsThisFieldSpec._name)
         return (wsFieldList, wsValueList)
 
-    def Delete(self, parmWhere=None):
+    def delete(self, parmWhere=None):
         if not parmWhere:
             self._lastErrorMsg = "Where clause required for Delete funtion."
             return None  # avoid accidental "delete all"
         if parmWhere == WhereAllCode:
             wsWhere = ""
         else:
-            wsWhere = self.Where(parmWhere)
-        wsQuery = "DELETE FROM %s %s" % (self.tableName, wsWhere)
-        return self.RunQuery(wsQuery)
+            wsWhere = self.where(parmWhere)
+        query_table = "DELETE FROM %s %s" % (self.table_name, wsWhere)
+        return self.run_query(query_table)
 
     #
-    # Select() Runs a database SELECT statement.
+    # select() Runs a database SELECT statement.
     # 		Returns True for proper SQL or False for a bad statement.
     # 		Proper SQL may not find data, use table.len() to check if anything was found.
     #
-    def Select(
+    def select(
         self,
         FieldList=None,
         Where=None,
@@ -746,16 +760,16 @@ class RdbmsTable(datastore.DataStoreObject):
                     wsJoinPhrase = "LEFT OUTER JOIN"
                 wsJoinClause += " %s %s ON %s.%s = %s.%s" % (
                     wsJoinPhrase,
-                    wsJoinTable.tableName,
-                    self.tableName,
+                    wsJoinTable.table_name,
+                    self.table_name,
                     wsJoinPrimaryFieldName,
-                    wsJoinTable.tableName,
+                    wsJoinTable.table_name,
                     wsJoinSecondaryFieldName,
                 )
         if FieldList:
             wsFieldNameList = []
             for wsThisFieldName in FieldList:
-                (wsFieldName, wsFieldType) = self.GetFieldNameAndType(
+                (wsFieldName, wsFieldType) = self.get_field_name_and_type(
                     wsThisFieldName, wsJoinTableList, Messages=Messages, debug=debug
                 )
                 if not wsFieldName:
@@ -765,7 +779,7 @@ class RdbmsTable(datastore.DataStoreObject):
             wsFields = commastr.ListToCommaStr(wsFieldNameList)
         else:
             wsFields = "*"
-        (wsWhere, wsWhereParams) = self.Where(
+        (wsWhere, wsWhereParams) = self.where(
             Where, JoinTableList=wsJoinTableList, debug=debug
         )
         #
@@ -780,7 +794,7 @@ class RdbmsTable(datastore.DataStoreObject):
                 else:
                     wsThisOrderFieldName = wsThisOrderFieldSpec
                     wsDescending = False
-                (wsFieldName, wsFieldType) = self.GetFieldNameAndType(
+                (wsFieldName, wsFieldType) = self.get_field_name_and_type(
                     wsThisOrderFieldName,
                     wsJoinTableList,
                     Messages=Messages,
@@ -798,7 +812,7 @@ class RdbmsTable(datastore.DataStoreObject):
         if parmGroup:
             wsGroupFieldNameList = []
             for wsThisGroupFieldName in parmGroup:
-                (wsFieldName, wsFieldType) = self.GetFieldNameAndType(
+                (wsFieldName, wsFieldType) = self.get_field_name_and_type(
                     wsThisGroupFieldName,
                     wsJoinTableList,
                     Messages=Messages,
@@ -813,28 +827,28 @@ class RdbmsTable(datastore.DataStoreObject):
         else:
             wsLimitClause = " LIMIT " + utils.Str(Limit)
 
-        wsQuery = "SELECT {FieldNames} FROM {TableName}{JoinClause}{WhereClause}{GroupClause}{OrderClause}{LimitClause}".format(
+        query_table = "SELECT {FieldNames} FROM {table_name}{JoinClause}{WhereClause}{GroupClause}{OrderClause}{LimitClause}".format(
             FieldNames=wsFields,
-            TableName=self.tableName,
+            table_name=self.table_name,
             JoinClause=wsJoinClause,
             WhereClause=wsWhere,
             GroupClause=wsGroupClause,
             OrderClause=wsOrderClause,
             LimitClause=wsLimitClause,
         )
-        wsResult = self.RunDataQuery(wsQuery, wsWhereParams)
+        wsResult = self.run_data_query(query_table, wsWhereParams)
         if wsResult is None:
-            return False  # self._lastErrorMsg set by RunDataQuery()
+            return False  # self._lastErrorMsg set by run_data_query()
         return True
 
-    def SelectKeyList(self, parmFieldName, Where=None, Order=None, Limit=None):
+    def select_key_list(self, parmFieldName, Where=None, Order=None, Limit=None):
         wsList = []
-        self.Select([parmFieldName], Where=Where, Order=Order, Limit=Limit)
+        self.select([parmFieldName], Where=Where, Order=Order, Limit=Limit)
         for wsThisRecord in self:
             wsList.append(wsThisRecord[parmFieldName])
         return wsList
 
-    def Update(self, parmValues, FieldList=None, Where=None):
+    def update(self, parmValues, FieldList=None, Where=None):
         if Where is None:
             if self.rdbmsTDict.udi is not None:
                 wsUdiFieldName = self.rdbmsTDict.udi._name
@@ -848,35 +862,39 @@ class RdbmsTable(datastore.DataStoreObject):
             wsWhere = ""
             wsWhereParams = tuple()
         else:
-            (wsWhere, wsWhereParams) = self.Where(Where)
-        wsFieldsAndValues = self.GetFieldsAndValues(parmValues, FieldList, OmitUdi=True)
+            (wsWhere, wsWhereParams) = self.where(Where)
+        wsFieldsAndValues = self.get_fields_and_values(
+            parmValues, FieldList, OmitUdi=True
+        )
         if wsFieldsAndValues is None:
-            return None  # GetFieldsAndValues() sets self._lastErrorMsg
-        (wsNotUsed, wsAssignmentsStr, wsValueParms) = self.MakeValueAssignments(
+            return None  # get_fields_and_values() sets self._lastErrorMsg
+        (wsNotUsed, wsAssignmentsStr, wsValueParms) = self.make_value_assignments(
             wsFieldsAndValues, SetMode=True
         )
         if wsAssignmentsStr is None:
-            return None  # MakeValueAssignments() sets self._lastErrorMsg
+            return None  # make_value_assignments() sets self._lastErrorMsg
 
-        wsQuery = "UPDATE {TableName} SET {ValueAssignments}{WhereClause}".format(
-            TableName=self.tableName,
+        query_table = "UPDATE {table_name} SET {ValueAssignments}{WhereClause}".format(
+            table_name=self.table_name,
             ValueAssignments=wsAssignmentsStr,
             WhereClause=wsWhere,
         )
-        wsResult = self.RunQuery(wsQuery, wsValueParms + wsWhereParams)
+        wsResult = self.run_query(query_table, wsValueParms + wsWhereParams)
         return wsResult
 
-    def UpdateCommonFields(self, parmSource, Where, Prefix=""):
+    def update_common_fields(self, parmSource, Where, Prefix=""):
         if not Where:
-            self._lastErrorMsg = "Where clause required for UpdateCommonFields funtion."
+            self._lastErrorMsg = (
+                "Where clause required for update_common_fields funtion."
+            )
             return None  # avoid accidental "change all"
         if Where == WhereAllCode:
             wsWhere = ""
         else:
-            wsWhere = self.Where(Where)
+            wsWhere = self.where(Where)
         wsFieldNameList = []
         wsFieldValueList = []
-        for (wsFieldName, wsFieldValue) in list(parmSource.items()):
+        for wsFieldName, wsFieldValue in list(parmSource.items()):
             wsLocalFieldName = Prefix + wsFieldName
             if wsLocalFieldName in self.rdbmsTDict.elements:
                 wsFieldNameList.append(wsLocalFieldName)
@@ -885,40 +903,46 @@ class RdbmsTable(datastore.DataStoreObject):
                 wsFieldValueList.append(wsFieldValue)
         if len(wsFieldNameList) < 0:
             self._lastErrorMsg = (
-                "No common fields found for UpdateCommonFields funtion."
+                "No common fields found for update_common_fields funtion."
             )
             return None
-        wsFieldsAndValues = self.GetFieldsAndValues(wsFieldValueList, wsFieldNameList)
+        wsFieldsAndValues = self.get_fields_and_values(
+            wsFieldValueList, wsFieldNameList
+        )
         if not wsFieldsAndValues:
-            return None  # GetFieldsAndValues() sets self._lastErrorMsg
-        wsValueAssignments = self.MakeValueAssignments(wsFieldsAndValues)
+            return None  # get_fields_and_values() sets self._lastErrorMsg
+        wsValueAssignments = self.make_value_assignments(wsFieldsAndValues)
         if not wsValueAssignments:
-            return None  # MakeValueAssignments() sets self._lastErrorMsg
+            return None  # make_value_assignments() sets self._lastErrorMsg
 
-        wsQuery = "UPDATE %s SET %s %s" % (self.tableName, wsValueAssignments, wsWhere)
-        wsResult = self.RunQuery(wsQuery)
+        query_table = "UPDATE %s SET %s %s" % (
+            self.table_name,
+            wsValueAssignments,
+            wsWhere,
+        )
+        wsResult = self.run_query(query_table)
         return wsResult
 
-    def GetFieldNameAction(self, parmFieldName):
+    def get_field_name_action(self, parmFieldName):
         if parmFieldName[0] == "+":
             return ("sum", parmFieldName[1:])
         else:
             return ("", parmFieldName)
 
     #
-    # GetFieldNameAndType()
+    # get_field_name_and_type()
     #
-    def GetFieldNameAndType(
+    def get_field_name_and_type(
         self, parmFieldName, JoinTableList=[], Messages=None, debug=0
     ):
         wsExpandedFieldName = ""
         wsFieldType = ""
         if isinstance(parmFieldName, type([])):
             if len(parmFieldName) == 3:
-                wsFieldInfo1 = self.GetOneFieldNameTypeAndAction(
+                wsFieldInfo1 = self.get_field_name_type_and_action(
                     parmFieldName[0], JoinTableList, Messages, debug=0
                 )
-                wsFieldInfo2 = self.GetOneFieldNameTypeAndAction(
+                wsFieldInfo2 = self.get_field_name_type_and_action(
                     parmFieldName[2], JoinTableList, Messages, debug=0
                 )
                 wsOperator = parmFieldName[1]
@@ -945,18 +969,18 @@ class RdbmsTable(datastore.DataStoreObject):
                 wsExpandedFieldName,
                 wsFieldType,
                 wsActionRefname,
-            ) = self.GetOneFieldNameTypeAndAction(
+            ) = self.get_field_name_type_and_action(
                 parmFieldName, JoinTableList, Messages, debug=0
             )
         if wsActionRefname:
             wsExpandedFieldName = "%s(%s)" % (wsActionRefname, wsExpandedFieldName)
         return (wsExpandedFieldName, wsFieldType)
 
-    def GetOneFieldNameTypeAndAction(
+    def get_field_name_type_and_action(
         self, parmFieldName, JoinTableList=[], Messages=None, debug=0
     ):
         # Creates FQN of field (table.field)
-        wsTableName = ""
+        table_name = ""
         wsFieldName = ""
         wsFieldType = ""
         wsFieldSpec = None
@@ -964,35 +988,37 @@ class RdbmsTable(datastore.DataStoreObject):
         if isinstance(parmFieldName, type(())):
             # parmFieldName is (tableobject, fieldnamestring)
             wsFieldTable = parmFieldName[0]
-            wsTableName = wsFieldTable.tableName
-            (wsActionRefname, wsFieldName) = self.GetFieldNameAction(parmFieldName[1])
+            table_name = wsFieldTable.table_name
+            (wsActionRefname, wsFieldName) = self.get_field_name_action(
+                parmFieldName[1]
+            )
             if debug > 0:
                 print(
                     "Get Field %s.%s from '%s'"
-                    % (wsTableName, wsFieldName, repr(parmFieldName))
+                    % (table_name, wsFieldName, repr(parmFieldName))
                 )
             wsFieldSpec = wsFieldTable.rdbmsTDict[wsFieldName]
         else:
-            (wsActionRefname, wsFieldName) = self.GetFieldNameAction(parmFieldName)
+            (wsActionRefname, wsFieldName) = self.get_field_name_action(parmFieldName)
             if wsFieldName in self.rdbmsTDict.elements:
-                wsTableName = self.tableName
+                table_name = self.table_name
                 wsFieldSpec = self.rdbmsTDict.elements[wsFieldName]
             else:
-                for wsThisTable in JoinTableList:
-                    if wsFieldName in wsThisTable.rdbmsTDict.elements:
-                        wsTableName = wsThisTable.tableName
-                        wsFieldSpec = wsThisTable.rdbmsTDict.elements[wsFieldName]
-        wsExpandedFieldName = "%s.%s" % (wsTableName, wsFieldName)
+                for this_table in JoinTableList:
+                    if wsFieldName in this_table.rdbmsTDict.elements:
+                        table_name = this_table.table_name
+                        wsFieldSpec = this_table.rdbmsTDict.elements[wsFieldName]
+        wsExpandedFieldName = "%s.%s" % (table_name, wsFieldName)
 
         if wsFieldSpec:
             return (wsExpandedFieldName, wsFieldSpec.physicalType, wsActionRefname)
         else:
-            self._lastErrorMsg = "Invalid field %s.%s" % (wsTableName, wsFieldName)
+            self._lastErrorMsg = "Invalid field %s.%s" % (table_name, wsFieldName)
             if Messages:
                 Messages.AddUserCriticalMessage(self._lastErrorMsg)
             return (None, None, None)
 
-    def Where(self, parmWhereList, JoinTableList=[], debug=0):
+    def where(self, parmWhereList, JoinTableList=[], debug=0):
         wsWhere = ""
         wsWhereParams = []
         if not parmWhereList:
@@ -1007,7 +1033,7 @@ class RdbmsTable(datastore.DataStoreObject):
             if len(wsWhereSpec) < 3:
                 return (None, None)
             wsWhereData = wsWhereSpec[2]
-            (wsFieldName, wsFieldType) = self.GetFieldNameAndType(
+            (wsFieldName, wsFieldType) = self.get_field_name_and_type(
                 wsWhereSpec[0], JoinTableList, debug=0
             )
             if wsWhere:
@@ -1032,39 +1058,39 @@ class RdbmsTable(datastore.DataStoreObject):
         return (wsWhere, tuple(wsWhereParams))
 
     #
-    # Lookup creates and executes a query that is expected to
+    # lookup creates and executes a query that is expected to
     # return exactly one record.  It is most often used to verify
     # referential integrity or for code translation.
     #
-    def Lookup(self, parmFld, parmValue, FieldList=None):
-        wsResult = self.Select(FieldList=FieldList, Where=[(parmFld, "=", parmValue)])
+    def lookup(self, parmFld, parmValue, FieldList=None):
+        wsResult = self.select(FieldList=FieldList, Where=[(parmFld, "=", parmValue)])
         if not wsResult:
             return False
         if len(self._tuples) != 1:
             return False
         return True
 
-    def LookupTuple(self, parmFld, parmValue, FieldList=None):
-        if self.Lookup(parmFld, parmValue, FieldList=FieldList):
+    def lookup_tuple(self, parmFld, parmValue, FieldList=None):
+        if self.lookup(parmFld, parmValue, FieldList=FieldList):
             wsTuple = datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
-            for (wsKey, wsValue) in list(self._tuples[0].items()):
+            for wsKey, wsValue in list(self._tuples[0].items()):
                 wsTuple[wsKey] = wsValue
             return wsTuple
         else:
             return None
 
-    def Lookup2(self, Where=None, FieldList=None):
-        wsResult = self.Select(FieldList=FieldList, Where=Where)
+    def lookup2(self, Where=None, FieldList=None):
+        wsResult = self.select(FieldList=FieldList, Where=Where)
         if not wsResult:
             return False
         if len(self._tuples) != 1:
             return False
         return True
 
-    def Lookup2Tuple(self, Where=None, FieldList=None):
-        if self.Lookup2(Where=Where, FieldList=FieldList):
+    def lookup2_tuple(self, Where=None, FieldList=None):
+        if self.lookup2(Where=Where, FieldList=FieldList):
             wsTuple = datastore.TupleObject(IsCaseSensitive=self._isCaseSensitive)
-            for (wsKey, wsValue) in list(self._tuples[0].items()):
+            for wsKey, wsValue in list(self._tuples[0].items()):
                 wsTuple[wsKey] = wsValue
             return wsTuple
         else:
@@ -1072,12 +1098,12 @@ class RdbmsTable(datastore.DataStoreObject):
 
 
 #
-# RdbmsConnector() is the  database object.
+# Rdbmsconnector() is the  database object.
 #
 #
 
 
-class RdbmsConnector(object):
+class Rdbmsconnector(object):
     __slots__ = (
         "exeController",
         "db",
@@ -1091,6 +1117,7 @@ class RdbmsConnector(object):
         "paramcode",
         "paramstyle",
         "password",
+        "table_name_query",
         "debug",
     )
 
@@ -1118,31 +1145,38 @@ class RdbmsConnector(object):
         self.paramstyle = None
         self.paramcode = None
         self.refname = Refname
+        self.table_name_query = None
         self.debug = Debug
-        self.OpenDb()
 
-    def BuildTableListSql(self, parmQuery):
-        wsQuery = RdbmsTable(Db=self)
-        wsTables = wsQuery.RunDataQuery(parmQuery)
+    def build_table_list(self):
+        query_table = RdbmsTable(Db=self)
+        table_result = query_table.run_data_query(self.table_name_query)
         if self.debug > 0:
-            print(("Tables: " + repr(wsTables)))
-        if wsTables is not None:
+            print(("Tables: " + repr(table_result)))
+        if table_result is not None:
             if self.debug > 0:
                 print("create self.tables")
-            for wsThisTable in wsTables:
-                wsTableName = wsThisTable._GetByIx(0)  # ['Name']
-                self.tables[wsTableName] = None
+            for this_table in table_result:
+                # 5/31/23 - I don't remember why I used _GetByIx(0)
+                # instead of indexing by name. Maybe because of a MySQL quirk.
+                # Or some issue resolved by Python ion the last decade.
+                # Today I just want to make sqlite work under modern Python.ß
+                # table_name = this_table._GetByIx(0)  # ['Name']
+                table_name = this_table["Name"]
+                self.tables[table_name] = None
         else:
             # No table names found. Either a new database or an error
             self.db = None  # disconnect since something is wrong
             if self.debug > 0:
-                print(wsQuery._lastQuery)
-                print(wsQuery._lastErrorMsg)
-                PrintError("Unable to get table list")
+                print(query_table._last_query)
+                print(query_table._lastErrorMsg)
+                print_error("Unable to get table list")
             return False
         return True
 
-    def Connect(self, Host=None, Db=None, User=None, Passwordd=None, Path=None):
+    def configure_connection_parameters(
+        self, Host=None, Db=None, User=None, Password=None, Path=None
+    ):
         if Host is not None:
             self.hostName = Host
         if Db is not None:
@@ -1153,24 +1187,17 @@ class RdbmsConnector(object):
             self.password = Password
         if Path is not None:
             self.db_path = Path
-        return self.OpenDb()
 
-    def OpenDb(self):
+    def connect(self, **kwargs):
+        self.configure_connection_parameters(**kwargs)
         self.tables = {}  # clear since we are reconnecting
         if self.debug > 0:
             print(
-                (
-                    "Connect(%s, %s, %s, %s)"
-                    % (
-                        repr(self.hostName),
-                        repr(self.dbName),
-                        repr(self.userName),
-                        repr(self.password),
-                    )
-                )
+                f"connect({self.hostName}, {self.dbName}, {self.userName}, {self.password})"
             )
         try:
-            self.DoConnect()
+            # do_connect() calls the DBMS specific connect() and sets DBMS specific properties
+            self.do_connect()
         except:
             self.db = None
             if self.exeController is not None:
@@ -1179,12 +1206,13 @@ class RdbmsConnector(object):
                 raise
 
         if self.db is None:
+            # I'm not sure we ever get here. Normally a failure is an exception above
             if self.debug > 0:
-                PrintError("Connect")
+                print_error("connect failed")
             return False
 
         if self.debug > 0:
-            print("Connect successful")
+            print("connect successful")
 
         if self.paramstyle == ParamStyleFormat:
             self.paramcode = "%s"
@@ -1192,69 +1220,68 @@ class RdbmsConnector(object):
             self.paramcode = "?"
         else:
             raise Exception(
-                "Undefined paramstyle '%s' for database %s."
-                % (self.paramstyle, self.dbName)
+                f"Undefined paramstyle '{self.paramstyle}' for database {self.dbName}."
             )
+        self.build_table_list()
+        return True
 
-        self.BuildTableList()
-
-    def CloseDb(self):
+    def close_db(self):
         self.db.close()
         self.db = None
 
-    def CreateTable(self, TDict=None, TableName=None, Debug=0):
-        wsTable = RdbmsTable(Db=self, Debug=Debug)
-        wsResult = wsTable.CreateTableFromTDict(TDict, TableName=TableName)
-        return wsTable  # return table to inspect errors or use
+    def create_table(self, TDict=None, table_name=None, Debug=0):
+        this_table = RdbmsTable(Db=self, Debug=Debug)
+        wsResult = this_table.create_tableFromTDict(TDict, table_name=table_name)
+        return this_table  # return table to inspect errors or use
 
-    def DropTable(self, parmTableName):
-        wsTable = self.OpenTable(parmTableName)
-        wsTable.Drop()
-        del self.tables[parmTableName]
+    def drop_table(self, table_name):
+        this_table = self.open_table(table_name)
+        this_table.Drop()
+        del self.tables[table_name]
 
-    def IsOpen(self):
+    def is_open(self):
         if self.db is None:
             return False
         else:
             return True
 
-    def OpenTable(self, parmTableName, ModelTDict=None, Debug=0):
+    def open_table(self, table_name, model_tdict=None, Debug=0):
         if not self.db:
             return None
-        if parmTableName not in self.tables:
+        if table_name not in self.tables:
             if self.debug > 0:
-                print(("Table not in database: " + parmTableName))
+                print(("Table not in database: " + table_name))
             return None
-        if self.tables[parmTableName] is None:
-            wsTable = RdbmsTable(
-                TableName=parmTableName, Db=self, ModelTDict=ModelTDict, Debug=Debug
+        if self.tables[table_name] is None:
+            this_table = RdbmsTable(
+                table_name=table_name, Db=self, model_tdict=model_tdict, Debug=Debug
             )
             if self.debug > 0:
-                print(("Table opened: " + parmTableName))
-            wsTable._debug = self.debug
-            self.tables[parmTableName] = wsTable
-            return wsTable
+                print(("Table opened: " + table_name))
+            this_table._debug = self.debug
+            self.tables[table_name] = this_table
+            return this_table
         else:
             if self.debug > 0:
-                print(("Table already opened: " + parmTableName))
-            return self.tables[parmTableName]
+                print(("Table already opened: " + table_name))
+            return self.tables[table_name]
 
-    def Query(self, parmSql):
+    def query(self, parmSql):
         if self.db:
-            wsQuery = RdbmsTable(Db=self)
-            wsQuery.RunDataQuery(parmSql)
+            query_table = RdbmsTable(Db=self)
+            query_table.run_data_query(parmSql)
         else:
-            wsQuery = None  # Connect() failed or not called
-        return wsQuery
+            query_table = None  # connect() failed or not called
+        return query_table
 
 
-class RdbmsMySql(RdbmsConnector):
+class RdbmsMySql(Rdbmsconnector):
     def __init__(self, *args, **kwargs):
         kwargs["DbType"] = DbTypeMySql
         super(RdbmsMySql, self).__init__(*args, **kwargs)
 
-    def DoConnect(self):
-        self.db = MySQLdb.Connect(
+    def do_connect(self):
+        self.db = MySQLdb.connect(
             host=self.hostName,
             db=self.dbName,
             user=self.userName,
@@ -1263,14 +1290,12 @@ class RdbmsMySql(RdbmsConnector):
             charset="utf8",
         )
         self.paramstyle = MySQLdb.paramstyle
+        self.table_name_query = "SHOW TABLES"
 
-    def BuildTableList(self):
-        return self.BuildTableListSql("SHOW TABLES")
-
-    def GetLastQuery(self, Table, Query):
+    def get_last_query(self, Table, query):
         return Table.cursor._last_executed
 
-    def TranslateFieldType(self, Fld=None, Table=None):
+    def translate_field_type(self, Fld=None, Table=None):
         wsMySqlFieldTypeNumber = Fld[1]
         wsElementPhysicalType = None
         for wsThisMySqlType in MySqlFieldTypes:
@@ -1281,22 +1306,22 @@ class RdbmsMySql(RdbmsConnector):
             if self.exeController is not None:
                 self.exeController.errs.AddUserCriticalMessage(
                     "Unexpected MySql field type '%s' for %s.%s."
-                    % (wsMySqlFieldTypeNumber, Table.tableName, Fld[0])
+                    % (wsMySqlFieldTypeNumber, Table.table_name, Fld[0])
                 )
         return wsElementPhysicalType
 
-    def BuildTDictForTable(self, Table):
+    def build_tdict_for_table(self, Table):
         # with show full fields:  Field | Type | Collation | Null | Key | Default | Extra | Privileges | Comment |
-        wsQuery = "SHOW FULL FIELDS FROM " + Table.tableName
-        wsShowFields = Table.RunDataQuery(wsQuery)
-        if wsShowFields is None:
+        query_table = "SHOW FULL FIELDS FROM " + Table.table_name
+        fields_query_result = Table.run_data_query(query_table)
+        if fields_query_result is None:
             return None  # no fields, table not created yet ?
 
         wsTDict = tupledict.TupleDict(
-            Name=Table.tableName, ExeController=self.exeController
+            Name=Table.table_name, ExeController=self.exeController
         )
-        wsTableUdiFound = False
-        for wsThisFieldSpec in wsShowFields:
+        this_tableUdiFound = False
+        for wsThisFieldSpec in fields_query_result:
             # print "FFF", wsThisFieldSpec
             wsElementName = wsThisFieldSpec["Field"]
             wsMySqlMaxLength = None
@@ -1344,11 +1369,11 @@ class RdbmsMySql(RdbmsConnector):
             else:
                 wsElement.isBlankAllowed = False
             if wsElement.dbmsKey == "PRI":
-                if wsTableUdiFound:
+                if this_tableUdiFound:
                     self.exeController.errs.AddUserCriticalMessage(
-                        "Duplicate UDI %s in %s." % (wsElement.name, wsTableName)
+                        "Duplicate UDI %s in %s." % (wsElement.name, table_name)
                     )
-                wsTableUdiFound = True
+                this_tableUdiFound = True
                 wsElement.isIndex = True
                 wsElement.ConfigureAsUdiRole()
             elif wsElement.dbmsKey == "UNI":
@@ -1359,12 +1384,12 @@ class RdbmsMySql(RdbmsConnector):
             elif wsElement.dbmsKey != "":
                 self.exeController.errs.AddUserCriticalMessage(
                     "Unexpected key type %s for %s in %s."
-                    % (wsMySqlSchemaKeyType, wsElement.name, wsTableName)
+                    % (wsMySqlSchemaKeyType, wsElement.name, table_name)
                 )
         return wsTDict
 
     # RdbmsMySql
-    def MakeColumnDefFromTDictElement(self, parmTDictElement):
+    def make_column_def_from_tdict_element(self, parmTDictElement):
         if parmTDictElement.physicalType == ertypes.Core_IntegerTypeCode:
             wsColumnType = "int"
         else:
@@ -1401,40 +1426,35 @@ class RdbmsMySql(RdbmsConnector):
 #
 # RdbmsSqLite
 #
-class RdbmsSqLite(RdbmsConnector):
+class RdbmsSqLite(Rdbmsconnector):
     def __init__(self, **kwargs):
-        super(RdbmsSqLite, self).__init__(DbType=DbTypeSqLite, **kwargs)
+        super().__init__(DbType=DbTypeSqLite, **kwargs)
 
-    def DoConnect(self):
+    def do_connect(self):
         self.db = sqlite3.connect(self.db_path)
-        self.db.text_factory = sqlite3.OptimizedUnicode
+        # self.db.text_factory = sqlite3.OptimizedUnicode
         self.paramstyle = sqlite3.paramstyle
+        self.table_name_query = "select name from sqlite_schema where type = 'table';"
 
-    def BuildTableList(self):
-        self.db.text_factory = sqlite3.OptimizedUnicode
-        return self.BuildTableListSql(
-            "select name from sqlite_master where type = 'table';"
-        )
+    def get_last_query(self, Table, query):
+        return query
 
-    def GetLastQuery(self, Table, Query):
-        return Query
-
-    def TranslateFieldType(self, Fld=None, Table=None):
+    def translate_field_type(self, Fld=None, Table=None):
         # SqLite seems to provide None for everything in parmFld but name. Probably because its weakly typed so
         # you have to be ready to deal with any kind of data.
         return ertypes.Core_StringTypeCode
 
-    def BuildTDictForTable(self, Table):
-        wsQuery = "PRAGMA table_info(%s);" % (Table.tableName)
-        wsShowFields = Table.RunDataQuery(wsQuery)
-        if wsShowFields is None:
+    def build_tdict_for_table(self, Table):
+        query_table = f"PRAGMA table_info({Table.table_name});"
+        fields_query_result = Table.run_data_query(query_table)
+        if fields_query_result is None:
             return None  # no fields, table not created yet ?
 
         wsTDict = tupledict.TupleDict(
-            Name=Table.tableName, ExeController=self.exeController
+            Name=Table.table_name, ExeController=self.exeController
         )
-        wsTableUdiFound = False
-        for wsThisFieldSpec in wsShowFields:
+        this_tableUdiFound = False
+        for wsThisFieldSpec in fields_query_result:
             # SqLite seems to leave the case of field type as entered so you can't count on them
             # being upper case, lower case or even consistent.
             # Need to get case sensitivity and character set. All SqLite fields are utf8.
@@ -1472,7 +1492,7 @@ class RdbmsSqLite(RdbmsConnector):
         return wsTDict
 
     # RdbmsSqLite
-    def MakeColumnDefFromTDictElement(self, parmTDictElement):
+    def make_column_def_from_tdict_element(self, parmTDictElement):
         if parmTDictElement.physicalType == ertypes.Core_IntegerTypeCode:
             wsColumnType = "INTEGER"
         else:
@@ -1494,7 +1514,7 @@ class RdbmsSqLite(RdbmsConnector):
         return wsColumnDef
 
 
-class RdbmsFiles(RdbmsConnector):
+class RdbmsFiles(Rdbmsconnector):
     """
     RdbmsFiles is a Rdbms database where the tables are
     filesystem directories and the data is stored in one or more individual
@@ -1511,16 +1531,11 @@ class RdbmsFiles(RdbmsConnector):
         self.multiTable = kwargs.pop("MultiTable", False)
         super(RdbmsFiles, self).__init__(DbType=DbTypeFiles, **kwargs)
 
-    def DoConnect(self):
+    def do_connect(self):
         self.db = self
         self.paramstyle = ParamStyleFormat
-
-    def BuildTableList(self):
-        if self.multiTable:
-            # Not implemented. This is a do-nothing action
-            return []
-        else:
-            return [os.path.basename(self.db_path)]
+        self.table_name_query = None  # needs to be implemented
+        # this could be how to implement the table query -->> [os.path.basename(self.db_path)]
 
 
 def BasicTest(parmArgs):
@@ -1534,13 +1549,13 @@ def BasicTest(parmArgs):
     )
     wsCmd = parmArgs.data["c"]
     if wsCmd == "d":
-        wsDb.DropTable(parmArgs.data["t"])
-    # wsTable = wsDb.CreateTable("junk", ["id char(5)", "name char(30)"])
-    # wsTable.Insert(["1", "Joe"])
-    # wsTable.Insert(["2", "Fred"])
+        wsDb.drop_table(parmArgs.data["t"])
+    # this_table = wsDb.create_table("junk", ["id char(5)", "name char(30)"])
+    # this_table.insert(["1", "Joe"])
+    # this_table.insert(["2", "Fred"])
     elif wsCmd == "l":
-        wsTable = wsDb.OpenTable(parmArgs.data["t"])
-        wsTable.PrintList()
+        this_table = wsDb.open_table(parmArgs.data["t"])
+        this_table.print_list()
     else:
         print("Unknown test command '" + repr(wsCmd) + "'")
 
@@ -1580,15 +1595,15 @@ def LoadTables(parmCmdArgs):
         if (not wsDb) or (not wsDb.db):
             print("Unable to open database -- nothing loaded")
             sys.exit(-1)
-        wsTable = wsDb.OpenTable(parmCmdArgs.data["t"], debug=wsDebug)
-        if not wsTable:
+        this_table = wsDb.open_table(parmCmdArgs.data["t"], debug=wsDebug)
+        if not this_table:
             print("Unable to open database table -- nothing loaded")
             sys.exit(-1)
     else:
         # expect database info in file
         wsSource.recCodeFlag = True
         wsDb = None
-        wsTable = None
+        this_table = None
         wsFieldList = None
         wsFieldListLen = 0
 
@@ -1605,7 +1620,7 @@ def LoadTables(parmCmdArgs):
             wsDb = Rdbms(wsRec[0], wsRec[1], wsRec[2], wsRec[3])
         elif wsSource.recCode == "C":  # table specs to create
             print("Create Table")
-            if not wsTable:
+            if not this_table:
                 print(
                     "Table creation record type '"
                     + wsSource.recCode
@@ -1614,11 +1629,11 @@ def LoadTables(parmCmdArgs):
                     + " found before T record"
                 )
                 sys.exit(1)
-            wsTable.Drop()
-            if not wsTable.Create(wsRec):
+            this_table.Drop()
+            if not this_table.Create(wsRec):
                 print(
                     "Table creation error for '"
-                    + wsTable.tableName
+                    + this_table.table_name
                     + "' at line "
                     + repr(wsSource.recno)
                 )
@@ -1626,7 +1641,7 @@ def LoadTables(parmCmdArgs):
         elif wsSource.recCode == "T":  # table to open
             print("Opening Table '%s'" % (wsRec[0]))
             if not wsDb:
-                wsTable = None
+                this_table = None
                 print(
                     "Table processing record type '"
                     + wsSource.recCode
@@ -1635,7 +1650,7 @@ def LoadTables(parmCmdArgs):
                     + " found before L record"
                 )
                 sys.exit(1)
-            wsTable = wsDb.OpenTable(wsRec[0])
+            this_table = wsDb.open_table(wsRec[0])
             wsFieldList = None
             wsFieldListLen = 0
         elif wsSource.recCode == "F":  # field order for Ds
@@ -1645,10 +1660,10 @@ def LoadTables(parmCmdArgs):
         elif wsSource.recCode == "D":  # data to insert
             print("Data Record")
             wsRec = utils.ListStripTrailingBlanks(wsRec, wsFieldListLen)
-            if not wsTable.Insert(wsRec, wsFieldList):
+            if not this_table.insert(wsRec, wsFieldList):
                 print(
                     "Table insert error for '"
-                    + wsTable.tableName
+                    + this_table.table_name
                     + "' at line "
                     + repr(wsSource.recno)
                 )

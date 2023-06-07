@@ -6,6 +6,7 @@ __pycache__
 *.pyc
 *.bak
 *.venv
+*.code-workspace
 examples/temp/*
 examples/cncore
 xsynth.db

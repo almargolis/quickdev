@@ -60,7 +60,13 @@ from qdbase import cliinput
 from qdbase import exenv
 from qdbase import pdict
 
-from qdcore import qdsite
+try:
+    from qdcore import qdsite
+except ModuleNotFoundError:
+    # We should only get here if we are developing QuickDev and we don't
+    # have the environment setup.
+    sys.path.append(QDDEV_PATH)
+    from qdcore import qdsite
 
 # pylint: enable=wrong-import-position
 
@@ -82,6 +88,7 @@ class QdStart:
         Call self.write_site_ini() frequently so we have saved
         any captured data before bailing after a subsequent test.
         """
+        print(f"QDStart: python_version='{python_version}'")
         self.err_ct = 0
         self.debug = debug
         self.force = force
@@ -134,6 +141,7 @@ class QdStart:
         if not os.path.isdir(venv_dpath):
             if cliinput.cli_input_yn(f"Create VENV '{venv_dpath}'?"):
                 cmd = [python_version, "-m", "venv", venv_dpath]
+                print("Running", cmd)
                 res = subprocess.run(cmd, check=False)
                 if res.returncode == 0:
                     self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
@@ -195,7 +203,7 @@ class QdStart:
 def start_site(qdsite_dpath, quiet):
     """CLI command to start a site."""
     print("START")
-    QdStart(qdsite_dpath, quiet)
+    QdStart(qdsite_dpath=qdsite_dpath, quiet=quiet)
 
 
 def edit_conf(qdsite_dpath):
