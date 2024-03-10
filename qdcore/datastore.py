@@ -263,7 +263,7 @@ def Select(DataStore, ExeController=None, Fields=None, Where=None, Debug=0):
 #
 
 
-class DataTreeBranch(object):
+class DataTreeBranch():
     __slots__ = ('exeController', '_debug',
                                   '_defaultValue',
                                   '_defaultValueAssigned',

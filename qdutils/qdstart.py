@@ -207,7 +207,7 @@ def start_site(qdsite_dpath, quiet):
 
 
 def edit_conf(qdsite_dpath):
-    """CLI command to edit hte main site conf file."""
+    """CLI command to edit the main site conf file."""
     tdict = pdict.TupleDict()
     tdict.add_column(pdict.Text("acronym"))
     tdict.add_column(pdict.Text("guid", is_read_only=True))

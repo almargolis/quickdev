@@ -4,10 +4,10 @@ XSynth is a preprocessor for that adds data modeling and
 structured programming features without interfering with the
 fundamentals of the source language.
 
-XSynth was developed for EzDev but has both a stand-alone and
-EzDev mode. In stand-alone mode it has minimal EzDev dependencies,
+XSynth was developed for QuickDev but has both a stand-alone and
+QuickDev mode. In stand-alone mode it has minimal QuickDev dependencies,
 it just processes the files in a directory. This means that almost all
-EzDev modules but XSynth can use XSynth features.
+QuickDev modules but XSynth can use XSynth features.
 
 """
 
@@ -16,7 +16,7 @@ import os
 from qdbase import qdsqlite
 from qdbase import cliargs
 from qdbase import exenv
-from . import xsource
+from qdbase import xsource
 
 try:
     from qdcore import qdsite
@@ -42,7 +42,7 @@ IGNORE_DIRECTORY_EXTENSIONS = ["venv"]
 """
 The first import from qdcore has exception processing in
 case qdcore is not yet in the python package search path.
-This is a bootstrap issue initializing an EZDev application
+This is a bootstrap issue initializing an QuickDev application
 before the virtual environment has been fully configured.
 
 The first few imports are for required capabilities but
@@ -146,13 +146,16 @@ class XSynth:  # pylint: disable=too-many-instance-attributes
             self.synthesis_db_path, db_reset=db_reset, debug=db_debug
         )
         #
-        # Handle CLI directory / file list
+        # Build directory list from command line and conf
         #
-        # if self.no_site:
-        if sources is None:
-            self.sources = [os.getcwd()]
+        if self.site:
+            self.sources = self.site.get_source_directories()
         else:
-            self.sources = sources
+            self.sources = []
+        if sources is not None:
+            self.sources += sources
+        if len(self.sources) < 1:
+            self.sources = [os.getcwd()]
         self.source_dirs = []
         self.source_files = []
         for this in self.sources:
@@ -184,6 +187,8 @@ class XSynth:  # pylint: disable=too-many-instance-attributes
                 where={"module_type": xsource.MODULE_TYPE_SYNTH},
             )
         self.process_xpy_files()
+        if self.site:
+            self.sources = self.site.save_source_directories(self.source_dirs)
 
     def prepare_db_to_scan_all_directories(self):
         """
@@ -239,9 +244,10 @@ class XSynth:  # pylint: disable=too-many-instance-attributes
     def scan_directory(self, search_dir, recursive=False):
         """
         Scan a direcory tree and update the sources database.
+        The scanner follows subdirectories but not links.
         """
         if self.verbose:
-            print("XSynth.scan_directory({search_dir}, recursive={search_dir}).")
+            print(f"XSynth.scan_directory({search_dir}, recursive={search_dir}).")
         dir_all = os.listdir(search_dir)
         dir_dir = []
         for this_file_name in dir_all:
@@ -318,6 +324,7 @@ def synth_site(
         verbose=verbose,
         debug=debug,
     )
+    print(exenv.execution_env.execution_site)
     print("Execution Complete")
 
 
@@ -372,11 +379,6 @@ def main(debug=0):
             parameter_name="debug",
             default_value=debug,
             is_positional=False,
-        )
-    )
-    action_item.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            "l", parameter_name="db_location", default_value=None, is_positional=False
         )
     )
     action_item.add_parameter(

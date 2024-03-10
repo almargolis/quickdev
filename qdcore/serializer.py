@@ -2,10 +2,10 @@
 Serializer provides common classes and functions for
 handling serialized data such as ini, xml, json, etc.
 
-Specific handling of each type is in specifc modules.
+Specific handling of each type is in specific modules.
 
 Common file formats are also supported by standard python
-modules. The advantage of these CommerceNode modules is
+modules. The advantage of these QuickDev modules is
 support for error handling and convenience idioms.
 """
 

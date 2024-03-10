@@ -336,7 +336,7 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
             if self.action_item is None:
                 # This should maybe be an explicit option or have
                 # more conditions since "this" could be a file name
-                # that happends to be the same as an action argument.
+                # that happens to be the same as an action argument.
                 if (this in self.items) and isinstance(
                     self.items[this], CliCommandLineActionItem
                 ):

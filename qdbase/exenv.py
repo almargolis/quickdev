@@ -142,8 +142,9 @@ def command_line_debug(menu):
     """
     item = cliargs.CliCommandLineParameterItem(
         ARG_D_DEBUG,
-        help_description="Location of conf file or database.",
-        value_type=cliargs.PARAMETER_STRING,
+        default_value=False,
+        help_description="Display debug messages.",
+        value_type=cliargs.PARAMETER_BOOLEAN,
     )
     menu.add_item(item)
     return item

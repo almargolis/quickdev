@@ -2,8 +2,8 @@
 Classes and methods for processing XSynth and Python source code.
 
 This is used by the XSynth preprocessor for developer written code and
-by EzStart for program stubs and other generated files. Because it is
-use for bootstraping the EzDev environment, it cannot use any XSynth
+by QdStart for program stubs and other generated files. Because it is
+use for bootstraping the QuickDev environment, it cannot use any XSynth
 features.
 """
 
@@ -17,7 +17,7 @@ from qdbase import pdict
 from qdbase import simplelex
 
 
-# XDB is the database built while synthesizing an EZDev application.
+# XDB is the database built while synthesizing a QuickDev application.
 # Most of the data is retrieved from source files processed by XSource.
 # Tables should be referenced by using the XDB_XXXXX constants instead
 # of literals in order to make it easier to locate table references in
@@ -412,7 +412,7 @@ class XSource:  # pylint: disable=too-many-instance-attributes
     XSource does not modify the source in any way. All modifications
     go to the output file. This is important so as to not accidentally
     subvert developer intent and so source_lines, if provided, can be
-    effectively constant. The latter is assumed by EzConfig so it can
+    effectively constant. The latter is assumed by QdConfig so it can
     re-use a single stub model for multiple output files.
 
     The goal is for XSource to eventually accept abstract XSource code
