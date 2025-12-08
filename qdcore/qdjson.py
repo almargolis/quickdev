@@ -1,13 +1,14 @@
 """
-  QdJson is a wrapper around json that makes it a bit easier to use
-  by eliminating some odd syntax and supporting QickDev best practices.
+QdJson is a wrapper around json that makes it a bit easier to use
+by eliminating some odd syntax and supporting QickDev best practices.
 
-  As this develops, its should be consisten with qdcore/inifile.py.
+As this develops, its should be consisten with qdcore/inifile.py.
 """
 
 import json
 
 from . import qdserializer
+
 
 class QdJson(qdserializer.QdSerializer):
     def __init__(self, fpath=None):
@@ -31,5 +32,5 @@ class QdJson(qdserializer.QdSerializer):
     def dump(self, fpath=None):
         if fpath is None:
             fpath = self.fpath
-        with open(fpath, 'w') as f:
+        with open(fpath, "w") as f:
             self.data = yaml.dump(self.data, f)

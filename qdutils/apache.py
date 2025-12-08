@@ -74,6 +74,7 @@ else:
         "Unsupported Apache platform '{}'.".format(exenv.execution_env.platform)
     )
 
+
 #
 # ConfDirectiveDef defines an Apache *.conf file directive and tracks its
 # *.conf file parsing/editing state.
@@ -418,10 +419,10 @@ def config_vhosts():
             qdsite.qdsite.HDB_DEVSITES,
             where={qdsite.CONF_PARM_UUID: host_website_ini[qdsite.CONF_PARM_UUID]},
         )
-        qdsite_info = qdsite.QdSite(qdsite_dpath=host_devsite_ini[qdsite.CONF_PARM_SITE_DPATH])
-        apache_host.create_virtual_host(
-            host_devsite_ini, host_website_ini, qdsite_info
+        qdsite_info = qdsite.QdSite(
+            qdsite_dpath=host_devsite_ini[qdsite.CONF_PARM_SITE_DPATH]
         )
+        apache_host.create_virtual_host(host_devsite_ini, host_website_ini, qdsite_info)
 
 
 def show_hosting():

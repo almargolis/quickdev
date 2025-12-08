@@ -6,69 +6,69 @@
 #
 #  FEATURES
 #
-#	TupleObject is a dictionary object that uses an external dictionary
-#	so multiple records can have a common structure. It also
-#	participates in a conntainer hierarchy.
+# 	TupleObject is a dictionary object that uses an external dictionary
+# 	so multiple records can have a common structure. It also
+# 	participates in a conntainer hierarchy.
 #
-#	DataStoreObject is a container of objects that behaves like an array
-#	in that it can be indexed by number and itterated over. It also
-#	managers a common dictionary for its content and participates
-#	in a hierarchy of containers. It also includes database-like
-#	access actions.
+# 	DataStoreObject is a container of objects that behaves like an array
+# 	in that it can be indexed by number and itterated over. It also
+# 	managers a common dictionary for its content and participates
+# 	in a hierarchy of containers. It also includes database-like
+# 	access actions.
 #
 #  WARNINGS
 #
 #  Warning 1:  When accessing items, key types of integer are always
-#	treated as array _indices and all other key types are treated
-#	as dictionary keys.  In general, when there is a potential
-#	conflict between array and dictiionary behavior, preference
-#	is given array behavior.
+# 	treated as array _indices and all other key types are treated
+# 	as dictionary keys.  In general, when there is a potential
+# 	conflict between array and dictiionary behavior, preference
+# 	is given array behavior.
 #
 #  Warning 2:  It is extremely bad form to directly access self._data[]
-#	or self.dict{}.  The class methods take minimal care to verify
-#	that the data structures are in proper form, so any direct
-#	access that upsets integrity may have unpredictable results.
+# 	or self.dict{}.  The class methods take minimal care to verify
+# 	that the data structures are in proper form, so any direct
+# 	access that upsets integrity may have unpredictable results.
 #
 #  Warning 2B:  This class is intended to be a drop-in replacement for the
-#	built-in dictionary and array types.  Any exceptions to this goal
-#	should be corrected by
-#	fixing the class, not accessing self._data[] and/or self.dict{}.
+# 	built-in dictionary and array types.  Any exceptions to this goal
+# 	should be corrected by
+# 	fixing the class, not accessing self._data[] and/or self.dict{}.
 #
 #  Copyright (C) 2001 by Albert B. Margolis - All Rights Reserved
 #
 #  4/29/2001:  Initial Release.  Clone from qddict.
 #  5/12/2001:  Add DataStoreObject.  Finally getting back to using this.
-#		DataStoreObject becomes the ancestor class for Rdbms.
+# 		DataStoreObject becomes the ancestor class for Rdbms.
 #  5/12/2001:  Move iterator process and FldAsType actions here
-#		because they are good general record features.
+# 		because they are good general record features.
 # 11/21/2001:  Move boolean translation actions to utils.AsBool()
 # 12/07/2002:  Add dict parameter to bzreordSet.__init__().
-#		Add DataStoreObject.append().  Fix TupleObject.__getitem__()
-#		out of range index if data has fewer fields than
-#		dictionary.
+# 		Add DataStoreObject.append().  Fix TupleObject.__getitem__()
+# 		out of range index if data has fewer fields than
+# 		dictionary.
 # 12/18/2002:  Add First()
 # 12/23/2002:  Fix bug in __setitem__.  Exception if field IX beyond
-#		current end of data.  Add loop to expand self._data
+# 		current end of data.  Add loop to expand self._data
 #  3/08/2003:  Fix bug in TupleObject.__getitem__() causing exception
-#		if numeric index out of range.  Check for data length
-#		and return default value if needed.  Fix bug in
-#		TupleObject.__repr__() missing "}" at end of value string.
-#		Fix bug in First() returning Next instead of Next()
+# 		if numeric index out of range.  Check for data length
+# 		and return default value if needed.  Fix bug in
+# 		TupleObject.__repr__() missing "}" at end of value string.
+# 		Fix bug in First() returning Next instead of Next()
 #  4/05/2003:  Add Dict()
 #  6/27/2003:  Add index to DataStoreObject to access records by key value
-#		rather than sequence.
+# 		rather than sequence.
 #  9/01/2003:  Add Sort() to DataStoreObject
 #  6/20/2004:  Modify handling of dictionary to allow richer dictionaries.
-#		We only need the name here, but allow the definition to
-#		be an array or tuple and take [0] as the name.  Eliminates
-#		the need to create a separate dictionary for qddict.
-#		Added for bzCommaDb.py.
+# 		We only need the name here, but allow the definition to
+# 		be an array or tuple and take [0] as the name.  Eliminates
+# 		the need to create a separate dictionary for qddict.
+# 		Added for bzCommaDb.py.
 #  5/17/2006:  Add support for python iterator protocol and slices
 # 10/02/2005:  Add Dup() to TupleObject and DataStoreObject
 #  5/04/2014:  Change dict to tdict and its type to tupledict
-#			from qddict where there value was simply the ix.
-#			(This has been very stable but there have definately
-#			been changes in the last 9 years!)
+# 			from qddict where there value was simply the ix.
+# 			(This has been very stable but there have definately
+# 			been changes in the last 9 years!)
 #
 #############################################
 
@@ -90,7 +90,7 @@ def FullyQualifiedName(parmSelf):
     wsFqn = parmSelf._name
     wsObject = parmSelf.parent
     while wsObject:
-        wsFqn = wsObject._name + '.' + wsFqn
+        wsFqn = wsObject._name + "." + wsFqn
         wsObject = wsObject.parent
     return wsFqn
 
@@ -101,6 +101,7 @@ def Compare(a, b, parmKeys):
         if wsResult != 0:
             return wsResult
     return 0
+
 
 #
 # query Support Actions
@@ -126,11 +127,10 @@ def MakeRpnExpressionForWhereClause(parmWhere):
         if len(wsThisWhereClause) > 3:
             wsThisConjunction = utils.Upper(wsThisWhereClause[3])
         else:
-            wsThisConjunction = 'AND'
-        wsExpression.append(
-            (vcomputer.OpPushTupleElement, 'R1', wsThisField1Name))
+            wsThisConjunction = "AND"
+        wsExpression.append((vcomputer.OpPushTupleElement, "R1", wsThisField1Name))
         wsExpression.append((vcomputer.OpPushString, wsThisOperand2))
-        if wsThisOperator == '=':
+        if wsThisOperator == "=":
             wsExpression.append(vcomputer.OpCompareEqual)
         if wsClauseCt > 1:
             if wsThisConjunction[0] == "(":
@@ -140,14 +140,14 @@ def MakeRpnExpressionForWhereClause(parmWhere):
                 if wsThisConjunction[0] == ")":
                     wsParensClosed = True
                     wsThisConjunction = wsThisConjunction[1:]
-                if wsThisConjunction == 'AND':
+                if wsThisConjunction == "AND":
                     wsExpression.append(vcomputer.OpAnd)
-                elif wsThisConjunction == 'OR':
+                elif wsThisConjunction == "OR":
                     wsExpression.append(vcomputer.OpOr)
                 if wsParensClosed:
-                    if wsParensOperator == 'AND':
+                    if wsParensOperator == "AND":
                         wsExpression.append(vcomputer.OpAnd)
-                    elif wsParensOperator == 'OR':
+                    elif wsParensOperator == "OR":
                         wsExpression.append(vcomputer.OpOr)
                     wsParensOperator = None
                     wsParensClosed = False
@@ -155,20 +155,19 @@ def MakeRpnExpressionForWhereClause(parmWhere):
 
 
 def MakeLookupquery(
-        parmExeController,
-        parmTableReferenceName,
-        parmLookupFieldName,
-        parmLookupValue,
-        MatchEqual=False,
-        Debug=0):
+    parmExeController,
+    parmTableReferenceName,
+    parmLookupFieldName,
+    parmLookupValue,
+    MatchEqual=False,
+    Debug=0,
+):
     wsDataRoles = parmExeController.GetCodeObject(ertypes.ErDataRolesName)
-    wsEncodingTypes = parmExeController.GetCodeObject(
-        ertypes.ErEncodingTypesName)
-    wsTDict = parmExeController.GetTableObject(
-        parmTableReferenceName, IsMddl=False)
+    wsEncodingTypes = parmExeController.GetCodeObject(ertypes.ErEncodingTypesName)
+    wsTDict = parmExeController.GetTableObject(parmTableReferenceName, IsMddl=False)
     if Debug > 0:
-        print('Table: ', parmTableReferenceName)
-        print('Key: ', parmLookupFieldName)
+        print("Table: ", parmTableReferenceName)
+        print("Key: ", parmLookupFieldName)
     wsTDictElement = wsTDict.GetElement(parmLookupFieldName)
     if wsTDictElement is None:
         return None
@@ -176,20 +175,21 @@ def MakeLookupquery(
     wsLookupValueCdx = utils.Codex(parmLookupValue)
 
     if not MatchEqual:
-        wsMatchOperator = 'like'
-        wsMatchValueSuffix = '%'
+        wsMatchOperator = "like"
+        wsMatchValueSuffix = "%"
     else:
-        wsMatchOperator = '='
-        wsMatchValueSuffix = ''
+        wsMatchOperator = "="
+        wsMatchValueSuffix = ""
     if (wsTDictElement.role in wsDataRoles.PhysicalSet) or (
-            wsTDictElement.role == wsDataRoles.UndefinedCode):
+        wsTDictElement.role == wsDataRoles.UndefinedCode
+    ):
         # The test for Undefined is needed for query actions (ops WHERE). Not
         # sure if this is a good or bad solution.
-        wsWhere = (wsTDictElement.dbmsFieldName, '=', parmLookupValue)
+        wsWhere = (wsTDictElement.dbmsFieldName, "=", parmLookupValue)
     elif wsTDictElement.role == wsDataRoles.ConfusionCode:
         if wsTDictElement.confusedIsVirtual:
             pass
-            #self.errs.AddUserInfoMessage('Virtual Confusion.')
+            # self.errs.AddUserInfoMessage('Virtual Confusion.')
         wsWhere = []
         for wsThisConfusedElementName in wsTDictElement.confusedElementNameList:
             wsThisConfusedElement = wsTDict[wsThisConfusedElementName]
@@ -201,15 +201,18 @@ def MakeLookupquery(
                 else:
                     wsThisLookupValue = parmLookupValue
                 wsWhere.append(
-                    (wsThisConfusedElement.dbmsFieldName,
-                     wsMatchOperator,
-                     wsThisLookupValue +
-                     wsMatchValueSuffix,
-                     'OR'))
+                    (
+                        wsThisConfusedElement.dbmsFieldName,
+                        wsMatchOperator,
+                        wsThisLookupValue + wsMatchValueSuffix,
+                        "OR",
+                    )
+                )
     else:
         parmExeController.errs.AddUserInfoMessage(
-            'MakeLookupquery() unexpected role "%s" for element "%s".' %
-            (wsTDictElement.role, parmLookupFieldName))
+            'MakeLookupquery() unexpected role "%s" for element "%s".'
+            % (wsTDictElement.role, parmLookupFieldName)
+        )
         return None
     wsLookupTable.Select(parmWhere=wsWhere)
     if Debug > 0:
@@ -224,7 +227,7 @@ def Select(DataStore, ExeController=None, Fields=None, Where=None, Debug=0):
     if Where is not None:
         wsExpression = MakeRpnExpressionForWhereClause(Where)
         if Debug > 0:
-            print('Select Where Expression: ', repr(wsExpression))
+            print("Select Where Expression: ", repr(wsExpression))
         if ExeController is None:
             try:
                 ExeController = DataStore.exeController
@@ -233,13 +236,11 @@ def Select(DataStore, ExeController=None, Fields=None, Where=None, Debug=0):
         wsVM = vcomputer.vcomputer(ExeController=ExeController)
     for wsThisTuple in DataStore:
         if Where is not None:
-            if not wsVM.RunRPN(wsExpression, {'R1': wsThisTuple}, Debug=Debug):
+            if not wsVM.RunRPN(wsExpression, {"R1": wsThisTuple}, Debug=Debug):
                 continue
-        wsResult.AppendData(
-            wsThisTuple,
-            CopyFieldList=Fields,
-            Name=wsThisTuple._name)
+        wsResult.AppendData(wsThisTuple, CopyFieldList=Fields, Name=wsThisTuple._name)
     return wsResult
+
 
 #
 # DataTreeBranch
@@ -251,8 +252,8 @@ def Select(DataStore, ExeController=None, Fields=None, Where=None, Debug=0):
 # creating a sub-branch (child).
 #
 # self._tdict is a dictionary where the key is the field name
-#	and the value is a tupledictElement where _ix
-#	if the index (0...) of self._data for that field's value
+# 	and the value is a tupledictElement where _ix
+# 	if the index (0...) of self._data for that field's value
 #
 # Part of the reason DataTreeBranch exists is that the root
 # of a hierarchy can be either DataStoreObject or TupleObject.
@@ -263,36 +264,40 @@ def Select(DataStore, ExeController=None, Fields=None, Where=None, Debug=0):
 #
 
 
-class DataTreeBranch():
-    __slots__ = ('exeController', '_debug',
-                                  '_defaultValue',
-                                  '_defaultValueAssigned',
-                                  '_hierarchySeparator',
-                                  '_isBequeathTDict',
-                                  '_isCaseSensitive',
-                                  '_isTDictDynamic',
-                                  '_name',
-                                  '_owner',
-                                  '_parent',
-                                  '_path',
-                                  '_tdict'
-                 )
+class DataTreeBranch:
+    __slots__ = (
+        "exeController",
+        "_debug",
+        "_defaultValue",
+        "_defaultValueAssigned",
+        "_hierarchySeparator",
+        "_isBequeathTDict",
+        "_isCaseSensitive",
+        "_isTDictDynamic",
+        "_name",
+        "_owner",
+        "_parent",
+        "_path",
+        "_tdict",
+    )
 
-    def __init__(self,
-                 ExeController=None,
-                 Data=None,
-                 Debug=None,
-                 DefaultValue=None,
-                 DefaultValueAssigned=None,
-                 IsBequeathTDict=False,
-                 IsCaseSensitive=None,
-                 Name="",
-                 HierarchySeparator=None,
-                 IsHierarchy=None,
-                 Owner=None,
-                 Parent=None,
-                 IsTDictDynamic=None,
-                 TDict=None):
+    def __init__(
+        self,
+        ExeController=None,
+        Data=None,
+        Debug=None,
+        DefaultValue=None,
+        DefaultValueAssigned=None,
+        IsBequeathTDict=False,
+        IsCaseSensitive=None,
+        Name="",
+        HierarchySeparator=None,
+        IsHierarchy=None,
+        Owner=None,
+        Parent=None,
+        IsTDictDynamic=None,
+        TDict=None,
+    ):
         if Parent is not None:
             # Inherit parent characteristics
             if ExeController is None:
@@ -386,16 +391,15 @@ class DataTreeBranch():
             else:
                 wsElement = self._parent._tdict.Element(Name)
                 if wsElement is None:
-                    self._tdict = self._parent._tdict.MakeChildDictionary(
-                        Name=Name)
+                    self._tdict = self._parent._tdict.MakeChildDictionary(Name=Name)
                 elif wsElement.physicalType == ertypes.Core_TDictTypeCode:
                     # This seems to be an array item, all use the same
                     # dictionary
                     self._tdict = wsElement.collectionItemTDict
                 else:
                     self.exeController.errs.AddDevCriticalMessage(
-                        "Inconsistent array element type %s.%s" %
-                        (self._name, Name))
+                        "Inconsistent array element type %s.%s" % (self._name, Name)
+                    )
         self.SetIsTDictDynamic(IsTDictDynamic)
 
     def AssignExeController(self, parmExeController):
@@ -416,15 +420,14 @@ class DataTreeBranch():
             else:
                 wsName = self._name
                 if wsName is None:
-                    wsName = '---'
-                self._path = self._parent._path + qddict.HierarchySeparatorCharacter + wsName
+                    wsName = "---"
+                self._path = (
+                    self._parent._path + qddict.HierarchySeparatorCharacter + wsName
+                )
 
     def MakeInheritedDataStore(
-            self,
-            Name=None,
-            HierarchySeparator=None,
-            Parent=None,
-            TDict=None):
+        self, Name=None, HierarchySeparator=None, Parent=None, TDict=None
+    ):
         if Parent is None:
             # This is the normal case. Parent is a parameter so we can create a semi-disconected
             # object that will later be connected. This is used by the XML loader. It can't just
@@ -439,15 +442,11 @@ class DataTreeBranch():
             Name=Name,
             Parent=Parent,
             IsTDictDynamic=Parent._isTDictDynamic,
-            TDict=TDict
+            TDict=TDict,
         )
         return wsInheritedDataStore
 
-    def MakeInheritedTuple(
-            self,
-            Name=None,
-            HierarchySeparator=None,
-            TDict=None):
+    def MakeInheritedTuple(self, Name=None, HierarchySeparator=None, TDict=None):
         if HierarchySeparator is None:
             HierarchySeparator = self._hierarchySeparator
         wsInheritedTuple = TupleObject(
@@ -456,7 +455,7 @@ class DataTreeBranch():
             Name=Name,
             Parent=self,
             IsTDictDynamic=self._isTDictDynamic,
-            TDict=TDict
+            TDict=TDict,
         )
         return wsInheritedTuple
 
@@ -465,6 +464,7 @@ class DataTreeBranch():
 
     def SetIsTDictStatic(self, parmTDictDynamic=False):
         self._isTDictDynamic = parmIsTDictDynamic
+
 
 #
 #
@@ -476,7 +476,7 @@ class DataStoreDuplicateKey(Exception):
 
 
 class DataStoreIndex(object):
-    __slots__ = ('fieldName', 'IX')
+    __slots__ = ("fieldName", "IX")
 
     def __init__(self, parmFieldName, IsCaseSensitive=False):
         self.fieldName = parmFieldName
@@ -484,7 +484,7 @@ class DataStoreIndex(object):
 
 
 class DataStoreIterator(object):
-    __slots__ = ('dataStore', 'ix')
+    __slots__ = ("dataStore", "ix")
 
     def __init__(self, parmDataStore):
         self.dataStore = parmDataStore
@@ -500,14 +500,15 @@ class DataStoreIterator(object):
         self.ix += 1
         return self.dataStore._tuples[wsThisIx]
 
+
 #
 # DataStoreObject is an array of TupleObject objects. It is a container class that is the
 # foundation for database classes.
 #
 # It differs from a standard array in the the following ways
-#	- name, owner and parent attributes to support hierarchies
-#	- reference properties of TupleObject that are used to support
-#		provide consistency among the TupleObjects it contains
+# 	- name, owner and parent attributes to support hierarchies
+# 	- reference properties of TupleObject that are used to support
+# 		provide consistency among the TupleObjects it contains
 #
 # DataStoreObject contains many TupleObject fields which are not directly
 # used by DataStoreObject but are used to support automatic inheritance
@@ -541,26 +542,33 @@ class DataStoreIterator(object):
 
 
 class DataStoreObject(DataTreeBranch):
-    __slots__ = ('_tuples', '_s', 'rdbmsTDict',
-                 '_indices',
-                 '_lastAppendUdi', '_lastTuple',
-                 '_lastErrorMsg', '_last_query')
+    __slots__ = (
+        "_tuples",
+        "_s",
+        "rdbmsTDict",
+        "_indices",
+        "_lastAppendUdi",
+        "_lastTuple",
+        "_lastErrorMsg",
+        "_last_query",
+    )
 
-    def __init__(self,
-                 ExeController=None,
-                 DefaultValue=None,
-                 DefaultValueAssigned=None,
-                 TDict=None,
-                 Debug=None,
-                 IsBequeathTDict=True,
-                 IsCaseSensitive=None,
-                 Name="",
-                 HierarchySeparator=None,
-                 IsHierarchy=None,
-                 Owner=None,
-                 Parent=None,
-                 IsTDictDynamic=None):
-
+    def __init__(
+        self,
+        ExeController=None,
+        DefaultValue=None,
+        DefaultValueAssigned=None,
+        TDict=None,
+        Debug=None,
+        IsBequeathTDict=True,
+        IsCaseSensitive=None,
+        Name="",
+        HierarchySeparator=None,
+        IsHierarchy=None,
+        Owner=None,
+        Parent=None,
+        IsTDictDynamic=None,
+    ):
         super(DataStoreObject, self).__init__(
             ExeController=ExeController,
             Debug=Debug,
@@ -574,26 +582,24 @@ class DataStoreObject(DataTreeBranch):
             Name=Name,
             Owner=Owner,
             Parent=Parent,
-            IsTDictDynamic=IsTDictDynamic)
+            IsTDictDynamic=IsTDictDynamic,
+        )
 
         self.rdbmsTDict = None
         self._tuples = []
         self._indices = None
         self._lastAppendUdi = 0
         self._lastTuple = None
-        self._lastErrorMsg = ''
-        self._last_query = None				# needed so it can look like a DB set
+        self._lastErrorMsg = ""
+        self._last_query = None  # needed so it can look like a DB set
 
     def __getitem__(self, parmIx):
         return self._tuples[parmIx]
 
     def DefineIndex(self, parmIndexField):
         if self._indices is None:
-            self._indices = qddict.qddictTuple(
-                IsCaseSensitive=self._isCaseSensitive)
-        wsIndex = DataStoreIndex(
-            parmIndexField,
-            IsCaseSensitive=self._isCaseSensitive)
+            self._indices = qddict.qddictTuple(IsCaseSensitive=self._isCaseSensitive)
+        wsIndex = DataStoreIndex(parmIndexField, IsCaseSensitive=self._isCaseSensitive)
         self._indices[parmIndexField] = wsIndex
 
     def __iter__(self):
@@ -605,11 +611,10 @@ class DataStoreObject(DataTreeBranch):
         return len(self._tuples)
 
     def __repr__(self):
-        return "D Dict: %s :: Data: %s" % (
-            repr(self._tdict), repr(self._tuples))
+        return "D Dict: %s :: Data: %s" % (repr(self._tdict), repr(self._tuples))
 
     def GetIndex(self, parmRecordTypeName, parmIndexName):
-        wsIndexFqnName = parmRecordTypeName + '.' + parmIndexName
+        wsIndexFqnName = parmRecordTypeName + "." + parmIndexName
         if self._indices is None:
             self._indices = qddict.qddictTuple()
         if wsIndexFqnName not in self._indices:
@@ -620,11 +625,12 @@ class DataStoreObject(DataTreeBranch):
         wsIndexKey = None
         for wsThisFieldName in parmIndexDef.fieldNames:
             wsFieldValue = vcomputer.GetFieldValue(
-                parmDataSource, wsThisFieldName, DefaultTDict=self._tdict)
+                parmDataSource, wsThisFieldName, DefaultTDict=self._tdict
+            )
             if wsIndexKey is None:
                 wsIndexKey = utils.Str(wsFieldValue)
             else:
-                wsIndexKey += '.' + utils.Str(wsFieldValue)
+                wsIndexKey += "." + utils.Str(wsFieldValue)
         return wsIndexKey
 
     def _PostTuple(self, parmTuple):
@@ -643,13 +649,15 @@ class DataStoreObject(DataTreeBranch):
                     self._indices = qddict.qddictTuple()
                 for wsThisIndexDef in list(wsTDict.indexDefs.values()):
                     wsThisIndex = self.GetIndex(
-                        wsTDict.__class__.__name__, wsThisIndexDef._name)
+                        wsTDict.__class__.__name__, wsThisIndexDef._name
+                    )
                     wsIndexKey = self.GetIndexKey(wsThisIndexDef, parmTuple)
                     if wsThisIndexDef.isUnique:
                         if wsIndexKey in wsThisIndex:
                             raise DataStoreDuplicateKey(
-                                "Index: %s, Key: %s" %
-                                (wsThisIndexDef._name, repr(wsIndexKey)))
+                                "Index: %s, Key: %s"
+                                % (wsThisIndexDef._name, repr(wsIndexKey))
+                            )
                     wsThisIndex[wsIndexKey] = wsTupleIx
         return parmTuple
 
@@ -669,8 +677,9 @@ class DataStoreObject(DataTreeBranch):
 
     def Lookup(self, parmFieldName, parmFieldValue):
         for wsThisTuple in self._tuples:
-            wsFieldValue = vcomputer.GetFieldValue(wsThisTuple, parmFieldName,
-                                                   DefaultTDict=self._tdict)
+            wsFieldValue = vcomputer.GetFieldValue(
+                wsThisTuple, parmFieldName, DefaultTDict=self._tdict
+            )
             if wsFieldValue == parmFieldValue:
                 return wsThisTuple
         return None
@@ -680,8 +689,7 @@ class DataStoreObject(DataTreeBranch):
 
     def LookupByIndex(self, parmTDict, parmIndexName, parmDataSource):
         wsIndexDef = parmTDict.indexDefs[parmIndexName]
-        wsThisIndex = self.GetIndex(
-            parmTDict.__class__.__name__, parmIndexName)
+        wsThisIndex = self.GetIndex(parmTDict.__class__.__name__, parmIndexName)
         wsIndexKey = self.GetIndexKey(wsIndexDef, parmDataSource)
         if wsIndexKey in wsThisIndex:
             return self._tuples[wsThisIndex[wsIndexKey]]
@@ -689,21 +697,28 @@ class DataStoreObject(DataTreeBranch):
             return None
 
     def Select(self, Fields=None, Where=None, Debug=0):
-        Select(self, ExeController=self.exeController,
-               Fields=Fields, Where=Where, Debug=Debug)
+        Select(
+            self,
+            ExeController=self.exeController,
+            Fields=Fields,
+            Where=Where,
+            Debug=Debug,
+        )
 
     # DataStoreObject
     def MakeChildArrayItem(self):
         wsChild = self.MakeInheritedTuple(
             HierarchySeparator=self._hierarchySeparator,
             Name=self._name,
-            TDict=self._tdict)
+            TDict=self._tdict,
+        )
         self._PostTuple(wsChild)
         return wsChild
 
     def MakeChildTuple(self, Name=None, HierarchySeparator=None, TDict=None):
         wsChild = self.MakeInheritedTuple(
-            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict)
+            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict
+        )
         self._PostTuple(wsChild)
         return wsChild
 
@@ -712,7 +727,7 @@ class DataStoreObject(DataTreeBranch):
         self._tuples = []
         self._tdict = None
 
-    def clear_data(self, query=''):
+    def clear_data(self, query=""):
         self._tuples = []
         self._last_query = query
 
@@ -750,11 +765,7 @@ class DataStoreObject(DataTreeBranch):
         if isinstance(parmSortField, type([])):
             self._tuples.sort(lambda a, b: Compare(a, b, parmSortField))
         else:
-            self._tuples.sort(
-                lambda a,
-                b: cmp(
-                    a[parmSortField],
-                    b[parmSortField]))
+            self._tuples.sort(lambda a, b: cmp(a[parmSortField], b[parmSortField]))
 
     # ColumnHeadings()
     # This used to be called Dict()
@@ -768,6 +779,7 @@ class DataStoreObject(DataTreeBranch):
             wsHeadings.append(wsThisElement._name)
         return wsHeadings
 
+
 #
 # FastTupleObject
 #
@@ -780,7 +792,7 @@ class DataStoreObject(DataTreeBranch):
 #   - Never strict
 #   - This keeps it fast by not getting in the way of normal attribute storage
 #   - Some dictionary-like methods missing / misnamed to avoid potential
-#	conflics with data: items(), values(), has_key()
+# 	conflics with data: items(), values(), has_key()
 #
 # Like TupleObject it can be
 #   - itterated over values
@@ -790,33 +802,37 @@ class DataStoreObject(DataTreeBranch):
 
 
 class FastTupleObject(DataTreeBranch):
-    def __init__(self,
-                 ExeController=None,
-                 Data=None,
-                 Debug=None,
-                 DefaultValue=None,
-                 DefaultValueAssigned=None,
-                 TDict=None,
-                 IsCaseSensitive=None,
-                 Name="",
-                 HierarchySeparator=None,
-                 IsHierarchy=None,
-                 Owner=None,
-                 Parent=None,
-                 IsTDictDynamic=None):
-        DataTreeBranch.__init__(self,
-                                   ExeController=ExeController,
-                                   Debug=Debug,
-                                   DefaultValue=DefaultValue,
-                                   DefaultValueAssigned=DefaultValueAssigned,
-                                   TDict=TDict,
-                                   IsCaseSensitive=IsCaseSensitive,
-                                   Name=Name,
-                                   HierarchySeparator=HierarchySeparator,
-                                   IsHierarchy=IsHierarchy,
-                                   Owner=Owner,
-                                   Parent=Parent,
-                                   IsTDictDynamic=IsTDictDynamic)
+    def __init__(
+        self,
+        ExeController=None,
+        Data=None,
+        Debug=None,
+        DefaultValue=None,
+        DefaultValueAssigned=None,
+        TDict=None,
+        IsCaseSensitive=None,
+        Name="",
+        HierarchySeparator=None,
+        IsHierarchy=None,
+        Owner=None,
+        Parent=None,
+        IsTDictDynamic=None,
+    ):
+        DataTreeBranch.__init__(
+            self,
+            ExeController=ExeController,
+            Debug=Debug,
+            DefaultValue=DefaultValue,
+            DefaultValueAssigned=DefaultValueAssigned,
+            TDict=TDict,
+            IsCaseSensitive=IsCaseSensitive,
+            Name=Name,
+            HierarchySeparator=HierarchySeparator,
+            IsHierarchy=IsHierarchy,
+            Owner=Owner,
+            Parent=Parent,
+            IsTDictDynamic=IsTDictDynamic,
+        )
 
     # FastTupleObject
     def __getitem__(self, parmKey):
@@ -828,7 +844,7 @@ class FastTupleObject(DataTreeBranch):
 
 
 class DatumWithAttribs(object):
-    __slots__ = ('attribs', 'datum')
+    __slots__ = ("attribs", "datum")
 
     def __init__(self, parmDatum, parmAttribs):
         self.attribs = parmAttribs
@@ -837,46 +853,49 @@ class DatumWithAttribs(object):
 
 class TupleObject(DataTreeBranch):
     __slots__ = (
-        '_datums',
-        '_modifiedDatums',
-        '_isTupleModified',
-        '_lastElementModified')
+        "_datums",
+        "_modifiedDatums",
+        "_isTupleModified",
+        "_lastElementModified",
+    )
 
     #
     # If provided, Data must be an array or tuple of data content in TDict._ix order.
     # If a tuple, the record is effectively read-only.
     #
-    def __init__(self,
-                 CopyFieldList=None,
-                 Data=None,
-                 Debug=None,
-                 DefaultValue=None,
-                 DefaultValueAssigned=None,
-                 ExeController=None,
-                 HierarchySeparator=None,
-                 Initialize=False,
-                 IsCaseSensitive=None,
-                 IsHierarchy=None,
-                 IsTDictDynamic=None,
-                 Name="",
-                 Owner=None,
-                 Parent=None,
-                 TDict=None
-                 ):
-        DataTreeBranch.__init__(self,
-                                   Debug=Debug,
-                                   DefaultValue=DefaultValue,
-                                   DefaultValueAssigned=DefaultValueAssigned,
-                                   ExeController=ExeController,
-                                   HierarchySeparator=HierarchySeparator,
-                                   IsCaseSensitive=IsCaseSensitive,
-                                   IsHierarchy=IsHierarchy,
-                                   IsTDictDynamic=IsTDictDynamic,
-                                   Name=Name,
-                                   Owner=Owner,
-                                   Parent=Parent,
-                                   TDict=TDict
-                                   )
+    def __init__(
+        self,
+        CopyFieldList=None,
+        Data=None,
+        Debug=None,
+        DefaultValue=None,
+        DefaultValueAssigned=None,
+        ExeController=None,
+        HierarchySeparator=None,
+        Initialize=False,
+        IsCaseSensitive=None,
+        IsHierarchy=None,
+        IsTDictDynamic=None,
+        Name="",
+        Owner=None,
+        Parent=None,
+        TDict=None,
+    ):
+        DataTreeBranch.__init__(
+            self,
+            Debug=Debug,
+            DefaultValue=DefaultValue,
+            DefaultValueAssigned=DefaultValueAssigned,
+            ExeController=ExeController,
+            HierarchySeparator=HierarchySeparator,
+            IsCaseSensitive=IsCaseSensitive,
+            IsHierarchy=IsHierarchy,
+            IsTDictDynamic=IsTDictDynamic,
+            Name=Name,
+            Owner=Owner,
+            Parent=Parent,
+            TDict=TDict,
+        )
         self._modifiedDatums = []
         self._isTupleModified = False
         self._datums = []
@@ -908,8 +927,10 @@ class TupleObject(DataTreeBranch):
 
     def AppendDatum(self, parmKey, parmValue):
         if parmKey in self:
-            raise IndexError("Duplicate datum '%s' with value '%s' in '%s'" % (
-                parmKey, parmValue, self._name))
+            raise IndexError(
+                "Duplicate datum '%s' with value '%s' in '%s'"
+                % (parmKey, parmValue, self._name)
+            )
         self.__setitem__(parmKey, parmValue)
         return parmValue
 
@@ -925,7 +946,8 @@ class TupleObject(DataTreeBranch):
         self._modifiedDatums = []
         if self._tdict is None:
             self._tdict = tupledict.TupleDict(
-                IsCaseSensitive=self._isCaseSensitive, Name=self._name)
+                IsCaseSensitive=self._isCaseSensitive, Name=self._name
+            )
         else:
             self._tdict.Clear()
 
@@ -940,11 +962,12 @@ class TupleObject(DataTreeBranch):
             return self._datums.__eq__(other)
         elif isinstance(other, type(self)):
             return self._datums.__eq__(other._datums)
-        elif (isinstance(parmOther, type({}))) \
-                or (isinstance(parmOther, qddict.QdDict)):
+        elif (isinstance(parmOther, type({}))) or (
+            isinstance(parmOther, qddict.QdDict)
+        ):
             if len(self._datums) != len(other):
                 return False
-            for (wsKey, wsDictElement) in list(self._tdict.items()):
+            for wsKey, wsDictElement in list(self._tdict.items()):
                 # parmOther can be a TupleObject or a normal {}
                 if wsKey not in parmOther:
                     return -1
@@ -1021,18 +1044,17 @@ class TupleObject(DataTreeBranch):
                     wsChildElement = wsChild._tdict.Element(wsThisKey)
                     if wsChildElement is None:
                         raise IndexError(
-                            "Datum path `%s` undefined at `%s`." %
-                            (parmKey, wsThisKey))
-                    wsChild = wsChild._GetByIx(-1,
-                                               Element=wsChildElement,
-                                               Name=wsThisKey)
+                            "Datum path `%s` undefined at `%s`." % (parmKey, wsThisKey)
+                        )
+                    wsChild = wsChild._GetByIx(
+                        -1, Element=wsChildElement, Name=wsThisKey
+                    )
                 return wsChild
 
         wsElement = self._tdict.Element(parmKey)
-        return self._GetByIx(-1,
-                             Element=wsElement,
-                             Name=parmKey,
-                             WithAttribs=WithAttribs)
+        return self._GetByIx(
+            -1, Element=wsElement, Name=parmKey, WithAttribs=WithAttribs
+        )
 
     def __len__(self):
         return len(self._datums)
@@ -1041,7 +1063,7 @@ class TupleObject(DataTreeBranch):
         wsDictLen = len(self._tdict)
         wsDataLen = len(self._datums)
         wsString = ""
-        for (wsKey, wsDictElement) in list(self._tdict.elements.items()):
+        for wsKey, wsDictElement in list(self._tdict.elements.items()):
             if wsDictElement._ix < len(self._datums):
                 wsValue = self._datums[wsDictElement._ix]
             else:
@@ -1071,13 +1093,12 @@ class TupleObject(DataTreeBranch):
             wsDictionaryElement = self._tdict.elements[parmKey]
         elif not self._isTDictDynamic:
             raise IndexError(
-                "Attempt to store dynamic datum %s = %s" %
-                (parmKey, repr(parmValue)))
+                "Attempt to store dynamic datum %s = %s" % (parmKey, repr(parmValue))
+            )
         else:
             if self._tdict is None:
                 self._tdict = tupledict.TupleDict(Name=self._name)
-            wsDictionaryElement = self._tdict._AddElement(
-                parmKey, Sample=parmValue)
+            wsDictionaryElement = self._tdict._AddElement(parmKey, Sample=parmValue)
         self._StoreByIx(wsDictionaryElement._ix, parmValue)
 
     def change_key(self, parmOldKey, parmNewKey):
@@ -1092,7 +1113,7 @@ class TupleObject(DataTreeBranch):
         return False
 
     # TupleObject
-    def keys(self):			# sort keys into data order
+    def keys(self):  # sort keys into data order
         # This behaves like a dict, only stored values are returned
         wsDict = self._tdict.ElementsByIx()
         wsList = []
@@ -1104,7 +1125,7 @@ class TupleObject(DataTreeBranch):
             wsList.append(wsElement._name)
         return wsList
 
-    def items(self):			# sort dictionary into data order
+    def items(self):  # sort dictionary into data order
         # This behaves like a dict, only stored values are returned
         wsDict = self._tdict.ElementsByIx()
         wsList = []
@@ -1135,15 +1156,12 @@ class TupleObject(DataTreeBranch):
         return wsList
 
     # TupleObject
-    def MakeChildDataStore(
-            self,
-            Name=None,
-            HierarchySeparator=None,
-            TDict=None):
+    def MakeChildDataStore(self, Name=None, HierarchySeparator=None, TDict=None):
         if Name is None:
             raise IndexError("Name required for DataStoreObject datum.")
         wsChild = self.MakeInheritedDataStore(
-            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict)
+            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict
+        )
         self.AppendDatum(Name, wsChild)
         return wsChild
 
@@ -1151,7 +1169,8 @@ class TupleObject(DataTreeBranch):
         if Name is None:
             raise IndexError("Name required for TupleObject datum.")
         wsChild = self.MakeInheritedTuple(
-            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict)
+            HierarchySeparator=HierarchySeparator, Name=Name, TDict=TDict
+        )
         self.AppendDatum(Name, wsChild)
         return wsChild
 
@@ -1163,17 +1182,18 @@ class TupleObject(DataTreeBranch):
 
     def CopyItems(self, parmSource, parmCopyList):
         wsSourceTDict = self.exeController.GetTDictByObject(parmSource)
-        for (wsThisTarget, wsThisSourceElementName) in parmCopyList:
-            if wsThisSourceElementName[0] == '*':
-                if wsThisSourceElementName == '*NowYMDHM':
+        for wsThisTarget, wsThisSourceElementName in parmCopyList:
+            if wsThisSourceElementName[0] == "*":
+                if wsThisSourceElementName == "*NowYMDHM":
                     wsValue = utils.NowYMDHM()
                 else:
                     raise TypeError(
-                        "Invalid special value '%s'" %
-                        (wsThisSourceElementName))
+                        "Invalid special value '%s'" % (wsThisSourceElementName)
+                    )
             else:
                 wsValue = wsSourceTDict.GetTupleDatum(
-                    parmSource, wsThisSourceElementName)
+                    parmSource, wsThisSourceElementName
+                )
             self[wsThisTarget] = wsValue
 
     def FldAsBool(self, parmKey):
@@ -1190,41 +1210,36 @@ class TupleObject(DataTreeBranch):
 
 
 def ModuleTest():
-
     wsTestTupleDict = tupledict.TupleDict()
-    wsElement = wsTestTupleDict.AddScalarElement('IndexFieldInt1')
-    wsElement = wsTestTupleDict.AddScalarElement('IndexFieldStr2')
+    wsElement = wsTestTupleDict.AddScalarElement("IndexFieldInt1")
+    wsElement = wsTestTupleDict.AddScalarElement("IndexFieldStr2")
     wsElement.ConfigureAsNotBlank()
-    wsElement = wsTestTupleDict.AddScalarElement('dbmsFieldName')
+    wsElement = wsTestTupleDict.AddScalarElement("dbmsFieldName")
     wsTestTupleDict.DefineIndex(
-        ['IndexFieldInt1', 'IndexFieldStr2'], Name='TwoFieldsIx')
+        ["IndexFieldInt1", "IndexFieldStr2"], Name="TwoFieldsIx"
+    )
 
     wsTestDataStore = DataStoreObject(TDict=wsTestTupleDict)
     wsTestRecord = TupleObject(TDict=wsTestTupleDict)
-    wsTestRecord['IndexFieldInt1'] = 1
-    wsTestRecord['IndexFieldStr2'] = "ABC"
+    wsTestRecord["IndexFieldInt1"] = 1
+    wsTestRecord["IndexFieldStr2"] = "ABC"
     wsTestDataStore.AppendDatum(wsTestRecord)
     wsTestRecord = TupleObject(TDict=wsTestTupleDict)
-    wsTestRecord['IndexFieldInt1'] = 3
-    wsTestRecord['IndexFieldStr2'] = "GHI"
+    wsTestRecord["IndexFieldInt1"] = 3
+    wsTestRecord["IndexFieldStr2"] = "GHI"
     wsTestDataStore.AppendDatum(wsTestRecord)
     wsTestRecord = TupleObject(TDict=wsTestTupleDict)
-    wsTestRecord['IndexFieldInt1'] = 2
-    wsTestRecord['IndexFieldStr2'] = "DEF"
+    wsTestRecord["IndexFieldInt1"] = 2
+    wsTestRecord["IndexFieldStr2"] = "DEF"
     wsTestDataStore.AppendDatum(wsTestRecord)
 
     print("*** Test Lookup() ***")
     for wsInt1 in [1, 2, 3]:
-        print(repr(wsTestDataStore.Lookup('IndexFieldInt1', wsInt1)))
+        print(repr(wsTestDataStore.Lookup("IndexFieldInt1", wsInt1)))
 
     print("*** Test LookupByIndex() ***")
-    wsKeys = {'IndexFieldInt1': 3, 'IndexFieldStr2': "GHI"}
-    print(
-        repr(
-            wsTestDataStore.LookupByIndex(
-                wsTestTupleDict,
-                'TwoFieldsIx',
-                wsKeys)))
+    wsKeys = {"IndexFieldInt1": 3, "IndexFieldStr2": "GHI"}
+    print(repr(wsTestDataStore.LookupByIndex(wsTestTupleDict, "TwoFieldsIx", wsKeys)))
 
     print("*** Test Select() ***")
     print(repr(Select(wsTestDataStore)))
@@ -1233,5 +1248,11 @@ def ModuleTest():
     print(
         repr(
             Select(
-                wsTestDataStore, Where=(
-                    ('IndexFieldStr2', '=', "ABC"), ('IndexFieldStr2', '=', "GHI", 'OR')))))
+                wsTestDataStore,
+                Where=(
+                    ("IndexFieldStr2", "=", "ABC"),
+                    ("IndexFieldStr2", "=", "GHI", "OR"),
+                ),
+            )
+        )
+    )

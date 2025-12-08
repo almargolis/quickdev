@@ -24,7 +24,7 @@ from . import qdstart
 
 hdb_dict = pdict.DbDict()
 
-d = hdb_dict.add_table(pdict.DbTableDict(qdsite.HDB_DEVSITES))
+d = hdb_dict.add_table(pdict.DbDictTable(qdsite.HDB_DEVSITES))
 d.add_column(pdict.Text(qdsite.CONF_PARM_ACRONYM))
 d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
 d.add_column(pdict.Text(qdsite.CONF_PARM_SITE_DPATH))
@@ -34,7 +34,7 @@ d.add_index("ix_uuid", qdsite.CONF_PARM_UUID)
 d.add_index("ix_qdsite_dpath", qdsite.CONF_PARM_SITE_DPATH)
 d.add_index("ix_udi", qdsite.CONF_PARM_SITE_UDI)
 
-d = hdb_dict.add_table(pdict.DbTableDict(qdsite.HDB_WEBSITES))
+d = hdb_dict.add_table(pdict.DbDictTable(qdsite.HDB_WEBSITES))
 d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
 d.add_column(pdict.Text(qdsite.CONF_PARM_HOST_NAME))
 d.add_column(pdict.Text(qdsite.CONF_PARM_WEBSITE_SUBDIR))

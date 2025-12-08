@@ -9,8 +9,10 @@ from qdutils import qdstart
 
 from . import test_qdstart
 
+
 def test_init(tmpdir):
     qd_chroot = test_qdstart.MakeQdev(tmpdir)
+
 
 def test_site_register(tmpdir):
     start = test_qdstart.make_site(tmpdir)

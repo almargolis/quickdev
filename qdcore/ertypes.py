@@ -11,23 +11,23 @@
 #
 from . import utils
 
-ErCodeDefElementCode = 'Code'
-ErCodeDefElementSet = 'Set'
+ErCodeDefElementCode = "Code"
+ErCodeDefElementSet = "Set"
 
-SiteActionsVariableSuffix = '_Action'
-SiteClassesVariableSuffix = '_Class'
-SiteCommandsVariableSuffix = '_Command'
-SiteTriggersVariableSuffix = '_Trigger'
+SiteActionsVariableSuffix = "_Action"
+SiteClassesVariableSuffix = "_Class"
+SiteCommandsVariableSuffix = "_Command"
+SiteTriggersVariableSuffix = "_Trigger"
 
 #
 # These constants are used when calling exeAction.GetCodeObject() to minimize uncaught typos
 #
-ErLogicalDataTypesName = 'ErLogicalDataTypes'
-ErLogicalDataClassesName = 'ErLogicalDataClasses'
-ErEncodingTypesName = 'ErEncodingTypes'
-ErDataRolesName = 'ErDataRoles'
-ErRecordStatusName = 'ErRecordStatus'
-TaAssociationTypesName = 'TaAssociationTypes'
+ErLogicalDataTypesName = "ErLogicalDataTypes"
+ErLogicalDataClassesName = "ErLogicalDataClasses"
+ErEncodingTypesName = "ErEncodingTypes"
+ErDataRolesName = "ErDataRoles"
+ErRecordStatusName = "ErRecordStatus"
+TaAssociationTypesName = "TaAssociationTypes"
 
 
 class ErCodeDef:
@@ -55,11 +55,12 @@ class ErCodeDef:
                 else:
                     if self.exeAction:
                         self.exeAction.errs.AddDevCriticalMessage(
-                            "Attempt to add invalid code symbol '%s' to Set %s of Code Def %s" %
-                            (wsThisCodeSymbolName, wsSymbolName, self.name))
+                            "Attempt to add invalid code symbol '%s' to Set %s of Code Def %s"
+                            % (wsThisCodeSymbolName, wsSymbolName, self.name)
+                        )
                     return
             wsValueArray.sort()
-            wsValue = ''
+            wsValue = ""
             for wsThisValue in wsValueArray:
                 wsValue += wsThisValue
         else:
@@ -70,14 +71,16 @@ class ErCodeDef:
         if wsValue in wsValueContainer:
             if self.exeAction:
                 self.exeAction.errs.AddDevCriticalMessage(
-                    "Attempt to add duplicate %s value '%s' (%s) to Code Def %s" %
-                    (parmElementType, wsValue, wsSymbolName, self.name))
+                    "Attempt to add duplicate %s value '%s' (%s) to Code Def %s"
+                    % (parmElementType, wsValue, wsSymbolName, self.name)
+                )
             return
         if wsSymbolName in self.__dict__:
             if self.exeAction:
                 self.exeAction.errs.AddDevCriticalMessage(
-                    "Attempt to add duplicate %s symbol '%s' (%s) to Code Def %s" %
-                    (parmElementType, wsSymbolName, wsValue, self.name))
+                    "Attempt to add duplicate %s symbol '%s' (%s) to Code Def %s"
+                    % (parmElementType, wsSymbolName, wsValue, self.name)
+                )
             return
         #
         wsSymbolContainer[wsSymbolName] = wsValue
@@ -96,7 +99,7 @@ class ErCodeDef:
         self.AddElement(ErCodeDefElementSet, parmSetMembers, parmSetSymbol)
 
     def DefineFullSet(self):
-        self.AddSet('Full', list(self.codeNames.values()))
+        self.AddSet("Full", list(self.codeNames.values()))
 
     def LookupCodeName(self, parmCode):
         if parmCode in self.codeNames:
@@ -111,7 +114,7 @@ class ErCodeDef:
     def ValidateCode(self, parmCode):
         wsCode = utils.Upper(parmCode)
         if wsCode in self.codeValues:
-            return wsCode							# codes must be upper case
+            return wsCode  # codes must be upper case
         else:
             return None
 
@@ -126,11 +129,11 @@ class ErCodeDef:
 #
 #
 #
-Encoding_Ascii = 'A'
-Encoding_AsciiX = 'X'		# using utils.UnicodeToAscii()
-Encoding_Codex = 'C'
-Encoding_Soundex = 'S'
-Encoding_Utf8 = 'U'
+Encoding_Ascii = "A"
+Encoding_AsciiX = "X"  # using utils.UnicodeToAscii()
+Encoding_Codex = "C"
+Encoding_Soundex = "S"
+Encoding_Utf8 = "U"
 
 
 #
@@ -150,49 +153,43 @@ Encoding_Utf8 = 'U'
 #
 # Letter Codes Used: A B C D E F I M N O R S T X Y Z
 #
-Core_ListTypeCode = 'A'		# A collection of unnamed items -- system []
-Core_ListBafTypeCode = 'C'		# A collection of unnamed items -- bafDataStoreObject
-Core_BooleanTypeCode = 'B'		# A scalar
-Core_DateTypeCode = 'D'
-Core_FunctionTypeCode = 'F'		# for bafExpCodeWriter, not ErLogicalDataTypes
-Core_IntegerTypeCode = 'I'
-Core_MapDictTypeCode = 'M'		# A container that supports __get/set item__ {}
-Core_MapNvTypeCode = 'N'		# A container that supports __get/set item__ bafNvTuple
-Core_MapBafTypeCode = 'R'		# A container that supports __get/set item__ bafTupleObject
-Core_NoTypeCode = 'Z'		# Non implemented element
-Core_ObjectTypeCode = 'O'		# A container that supports __get/set attr__
-Core_ClassPtrTypeCode = 'X'
-Core_DataPtrTypeCode = 'Y'
-Core_ProcessPtrTypeCode = 'Z'
-Core_StringTypeCode = 'S'
-Core_TDictTypeCode = 'E'
-Core_TimestampTypeCode = 'T'
+Core_ListTypeCode = "A"  # A collection of unnamed items -- system []
+Core_ListBafTypeCode = "C"  # A collection of unnamed items -- bafDataStoreObject
+Core_BooleanTypeCode = "B"  # A scalar
+Core_DateTypeCode = "D"
+Core_FunctionTypeCode = "F"  # for bafExpCodeWriter, not ErLogicalDataTypes
+Core_IntegerTypeCode = "I"
+Core_MapDictTypeCode = "M"  # A container that supports __get/set item__ {}
+Core_MapNvTypeCode = "N"  # A container that supports __get/set item__ bafNvTuple
+Core_MapBafTypeCode = "R"  # A container that supports __get/set item__ bafTupleObject
+Core_NoTypeCode = "Z"  # Non implemented element
+Core_ObjectTypeCode = "O"  # A container that supports __get/set attr__
+Core_ClassPtrTypeCode = "X"
+Core_DataPtrTypeCode = "Y"
+Core_ProcessPtrTypeCode = "Z"
+Core_StringTypeCode = "S"
+Core_TDictTypeCode = "E"
+Core_TimestampTypeCode = "T"
 
-Core_ContainerMapTypeCodes = [		# Types accessed by [name] or __get/set item__
+Core_ContainerMapTypeCodes = [  # Types accessed by [name] or __get/set item__
     Core_MapDictTypeCode,
     Core_MapNvTypeCode,
-    Core_MapBafTypeCode
+    Core_MapBafTypeCode,
 ]
 
 Core_ContainerNVTypeCodes = Core_ContainerMapTypeCodes + [Core_ObjectTypeCode]
 
-Core_ContainerIxVTypeCodes = [
-    Core_ListBafTypeCode,
-    Core_ListTypeCode
-]
+Core_ContainerIxVTypeCodes = [Core_ListBafTypeCode, Core_ListTypeCode]
 
 Core_ContainerTypeCodes = Core_ContainerNVTypeCodes + Core_ContainerIxVTypeCodes
 
 
-Core_ContainerIxVTypeCodes = [
-    Core_ListBafTypeCode,
-    Core_ListTypeCode
-]
+Core_ContainerIxVTypeCodes = [Core_ListBafTypeCode, Core_ListTypeCode]
 
 Core_PointerTypeCodes = [
     Core_ClassPtrTypeCode,
     Core_DataPtrTypeCode,
-    Core_ProcessPtrTypeCode
+    Core_ProcessPtrTypeCode,
 ]
 
 Core_ScalarTypeCodes = [
@@ -200,18 +197,16 @@ Core_ScalarTypeCodes = [
     Core_DateTypeCode,
     Core_IntegerTypeCode,
     Core_StringTypeCode,
-    Core_TimestampTypeCode
+    Core_TimestampTypeCode,
 ]
 
-Core_StringTypeCodes = [
-    Core_StringTypeCode,
-    Core_DateTypeCode,
-    Core_TimestampTypeCode]
+Core_StringTypeCodes = [Core_StringTypeCode, Core_DateTypeCode, Core_TimestampTypeCode]
 
 
 def ClassifyPhysicalType(Sample):
     from . import bafDataStore
     from . import bafNv
+
     if isinstance(Sample, bafDataStore.bafDataStoreObject):
         return Core_ListBafTypeCode
     if isinstance(Sample, bafDataStore.bafTupleObject):
@@ -232,107 +227,97 @@ def ClassifyPhysicalType(Sample):
 
 
 # RoleCodes: A B C D E F G H M P R S U X
-Core_CreateTimestampRoleCode = 'B'
-Core_CalculatedRoleCode = 'A'
-Core_ConfusionRoleCode = 'C'
-Core_DataRoleCode = 'D'
-Core_PrimaryParticipantRoleCode = 'P'
-Core_SecondaryParticipantRoleCode = 'S'
-Core_MirrorRoleCode = 'M'
-Core_MirrorUdiRoleCode = 'F'
-Core_MirrorUiiRoleCode = 'G'
-Core_RsfRoleCode = 'R'
-Core_UdiRoleCode = 'X'
-Core_UiiRoleCode = 'U'
-Core_UpdateTimestampRoleCode = 'E'
-Core_TriggerRoleCode = 'H'
+Core_CreateTimestampRoleCode = "B"
+Core_CalculatedRoleCode = "A"
+Core_ConfusionRoleCode = "C"
+Core_DataRoleCode = "D"
+Core_PrimaryParticipantRoleCode = "P"
+Core_SecondaryParticipantRoleCode = "S"
+Core_MirrorRoleCode = "M"
+Core_MirrorUdiRoleCode = "F"
+Core_MirrorUiiRoleCode = "G"
+Core_RsfRoleCode = "R"
+Core_UdiRoleCode = "X"
+Core_UiiRoleCode = "U"
+Core_UpdateTimestampRoleCode = "E"
+Core_TriggerRoleCode = "H"
 
 Core_VirtualRoleCodes = [Core_ConfusionRoleCode]
 
-FormRole_Data = 'D'
-FormRole_Hidden = 'H'
-FormRole_File = 'F'
-FormRole_Submit = 'S'
+FormRole_Data = "D"
+FormRole_Hidden = "H"
+FormRole_File = "F"
+FormRole_Submit = "S"
 
 
 class ErLogicalDataTypes(ErCodeDef):
     def __init__(self, parmExeAction):
         ErCodeDef.__init__(self, parmExeAction)
-        self.AddCode(Core_StringTypeCode, 'String')
-        self.AddCode(Core_IntegerTypeCode, 'Integer')
-        self.AddCode(Core_BooleanTypeCode, 'Boolean')
-        self.AddCode(Core_TimestampTypeCode, 'Timestamp')
-        self.AddCode(Core_DateTypeCode, 'Date')
-        self.AddCode(Core_MapDictTypeCode, 'Dict')
+        self.AddCode(Core_StringTypeCode, "String")
+        self.AddCode(Core_IntegerTypeCode, "Integer")
+        self.AddCode(Core_BooleanTypeCode, "Boolean")
+        self.AddCode(Core_TimestampTypeCode, "Timestamp")
+        self.AddCode(Core_DateTypeCode, "Date")
+        self.AddCode(Core_MapDictTypeCode, "Dict")
         #
         self.DefineFullSet()
-        self.AddSet('Datastore', ('String', 'Integer'))
+        self.AddSet("Datastore", ("String", "Integer"))
 
 
 class ErDataRoles(ErCodeDef):
     def __init__(self, parmExeAction):
         ErCodeDef.__init__(self, parmExeAction)
-        self.AddCode(Core_CalculatedRoleCode, 'Calculated')
-        self.AddCode(Core_ConfusionRoleCode, 'Confusion')
-        self.AddCode(Core_DataRoleCode, 'Data')
-        self.AddCode(Core_PrimaryParticipantRoleCode, 'PrimaryParticipant')
-        self.AddCode(Core_SecondaryParticipantRoleCode, 'SecondaryParticipant')
-        self.AddCode(Core_MirrorRoleCode, 'Mirror')
-        self.AddCode(Core_UdiRoleCode, 'Udi')
-        self.AddCode(Core_UiiRoleCode, 'Uii')
-        self.AddCode(Core_RsfRoleCode, 'Rsf')
-        self.AddCode(Core_MirrorUdiRoleCode, 'MirrorUdi')
-        self.AddCode(Core_MirrorUiiRoleCode, 'MirrorUii')
+        self.AddCode(Core_CalculatedRoleCode, "Calculated")
+        self.AddCode(Core_ConfusionRoleCode, "Confusion")
+        self.AddCode(Core_DataRoleCode, "Data")
+        self.AddCode(Core_PrimaryParticipantRoleCode, "PrimaryParticipant")
+        self.AddCode(Core_SecondaryParticipantRoleCode, "SecondaryParticipant")
+        self.AddCode(Core_MirrorRoleCode, "Mirror")
+        self.AddCode(Core_UdiRoleCode, "Udi")
+        self.AddCode(Core_UiiRoleCode, "Uii")
+        self.AddCode(Core_RsfRoleCode, "Rsf")
+        self.AddCode(Core_MirrorUdiRoleCode, "MirrorUdi")
+        self.AddCode(Core_MirrorUiiRoleCode, "MirrorUii")
         #
         self.DefineFullSet()
         self.AddSet(
-            'Virtual',
-            ('Calculated',
-             'Confusion',
-             'PrimaryParticipant',
-             'SecondaryParticipant'))
-        self.AddSet('Mirrored', ('Mirror', 'MirrorUdi', 'MirrorUii'))
+            "Virtual",
+            ("Calculated", "Confusion", "PrimaryParticipant", "SecondaryParticipant"),
+        )
+        self.AddSet("Mirrored", ("Mirror", "MirrorUdi", "MirrorUii"))
         self.AddSet(
-            'Physical',
-            ('Data',
-             'Mirror',
-             'Udi',
-             'Uii',
-             'Rsf',
-             'MirrorUdi',
-             'MirrorUii'))
-        self.AddSet('Source', ('Data', 'Udi', 'Uii', 'Rsf'))
-        self.AddSet(
-            'Participant',
-            ('PrimaryParticipant',
-             'SecondaryParticipant'))
+            "Physical",
+            ("Data", "Mirror", "Udi", "Uii", "Rsf", "MirrorUdi", "MirrorUii"),
+        )
+        self.AddSet("Source", ("Data", "Udi", "Uii", "Rsf"))
+        self.AddSet("Participant", ("PrimaryParticipant", "SecondaryParticipant"))
 
 
 class ErRecordStatus(ErCodeDef):
     def __init__(self, parmExeAction):
         ErCodeDef.__init__(self, parmExeAction)
-        self.AddCode('U', 'Undefined')
-        self.AddCode('A', 'Active')
-        self.AddCode('D', 'Deleted')
+        self.AddCode("U", "Undefined")
+        self.AddCode("A", "Active")
+        self.AddCode("D", "Deleted")
         #
         self.DefineFullSet()
 
 
-Core_DirectAssociationTypeCode = 'D'
-Core_LookupAssociationTypeCode = 'L'
-Core_PathAssociationTypeCode = 'P'
+Core_DirectAssociationTypeCode = "D"
+Core_LookupAssociationTypeCode = "L"
+Core_PathAssociationTypeCode = "P"
 
 
 class TaAssociationTypes(ErCodeDef):
     def __init__(self, parmExeAction):
         ErCodeDef.__init__(self, parmExeAction)
-        self.AddCode(Core_PathAssociationTypeCode, 'Path')
-        self.AddCode(Core_LookupAssociationTypeCode, 'Lookup')
-        self.AddCode(Core_DirectAssociationTypeCode, 'Direct')
+        self.AddCode(Core_PathAssociationTypeCode, "Path")
+        self.AddCode(Core_LookupAssociationTypeCode, "Lookup")
+        self.AddCode(Core_DirectAssociationTypeCode, "Direct")
         #
         self.DefineFullSet()
-        self.AddSet('Direct', ('Lookup', 'Direct'))
-        self.AddSet('Path', ('Path', 'Direct'))
+        self.AddSet("Direct", ("Lookup", "Direct"))
+        self.AddSet("Path", ("Path", "Direct"))
 
 
 def GetPythonClassAsStr(parmObject):

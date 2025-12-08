@@ -1,6 +1,7 @@
 """
 test xsource.py
 """
+
 from qdbase import qdsqlite
 from xsynth import xsource
 

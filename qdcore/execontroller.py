@@ -83,6 +83,7 @@ RestfulVerb_Get				= "GET"
 RestfulVerb_Put				= "POST"
 RestfulVerb_Delete			= "DELETE"
 
+SESSION_COOKIE_NAME = "qd_session_id"
 
 HTMLPERMISSIONS				= 0o744
 DIRPERMISSIONS				= 0o755
@@ -690,7 +691,7 @@ class AdminLoginAction(bafActionDef):
     wsTriggerInfo				= self.AddTrigger('login', 'VerifyLoginTrigger')
 
   def VerifyLoginTrigger(self, parmTriggerInfo):
-    self.exeController.driver.AddCookie(SESSIONCOOKIE, "")
+    self.exeController.driver.AddCookie(SESSION_COOKIE_NAME, "")
     wsUserId					= self.actionRequestTuple['UserId']
     wsPassword					= self.actionRequestTuple['Password']
     if self.exeController.Login(wsUserId, wsPassword):
@@ -1648,42 +1649,43 @@ class bafExeController(object):
       return True
     return False
 
-  def CheckLoginStatus(self, NonSSLok=None, CheckLocationOnly=None, IsPublicAccess=False):
-    self.lastLoginError			= 0
-    if self.isSsl or NonSSLok:
-      # http:// or https:// status is OK
-      wsIsLocalNetwork			= self.IsLocalNetwork()
-      if IsPublicAccess:
-        self.lastLoginError		= 208
-        return True
+  def CheckLoginStatus(self, NonSSLok=None, CheckLocationOnly=None, login_not_required=False):
+      self.lastLoginError			= 0
+      if self.isSsl or NonSSLok:
+          # http:// or https:// status is OK
+          wsIsLocalNetwork			= self.IsLocalNetwork()
+      if login_not_required:
+          self.lastLoginError		= 208
+          return True
       if CheckLocationOnly:
-        self.lastLoginError		= 207
-        return self.IsLocalNetwork()
-      else:
-        if self.db is None:
+          self.lastLoginError		= 207
+          return self.IsLocalNetwork()
+      if self.db is None:
           self.lastLoginError		= 210
           return False
-        wsSessionID			= self.GetCookie(SESSIONCOOKIE)
-        if wsSessionID:
-          wsSessionsTable		= self.db.OpenTable(self.siteControls.SessionsTableName)
-          if wsSessionsTable.Lookup('SessionId', wsSessionID):
-            wsSessionIpAddr		= wsSessionsTable[0]['IpAddr']
-            wsSessionCloseTime		= wsSessionsTable[0]['CloseTimestamp']
-            if wsSessionCloseTime:
-              self.lastLoginError	= 201
-              return False
-  	    if self.cgiRemoteAddr == wsSessionIpAddr:
-              self.lastLoginError	= 202
-              return True
-            else:
-              self.lastLoginError	= 203
-              return False
-          else:
-            self.lastLoginError		= 204
-            return False
-        else:
-          self.lastLoginError		= 205					# not getting cookie back
+      session_cookie			= self.GetCookie(SESSION_COOKIE_NAME)
+      if session_cookie is None:
+          # not getting cookie back
+          self.lastLoginError		= 205					
           return False
+      sessions_db_table		= self.db.OpenTable(self.siteControls.SessionsTableName)
+      if not sessions_db_table.Lookup('SessionId', session_cookie):
+          # unknown session id: flushed after timeout or intrusion attempt
+          self.lastLoginError		= 204
+          return False
+      # session id is known in database
+      wsSessionIpAddr		= sessions_db_table[0]['IpAddr']
+      wsSessionCloseTime		= sessions_db_table[0]['CloseTimestamp']
+      if wsSessionCloseTime is not None:
+          # session was logged out
+          self.lastLoginError	= 201
+          return False
+      if self.cgiRemoteAddr != wsSessionIpAddr:
+          self.lastLoginError	= 203
+          return False
+      # session verified, no problems found
+      self.lastLoginError	= 202
+      return True
 
     #
     # We get here with an http:// request when https:// is required
@@ -1723,8 +1725,8 @@ class bafExeController(object):
       self.sessionCookie		= None
       self.sessionCookieStatus		= None
 
-    wsSessionsTable			= self.OpenDbTable('sessions')
-    if wsSessionsTable is None:
+    sessions_db_table			= self.OpenDbTable('sessions')
+    if sessions_db_table is None:
       self.sessionCookie		= bzUtil.GetRandom(15)
       self.sessionCookieStatus		= CookieStatusNewOffline
       return
@@ -1738,8 +1740,8 @@ class bafExeController(object):
 						'SessionCreated':	bzUtil.NowYMDHM(),
 						}
 
-      if wsSessionsTable.Insert(wsDbRecord):
-        self.sessionId			= wsSessionsTable.AutoId()
+      if sessions_db_table.Insert(wsDbRecord):
+        self.sessionId			= sessions_db_table.AutoId()
         self.sessionCookie		= wsNewSessionCookie
         self.sessionCookieStatus	= CookieStatusNewNormal
         return
@@ -1766,25 +1768,25 @@ class bafExeController(object):
     return wsResult
 
   def LogOut(self):
-    wsSessionID				= self.GetCookie(SESSIONCOOKIE)
-    if not wsSessionID:
+    session_cookie				= self.GetCookie(SESSION_COOKIE_NAME)
+    if not session_cookie:
       return
-    wsSessionsTable			= self.db.OpenTable(self.siteControls.SessionsTableName)
+    sessions_db_table			= self.db.OpenTable(self.siteControls.SessionsTableName)
     wsConversationsTable		= self.db.OpenTable(self.siteControls.ConversationsTableName)
-    if not wsSessionsTable.Lookup('SessionId', wsSessionID):
+    if not sessions_db_table.Lookup('SessionId', session_cookie):
       return
-    wsSessionIpAddr			= wsSessionsTable[0]['IpAddr']
-    wsSessionCloseTime			= wsSessionsTable[0]['CloseTimestamp']
+    wsSessionIpAddr			= sessions_db_table[0]['IpAddr']
+    wsSessionCloseTime			= sessions_db_table[0]['CloseTimestamp']
     if wsSessionCloseTime:
       return								# Already logged out
     wsLogoutTimestamp			= bzUtil.NowYMDHM()
     if self.cgiRemoteAddr != wsSessionIpAddr:
       return								# Don't logout someone else
-    wsSessionsTable.Update([wsLogoutTimestamp], ['CloseTimestamp'], parmWhere=[('SessionId', '=', wsSessionID)])
-    wsConversationsTable.Update([wsLogoutTimestamp], ['CloseTimestamp'], parmWhere=[('SessionId', '=', wsSessionID)])
+    sessions_db_table.Update([wsLogoutTimestamp], ['CloseTimestamp'], parmWhere=[('SessionId', '=', session_cookie)])
+    wsConversationsTable.Update([wsLogoutTimestamp], ['CloseTimestamp'], parmWhere=[('SessionId', '=', session_cookie)])
 
-  def CheckWebSecurity(self, NonSSLok=None, CheckLocationOnly=None, IsPublicAccess=False):
-    if self.CheckLoginStatus(NonSSLok=NonSSLok, CheckLocationOnly=CheckLocationOnly, IsPublicAccess=IsPublicAccess):
+  def CheckWebSecurity(self, NonSSLok=None, CheckLocationOnly=None, login_not_required=False):
+    if self.CheckLoginStatus(NonSSLok=NonSSLok, CheckLocationOnly=CheckLocationOnly, login_not_required=login_not_required):
       return True
     else:
       return False

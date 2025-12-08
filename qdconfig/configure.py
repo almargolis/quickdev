@@ -16,10 +16,10 @@
 #
 #  08/09/2009: Start development
 #  15 Aug 2009: Begin BFS V2.
-#		- Combine bfsConfigureBootstrap.py instead of two programs
+# 		- Combine bfsConfigureBootstrap.py instead of two programs
 #  03 Jun 2012: Rename bfsConfigure to bzConfigure and being to remove any specificity
-#			to BFS. All application specific details should
-#			come from other sources.
+# 			to BFS. All application specific details should
+# 			come from other sources.
 #
 #
 # This is a configuration program for all applications using the Biznode Application Framework (BAF).
@@ -2453,7 +2453,7 @@ SymlinkTypeFile = 2
 
 
 cli_options = []
-cli_options.append(('d', 'lib', 'symlink library'))
+cli_options.append(("d", "lib", "symlink library"))
 
 if __name__ == "__main__":
     # StartupMode = StartupDirect
@@ -2462,7 +2462,7 @@ if __name__ == "__main__":
     if not env.check_version():
         sys.exit(-1)
     resp = cliinput.cli_input("Do you want to initialize or repair this site?", "yn")
-    if resp.lower() == 'y':
+    if resp.lower() == "y":
         print("yes")
     else:
         print("no")

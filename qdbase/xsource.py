@@ -66,7 +66,7 @@ xdb_dict = pdict.DbDict()
 # synthesized (i.e. a *.py file with no corresponding
 # *.xpy file). Module names are globally unique
 # regardless of language or directory.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_MODULES))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_MODULES))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("module_type", default_value=MODULE_TYPE_UNKNOWN))
 d.add_column(pdict.Text("status", default_value=MODULE_STATUS_READY))
@@ -81,7 +81,7 @@ d.add_column(pdict.Text("target_found", default_value="N"))
 d.add_index("ix_modules", "module_name")
 
 # XDB_DIRS contains one entry for each project directory.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_DIRS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_DIRS))
 d.add_column(pdict.Text("path"))
 d.add_column(pdict.Text("found", default_value="N"))
 d.add_index("ix_dir_paths", "path")
@@ -89,7 +89,7 @@ d.add_index("ix_dir_paths", "path")
 # XDB_FILES contains one entry for each file
 # in the project directories except for explicitly
 # ignored files.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_FILES))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_FILES))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("ext"))
 d.add_column(pdict.Text("path"))
@@ -99,37 +99,37 @@ d.add_column(pdict.Text("found", default_value="N"))
 d.add_index("ix_sources", ["module_name", "ext"], is_unique=False)
 d.add_index("ix_file_paths", "path")
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_MODULE_USES))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_MODULE_USES))
 d.add_column(pdict.Text("source_module_name"))
 d.add_column(pdict.Text("uses_module_name"))
 d.add_index("ix_module_uses", ["source_module_name", "uses_module_name"])
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_DEFINES))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_DEFINES))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("define_name"))
 d.add_column(pdict.Text("value"))
 d.add_index("ix_defines", ["module_name", "define_name"])
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_CLASSES))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_CLASSES))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("class_name"))
 d.add_column(pdict.Text("base_class"))
 d.add_index("ix_classes", ["module_name", "class_name"])
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_DEFS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_DEFS))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("class_name"))
 d.add_column(pdict.Text("def_name"))
 d.add_column(pdict.Text("decorator"))
 d.add_index("ix_defs", ["module_name", "class_name", "def_name", "decorator"])
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_ACTIONS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_ACTIONS))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("action_name"))
 d.add_column(pdict.Text("action_type"))
 d.add_index("ix_actions", "action_name")
 
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_PROGS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_PROGS))
 d.add_column(pdict.Text("prog_name"))
 d.add_column(pdict.Text("prog_type"))
 d.add_column(pdict.Text("action_name"))
@@ -137,13 +137,13 @@ d.add_column(pdict.Text("trigger_name"))
 d.add_index("ix_progs", "prog_name")
 
 # XDB_DICTS contains one entry for each project dictionary.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_DICTS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_DICTS))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("dict_name"))
 d.add_index("ix_dict_names", "dict_name")
 
 # XDB_DICT_ELEMENTS contains one entry for each dictionary element`.
-d = xdb_dict.add_table(pdict.DbTableDict(XDB_DICT_ELEMENTS))
+d = xdb_dict.add_table(pdict.DbDictTable(XDB_DICT_ELEMENTS))
 d.add_column(pdict.Text("module_name"))
 d.add_column(pdict.Text("dict_name"))
 d.add_column(pdict.Text("element_name"))

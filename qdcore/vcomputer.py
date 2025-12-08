@@ -4,21 +4,22 @@
 # runtime and its related data structure.
 #
 # 6 Aug 2011 - Start Development
-#		A lot of leraning for this comes from bzBizgen and its predecessors and the explression
-#		analyzer in bzParse but I'm not particularly looking at that code.
+# 		A lot of leraning for this comes from bzBizgen and its predecessors and the explression
+# 		analyzer in bzParse but I'm not particularly looking at that code.
 #
 
 from . import ertypes
 from . import utils
 
+
 class bzPcodes(ertypes.ErCodeDef):
     def __init__(self, parmExeAction):
         ertypes.ErCodeDef.__init__(self, parmExeAction)
-        self.AddCode('P', 'PushData')
-        self.AddCode('A', 'Add')
+        self.AddCode("P", "PushData")
+        self.AddCode("A", "Add")
         #
         self.DefineFullSet()
-        #self.AddSet('Virtual', ('Confusion', 'AssociationPrimary', 'AssociationSecondaryDirect', 'AssociationSecondaryPath'))
+        # self.AddSet('Virtual', ('Confusion', 'AssociationPrimary', 'AssociationSecondaryDirect', 'AssociationSecondaryPath'))
 
 
 StackUnderflowIx = -1
@@ -64,8 +65,8 @@ class bafVStack(object):
 
 
 def GetFieldValue(parmRecord, parmFieldName, DefaultTDict=None):
-    #print ">>>", `parmRecord`
-    #print "---", `parmFieldName`
+    # print ">>>", `parmRecord`
+    # print "---", `parmFieldName`
     try:
         return parmRecord[parmFieldName]
     except BaseException:
@@ -102,13 +103,13 @@ def GetFieldValue(parmRecord, parmFieldName, DefaultTDict=None):
 
 class bafVMachine(object):
     def __init__(self, ExeController=None):
-        self.exeController = ExeController		# bafExeController
+        self.exeController = ExeController  # bafExeController
         self.stack = bafVStack()
 
     def RunRPN(self, parmCode, parmDataStore, Debug=0):
         if Debug > 0:
             print("Code: ", repr(parmCode))
-        #print `parmDataStore`
+        # print `parmDataStore`
         for wsThisOperation in parmCode:
             if isinstance(wsThisOperation, type(())):
                 wsThisOpcode = wsThisOperation[0]
@@ -172,16 +173,16 @@ class bafVMachine(object):
 
 
 def ModuleTest(ExeAction=None):
-    R1 = {'Species': "Cat", 'Name': "Chloe"}
-    R2 = {'Species': "Cat", 'Name': "Tippie"}
-    DS = {'R1': R1, 'R2': R2}
+    R1 = {"Species": "Cat", "Name": "Chloe"}
+    R2 = {"Species": "Cat", "Name": "Tippie"}
+    DS = {"R1": R1, "R2": R2}
 
     VM = bafVMachine(ExeAction=ExeAction)
     #
     wsProg = (
-        (OpPushTupleElement, 'R1', 'Species'),
-        (OpPushTupleElement, 'R2', 'Species'),
-        OpCompareEqual
+        (OpPushTupleElement, "R1", "Species"),
+        (OpPushTupleElement, "R2", "Species"),
+        OpCompareEqual,
     )
     if VM.RunRPN(wsProg, DS):
         print("Species Match -- OK")
@@ -189,20 +190,16 @@ def ModuleTest(ExeAction=None):
         print("Species Mis-Match -- WRONG!!!")
     #
     wsProg = (
-        (OpPushTupleElement, 'R1', 'Name'),
-        (OpPushTupleElement, 'R2', 'Name'),
-        OpCompareEqual
+        (OpPushTupleElement, "R1", "Name"),
+        (OpPushTupleElement, "R2", "Name"),
+        OpCompareEqual,
     )
     if VM.RunRPN(wsProg, DS):
         print("Name Match -- WRONG!!!")
     else:
         print("Name Mis-Match -- OK")
     #
-    wsProg = (
-        (OpPushNumber, 6),
-        (OpPushNumber, 2),
-        OpSubtract
-    )
+    wsProg = ((OpPushNumber, 6), (OpPushNumber, 2), OpSubtract)
     wsResult = VM.RunRPN(wsProg, DS)
     if wsResult == 4:
         print("6 - 2 = 4 -- OK")

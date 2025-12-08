@@ -1,26 +1,26 @@
 """
-    Identify and normalize the program execution environment.
+Identify and normalize the program execution environment.
 
-    Modules may run under a variety of operating system and
-    operating modes. This module provides a standard way
-    for a program to know how it is running and normalizes
-    some services so that most code doesn't have to consider
-    how it is running.
+Modules may run under a variety of operating system and
+operating modes. This module provides a standard way
+for a program to know how it is running and normalizes
+some services so that most code doesn't have to consider
+how it is running.
 
-    The global execution_env object created at the bottom
-    of this module provide a standardized way for an
-    QuickDev program to know how it is running and where to
-    find things. This module is obviously Python specific.
-    When QuickDev is extended to support other languages a
-    similar structure will be created so all QuickDev programs
-    can have a similar structure regardless of language.
+The global execution_env object created at the bottom
+of this module provide a standardized way for an
+QuickDev program to know how it is running and where to
+find things. This module is obviously Python specific.
+When QuickDev is extended to support other languages a
+similar structure will be created so all QuickDev programs
+can have a similar structure regardless of language.
 
-    Some of this code has been brought forward from an
-    earlier iteration of my framework. There may be some
-    overlap with newer code and unused artifacts.
+Some of this code has been brought forward from an
+earlier iteration of my framework. There may be some
+overlap with newer code and unused artifacts.
 
-    This is used by XSynth in stand-alone mode, so it can't
-    use XSynth features.
+This is used by XSynth in stand-alone mode, so it can't
+use XSynth features.
 """
 
 import os
@@ -535,7 +535,6 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
         if self.debug > 0:
             print(f"exenv.set_run_name({run_name}).")
         if run_name == "__main__":
-
             #
             # We get here if the program was directly launched.
             # Normally this would only be used for a new site

@@ -98,7 +98,7 @@ def GetAttributeNames(parmObject):
     if wsSource is not None:
         # This is very fragile. It works for my simple property
         # definitions but is not a broad solution
-        for (wsThisLineNo, wsThisLine) in enumerate(wsSource):
+        for wsThisLineNo, wsThisLine in enumerate(wsSource):
             if wsThisLine.find("@property") >= 0:
                 wsPropDefLine = wsSource[wsThisLineNo + 1]
                 wsDefPos = wsPropDefLine.find("def")
@@ -627,7 +627,6 @@ class TupleDict(object):
         SchemaFieldUdi=0,
         SchemaFieldRoleSourceUdi=0,
     ):
-
         if isinstance(parmElementPath, type([])):
             if len(parmElementPath) == 1:
                 wsElementName = parmElementPath[0]
@@ -2077,7 +2076,6 @@ class TupleDictionaryElement(object):
         SchemaFieldUdi=0,
         SchemaFieldRoleSourceUdi=0,
     ):
-
         #
         # These are the minimum set of fields needed for the dictionary of a bafDataTreeBranch() object.
         # Actually, _short name is far from essential.

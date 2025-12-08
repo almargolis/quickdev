@@ -1,16 +1,16 @@
 #!/usr/bin/python
 """
-  Rdbms provides a standardized interface to accessing relational databases.
-  It provides the following advantages vs. directly accessing the Python
-  database libraries:
-	- Automatcally hands RDBMS differences so the same code produces
-		identical results accross all RDBMS engines. The
-		differences that are handled include:
-		- colation rules (esp. regarding case sensitive matches)
-		- Unicode
-		- schema formats
-	- Integrates with TDict
-	- Simplifed, RDBM is accessed via Python structures rather than SQL.
+Rdbms provides a standardized interface to accessing relational databases.
+It provides the following advantages vs. directly accessing the Python
+database libraries:
+      - Automatcally hands RDBMS differences so the same code produces
+              identical results accross all RDBMS engines. The
+              differences that are handled include:
+              - colation rules (esp. regarding case sensitive matches)
+              - Unicode
+              - schema formats
+      - Integrates with TDict
+      - Simplifed, RDBM is accessed via Python structures rather than SQL.
 """
 #############################################
 #

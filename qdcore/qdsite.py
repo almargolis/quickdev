@@ -28,9 +28,10 @@ CONF_PARM_SITE_DPATH = "qdsite_dpath"
 CONF_PARM_SITE_UDI = "site_udi"
 CONF_PARM_VENV_DPATH = "venv_dpath"
 
-VENV_ACTIVATE_SUB_FPATH = 'bin/activate'
+VENV_ACTIVATE_SUB_FPATH = "bin/activate"
 
 SOURCE_DIRECORIES_FNAME = "xsource_dirs"
+
 
 def identify_site(site=None):
     """
@@ -44,7 +45,7 @@ def identify_site(site=None):
         if exenv.execution_env.execution_site.qdsite_valid:
             return exenv.execution_env.execution_site
         return None
-    return None # we really shouldn't get here
+    return None  # we really shouldn't get here
 
 
 class hold:
@@ -96,15 +97,22 @@ class QdSite:
     for QdDev itself or a host management site. Programs run from there
     may create additional instances for a site being configured.
 
-    QdSite() is instanciated speculatively by exenv. We don't want to 
+    QdSite() is instanciated speculatively by exenv. We don't want to
     raise an exception here because failures can be caused just
     because we haven't yet pointed to the correct site directory.
     Problems are therefore flagged instead of raised.
     Check qdsite_valid and qdsite_errs for status.
     """
 
-    __slots__ = ("conf_dpath", "host_site_data", "ini_data", "ini_fpath", 
-                 "qdsite_errs", "qdsite_dpath", "qdsite_valid")
+    __slots__ = (
+        "conf_dpath",
+        "host_site_data",
+        "ini_data",
+        "ini_fpath",
+        "qdsite_errs",
+        "qdsite_dpath",
+        "qdsite_valid",
+    )
 
     def __init__(self, qdsite_dpath=None, host_site_ini=None):
         self.reload(qdsite_dpath=qdsite_dpath, host_site_ini=host_site_ini)
@@ -121,7 +129,9 @@ class QdSite:
             return
         acronym = os.path.basename(self.qdsite_dpath)
         if acronym == "":
-            self.qdsite_errs.append(f"Invalid qdsite acronym '{self.qdsite_dpath}' '{acronym}'")
+            self.qdsite_errs.append(
+                f"Invalid qdsite acronym '{self.qdsite_dpath}' '{acronym}'"
+            )
             self.qdsite_valid = False
             return
         self.conf_dpath = os.path.join(self.qdsite_dpath, qdconst.SITE_CONF_DIR_NAME)
@@ -144,7 +154,9 @@ class QdSite:
         if (self.ini_data.get(CONF_PARM_SITE_DPATH, "") != self.qdsite_dpath) or (
             self.ini_data.get(CONF_PARM_ACRONYM, "") != acronym
         ):
-            self.qdsite_errs.append(f"Invalid qdsite ini '{self.qdsite_dpath}' '{acronym}' {self.ini_data}")
+            self.qdsite_errs.append(
+                f"Invalid qdsite ini '{self.qdsite_dpath}' '{acronym}' {self.ini_data}"
+            )
             self.qdsite_valid = False
             return
         self.host_site_data = host_site_ini
@@ -158,7 +170,7 @@ class QdSite:
     def get_source_directories(self):
         source_dirs_path = os.path.join(self.conf_dpath, SOURCE_DIRECORIES_FNAME)
         try:
-            with open(source_dirs_path, 'r') as f:
+            with open(source_dirs_path, "r") as f:
                 sources = []
                 for this_line in f.readlines():
                     sources.append(this_line.strip())
@@ -169,9 +181,9 @@ class QdSite:
     def save_source_directories(self, sources):
         source_dirs_path = os.path.join(self.conf_dpath, SOURCE_DIRECORIES_FNAME)
         print(f"QdSite.save_source_directories({sources}) @ {source_dirs_path}")
-        with open(source_dirs_path, 'w') as f:
+        with open(source_dirs_path, "w") as f:
             for this_dir in sources:
-                f.write(this_dir+'\n')
+                f.write(this_dir + "\n")
 
     def get_venv_activate_fpath(self):
         """

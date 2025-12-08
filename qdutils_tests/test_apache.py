@@ -1,6 +1,7 @@
 """
 Tests apache utility functions.
 """
+
 import os
 
 
@@ -65,48 +66,61 @@ def test_apache_conf(tmpdir):
     assert len(includes) == 1
     assert includes[0].value == SITES_CONF_SELECTOR
 
+
 class MakeDevSite:
     def __init__(self, acronym, apache_host):
         self.acronym = acronym
         self.apache_host = apache_host
         self.qdsite_dpath = os.path.join(exenv.g.qdsites_dpath, acronym)
-        self.website_subdir = 'html'
+        self.website_subdir = "html"
         self.website_dpath = os.path.join(self.qdsite_dpath, self.website_subdir)
-        self.domain_name = 'www.{}.com'.format(acronym)
-        www_ini_fn = os.path.join(exenv.g.qdhost_websites_dpath, acronym+'.ini')
-        with open(www_ini_fn, 'w', encoding='utf-8') as www_ini_file:
-            www_ini_file.write('acronym={}\ndomain_name={}\n'.format(acronym, self.domain_name))
-        dev_ini_fn = os.path.join(exenv.g.qdhost_qdsites_dpath, acronym+'.ini')
-        with open(dev_ini_fn, 'w', encoding='utf-8') as dev_ini_file:
-            dev_ini_file.write('acronym={}\nqdsite_dpath={}\n'.format(acronym, self.qdsite_dpath))
+        self.domain_name = "www.{}.com".format(acronym)
+        www_ini_fn = os.path.join(exenv.g.qdhost_websites_dpath, acronym + ".ini")
+        with open(www_ini_fn, "w", encoding="utf-8") as www_ini_file:
+            www_ini_file.write(
+                "acronym={}\ndomain_name={}\n".format(acronym, self.domain_name)
+            )
+        dev_ini_fn = os.path.join(exenv.g.qdhost_qdsites_dpath, acronym + ".ini")
+        with open(dev_ini_fn, "w", encoding="utf-8") as dev_ini_file:
+            dev_ini_file.write(
+                "acronym={}\nqdsite_dpath={}\n".format(acronym, self.qdsite_dpath)
+            )
         os.mkdir(self.qdsite_dpath)
         os.mkdir(self.website_dpath)
-        conf_dpath = os.path.join(self.qdsite_dpath, 'conf')
+        conf_dpath = os.path.join(self.qdsite_dpath, "conf")
         os.mkdir(conf_dpath)
-        conf_fpath = os.path.join(conf_dpath, 'site.conf')
-        with open(conf_fpath, 'w', encoding='utf-8') as site_ini_file:
-            site_ini_file.write('acronym={}\nwebsite_subdir={}\n'.format(acronym, self.website_subdir))
+        conf_fpath = os.path.join(conf_dpath, "site.conf")
+        with open(conf_fpath, "w", encoding="utf-8") as site_ini_file:
+            site_ini_file.write(
+                "acronym={}\nwebsite_subdir={}\n".format(acronym, self.website_subdir)
+            )
         self.make_expected_vhost_conf()
 
     def make_expected_vhost_conf(self):
-        access_log_fpath = os.path.join(self.apache_host.log_base_dir, self.acronym+apache.ACCESS_LOG_SUFFIX)
-        error_log_fpath = os.path.join(self.apache_host.log_base_dir, self.acronym+apache.ERROR_LOG_SUFFIX)
+        access_log_fpath = os.path.join(
+            self.apache_host.log_base_dir, self.acronym + apache.ACCESS_LOG_SUFFIX
+        )
+        error_log_fpath = os.path.join(
+            self.apache_host.log_base_dir, self.acronym + apache.ERROR_LOG_SUFFIX
+        )
         self.vhost_conf = []
-        self.vhost_conf.append('<VirtualHost *:80>\n')
+        self.vhost_conf.append("<VirtualHost *:80>\n")
         self.vhost_conf.append('\tDocumentRoot "{}"\n'.format(self.website_dpath))
-        self.vhost_conf.append('\tServerName {}\n'.format(self.domain_name))
+        self.vhost_conf.append("\tServerName {}\n".format(self.domain_name))
         self.vhost_conf.append('\tErrorLog "{}"\n'.format(error_log_fpath))
         self.vhost_conf.append('\tCustomLog "{}" common\n'.format(access_log_fpath))
-        self.vhost_conf.append('\n')
+        self.vhost_conf.append("\n")
         self.vhost_conf.append('\t<Directory "{}">\n'.format(self.website_dpath))
-        self.vhost_conf.append('\t\tAllowOverride All\n')
-        self.vhost_conf.append('\t\tRequire all granted\n')
-        self.vhost_conf.append('\t</Directory>\n')
-        self.vhost_conf.append('</VirtualHost>\n')
+        self.vhost_conf.append("\t\tAllowOverride All\n")
+        self.vhost_conf.append("\t\tRequire all granted\n")
+        self.vhost_conf.append("\t</Directory>\n")
+        self.vhost_conf.append("</VirtualHost>\n")
 
     def check_vhost_conf(self):
-        vhost_conf_fpath = os.path.join(self.apache_host.sites_available_dir_path, self.acronym + '.conf')
-        with open(vhost_conf_fpath, 'r') as f:
+        vhost_conf_fpath = os.path.join(
+            self.apache_host.sites_available_dir_path, self.acronym + ".conf"
+        )
+        with open(vhost_conf_fpath, "r") as f:
             generated_lines = f.readlines()
         len_expected = len(self.vhost_conf)
         len_generated = len(generated_lines)
@@ -115,10 +129,11 @@ class MakeDevSite:
             if ix < len_expected:
                 line_expected = self.vhost_conf[ix]
             else:
-                line_expected = ''
+                line_expected = ""
             if ix < len_generated:
                 line_generated = generated_lines[ix]
             assert line_expected == line_generated
+
 
 def test_config_vhosts(tmpdir):
     """
@@ -129,6 +144,6 @@ def test_config_vhosts(tmpdir):
     """
     test_qdstart.MakeQdev(tmpdir)
     apache_host = apache.ApacheHosting()
-    dev1 = MakeDevSite('xx1', apache_host)
+    dev1 = MakeDevSite("xx1", apache_host)
     apache.config_vhosts()
     dev1.check_vhost_conf()

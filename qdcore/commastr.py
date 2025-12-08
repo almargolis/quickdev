@@ -12,7 +12,7 @@
 #
 #
 #  Copyright (C) 2001,2002,2003,2004,2005
-#		by Albert B. Margolis - All Rights Reserved
+# 		by Albert B. Margolis - All Rights Reserved
 #
 #  4/20/2005:  move from utils to avoid cross-import problems.
 
@@ -22,24 +22,27 @@ import sys
 from . import qddict
 from . import utils
 
+
 def is_empty_list(data):
     for this in data:
-        if (this != '') and (this is not None):
+        if (this != "") and (this is not None):
             return False
     return True
-    
+
+
 def AsList(parmData):
     if parmData is None:
         return []
     if isinstance(parmData, str):
-        if len(parmData) == 0:			# this works for Unicode and not
+        if len(parmData) == 0:  # this works for Unicode and not
             return []
-        if (parmData[:1] == '[') and (parmData[-1:] == "]"):
+        if (parmData[:1] == "[") and (parmData[-1:] == "]"):
             parmData = parmData[1:-1]
             return CommaStrToList(parmData, RecognizeArrays=True)
         else:
             return CommaStrToList(parmData)
     return [parmData]
+
 
 # This method converts a list into string.  It is nearly redundant with
 # __expr__() except that it gives me more direct control over formatting
@@ -59,17 +62,22 @@ def ListToStr(parmList, quote="'", Escape=None, Delim=", ", AlsoQuote=""):
         if wsFldDstCt > 0:
             wsStr += Delim
         if isinstance(wsThisField, type([])):
-            wsThisField = ListToStr(wsThisField, quote=quote,
-                                    Escape=Escape, Delim=Delim,
-                                    AlsoQuote=AlsoQuote)
+            wsThisField = ListToStr(
+                wsThisField,
+                quote=quote,
+                Escape=Escape,
+                Delim=Delim,
+                AlsoQuote=AlsoQuote,
+            )
         else:
             wsThisField = utils.FilterText(wsThisField)
-            wsThisField = utils.QuoteStr(wsThisField,
-                                         Escape=Escape, Delim=Delim,
-                                         AlsoQuote=AlsoQuote)
+            wsThisField = utils.QuoteStr(
+                wsThisField, Escape=Escape, Delim=Delim, AlsoQuote=AlsoQuote
+            )
         wsStr += wsThisField
         wsFldDstCt += 1
     return "[%s]" % (wsStr)
+
 
 #
 #  ListToCommaStr() Converts an array into a comma delimited line of text for data export
@@ -79,16 +87,24 @@ def ListToStr(parmList, quote="'", Escape=None, Delim=", ", AlsoQuote=""):
 #  Non-Text characters are filtered out by FilterText()
 #
 #  QuoteAlways=TRUE quotes all elements, even if they don't contain quotes, delimters, etc.
-#		Needed to conform to Excel comma delimited format.
-#		Also used to generate a list of strings when generating code.
+# 		Needed to conform to Excel comma delimited format.
+# 		Also used to generate a list of strings when generating code.
 #
 #  AlsoQuote="," needed to conform to Excel tab delimited format
 #
 
 
-def ListToCommaStr(parmList, Quote='"', QuoteAlways=False, Escape=None,
-                   fldCt=-1, FldSkipMap="", Delim=", ",
-                   QuoteNever=False, AlsoQuote=""):
+def ListToCommaStr(
+    parmList,
+    Quote='"',
+    QuoteAlways=False,
+    Escape=None,
+    fldCt=-1,
+    FldSkipMap="",
+    Delim=", ",
+    QuoteNever=False,
+    AlsoQuote="",
+):
     wsStr = ""
     if not parmList:
         return wsStr
@@ -96,19 +112,24 @@ def ListToCommaStr(parmList, Quote='"', QuoteAlways=False, Escape=None,
     wsFldDstCt = 0
     for wsThisField in parmList:
         wsFldSrcCt += 1
-        if (len(FldSkipMap) >= wsFldSrcCt) and (
-                FldSkipMap[wsFldSrcCt - 1] == "Y"):
+        if (len(FldSkipMap) >= wsFldSrcCt) and (FldSkipMap[wsFldSrcCt - 1] == "Y"):
             continue
         if wsFldDstCt > 0:
             wsStr += Delim
         if isinstance(wsThisField, type([])):
-            wsThisField = '[' + ListToCommaStr(wsThisField,
-                                               Quote=Quote,
-                                               QuoteAlways=QuoteAlways,
-                                               Escape=Escape,
-                                               Delim=Delim,
-                                               QuoteNever=QuoteNever,
-                                               AlsoQuote=AlsoQuote) + ']'
+            wsThisField = (
+                "["
+                + ListToCommaStr(
+                    wsThisField,
+                    Quote=Quote,
+                    QuoteAlways=QuoteAlways,
+                    Escape=Escape,
+                    Delim=Delim,
+                    QuoteNever=QuoteNever,
+                    AlsoQuote=AlsoQuote,
+                )
+                + "]"
+            )
         else:
             wsThisField = utils.FilterText(wsThisField)
             if not QuoteNever:
@@ -117,7 +138,8 @@ def ListToCommaStr(parmList, Quote='"', QuoteAlways=False, Escape=None,
                     QuoteAlways=QuoteAlways,
                     Escape=Escape,
                     Delim=Delim,
-                    AlsoQuote=AlsoQuote)
+                    AlsoQuote=AlsoQuote,
+                )
         wsStr += wsThisField
         wsFldDstCt += 1
         if (fldCt >= 0) and (wsFldDstCt >= fldCt):
@@ -134,6 +156,7 @@ def ListToCommaStr(parmList, Quote='"', QuoteAlways=False, Escape=None,
             wsFldCt += 1
     return wsStr
 
+
 #
 # This is has limited reentrancy to support an array of arrays.
 # Parsing is fairly simpleminded.  Most of CommaStrToList()
@@ -144,11 +167,8 @@ def ListToCommaStr(parmList, Quote='"', QuoteAlways=False, Escape=None,
 
 class bzLineParse:
     def __init__(
-            self,
-            Escape=None,
-            getKeywords=None,
-            RecognizeArrays=None,
-            StripAll=False):
+        self, Escape=None, getKeywords=None, RecognizeArrays=None, StripAll=False
+    ):
         self.ascii = True
         self.ClearCurField()
         self.Escape = Escape
@@ -183,7 +203,8 @@ class bzLineParse:
                     self.curField = []
                 else:
                     self.curField = CommaStrToList(
-                        wsCurField, Escape=self.Escape, RecognizeArrays=True)
+                        wsCurField, Escape=self.Escape, RecognizeArrays=True
+                    )
         if self.keyName:
             self.keywords[self.keyName] = self.curField
         else:
@@ -214,6 +235,7 @@ def FastCommaStrToList(parmStr, Delim=",", UpperCase=True):
         return wsCleanArray
     return []
 
+
 #
 # Parse a comma delimited string into a array of items.  If RecognizeArrays
 # is true, a value delimited with [] is itself interpreted as a list.
@@ -230,28 +252,36 @@ def FastCommaStrToList(parmStr, Delim=",", UpperCase=True):
 #
 
 
-def CommaStrToList(wsLine,
-                   Escape=None, Delim=",",
-                   getKeywords=None, RecognizeArrays=None,
-                   ColonArray=None, ColonArrayLen=0,
-                   GetNextLine=None, StripAll=False):
+def CommaStrToList(
+    wsLine,
+    Escape=None,
+    Delim=",",
+    getKeywords=None,
+    RecognizeArrays=None,
+    ColonArray=None,
+    ColonArrayLen=0,
+    GetNextLine=None,
+    StripAll=False,
+):
     if not wsLine:
         return []
     if ColonArrayLen > 0:
         ColonArray = True
-    wsParse = bzLineParse(Escape=Escape,
-                          getKeywords=getKeywords,
-                          RecognizeArrays=RecognizeArrays,
-                          StripAll=StripAll)
+    wsParse = bzLineParse(
+        Escape=Escape,
+        getKeywords=getKeywords,
+        RecognizeArrays=RecognizeArrays,
+        StripAll=StripAll,
+    )
     if isinstance(wsLine, str):
         wsParse.ascii = False
     wsLineLen = utils.GetLineLen(wsLine)
     wsIx = 0
     wsState = 0
     while wsIx < wsLineLen:
-        #print "%d %3d %s" % (wsState, wsIx, wsLine)
+        # print "%d %3d %s" % (wsState, wsIx, wsLine)
         wsC = wsLine[wsIx]
-        if wsState == 0:			# collect field chars
+        if wsState == 0:  # collect field chars
             if wsC == Delim:
                 wsParse.AppendField()
             elif (wsC in "'\"") and (wsParse.curField == ""):
@@ -273,42 +303,48 @@ def CommaStrToList(wsLine,
                         else:
                             wsLevel -= 1
                     wsNextIx += 1
-                #print "line " + wsLine
-                #print "array %d %d" % (wsIx, wsEndPos)
+                # print "line " + wsLine
+                # print "array %d %d" % (wsIx, wsEndPos)
                 if wsEndPos > 0:
-                    wsParse.curField = wsLine[wsIx:wsEndPos + 1]
+                    wsParse.curField = wsLine[wsIx : wsEndPos + 1]
                     wsState = 0
                     wsIx = wsEndPos
-            elif (wsC == "=") and getKeywords \
-                    and (wsParse.curField != "") \
-                    and (wsParse.keyName == ""):
+            elif (
+                (wsC == "=")
+                and getKeywords
+                and (wsParse.curField != "")
+                and (wsParse.keyName == "")
+            ):
                 wsParse.keyName = wsParse.curField
                 wsParse.curField = ""
             elif (wsC in " \t") and (wsParse.curField == ""):
-                pass		# skip leading spaces
+                pass  # skip leading spaces
             else:
                 wsParse.curField += wsC
-        elif wsState == 1:			# collect quoted field
+        elif wsState == 1:  # collect quoted field
             if wsC == wsParse.quoteChar:  # check if next character is also quote
-                if ((wsIx + 1) < wsLineLen) \
-                        and (wsLine[wsIx + 1] == wsParse.quoteChar):
+                if ((wsIx + 1) < wsLineLen) and (wsLine[wsIx + 1] == wsParse.quoteChar):
                     # treat double quote as literal quote
                     wsIx += 1
                     wsParse.curField += wsParse.quoteChar
                 else:
-                    wsState = 0			# single quote, this is end of string
-            elif (wsC == Escape) and ((wsIx + 1) < wsLineLen):  # handle escape characters
+                    wsState = 0  # single quote, this is end of string
+            elif (wsC == Escape) and (
+                (wsIx + 1) < wsLineLen
+            ):  # handle escape characters
                 wsIx += 1
                 wsC = wsLine[wsIx]
                 wsParse.curField += wsC
             else:
-                wsParse.curField += wsC			# just a normal character within quote
-            if (wsIx + 1) >= wsLineLen:			# check if this is last character
+                wsParse.curField += wsC  # just a normal character within quote
+            if (wsIx + 1) >= wsLineLen:  # check if this is last character
                 if GetNextLine is not None:
-                    wsNextLine = GetNextLine()		# EOL is allowed within string, get continuation
+                    wsNextLine = (
+                        GetNextLine()
+                    )  # EOL is allowed within string, get continuation
                     if wsNextLine is not None:
                         # there is another line, treat as continuation
-                        wsParse.curField += '\n'
+                        wsParse.curField += "\n"
                         wsLine = wsNextLine
                         wsLineLen = utils.GetLineLen(wsLine)
                         wsIx = -1
@@ -316,14 +352,15 @@ def CommaStrToList(wsLine,
     #
     # Line Processed
     #
-    wsParse.AppendField()			# save last field
+    wsParse.AppendField()  # save last field
     if getKeywords:
         return (wsParse.fields, wsParse.keywords)
     else:
         if ColonArray:
             for wsIx in range(0, len(wsParse.fields)):
                 wsParse.fields[wsIx] = ParseColonArray(
-                    wsParse.fields[wsIx], ColonArrayLen=ColonArrayLen)
+                    wsParse.fields[wsIx], ColonArrayLen=ColonArrayLen
+                )
         return wsParse.fields
 
 
@@ -335,10 +372,10 @@ def MultiLineCommaColonStrToList(parmString):
     wsResult = []
     wsLines = parmString.split(chr(13) + chr(10))
     for wsThisLine in wsLines:
-        wsElements = wsThisLine.split(',')
+        wsElements = wsThisLine.split(",")
         wsFinishedLine = []
         for wsThisElement in wsElements:
-            wsParameters = wsThisElement.split(':')
+            wsParameters = wsThisElement.split(":")
             wsFinishedElement = []
             for wsThisParameter in wsParameters:
                 wsFinishedElement.append(utils.Strip(wsThisParameter))
@@ -368,7 +405,7 @@ def CommaColonStrToList(parmLine):
 
 
 if __name__ == "__main__":
-    wsStrA = 'A, [], b'
+    wsStrA = "A, [], b"
     wsStrA = 'A, "[[1215, 1], [1413, 2]]", b'
     wsLstA = CommaStrToList(wsStrA, RecognizeArrays=True)
     wsStrB = ListToCommaStr(wsLstA)
@@ -379,15 +416,21 @@ if __name__ == "__main__":
     print("LstB    ==> " + repr(wsLstB) + " <==")
     sys.exit(0)
 
-    wsList1 = ["simple", "com,ma", '"leading quote', 'internal"quote',
-               'double,""Escape', "Escape,\Escape"]
+    wsList1 = [
+        "simple",
+        "com,ma",
+        '"leading quote',
+        'internal"quote',
+        'double,""Escape',
+        "Escape,\Escape",
+    ]
     wsCma = ListToCommaStr(wsList1)
     wsList2 = CommaStrToList(wsCma)
     print("List1 ==> " + repr(wsList1) + " <==")
     print("Str   ==> " + repr(wsCma) + " <==")
     print("List2 ==> " + repr(wsList2) + " <==")
     print()
-    wsListList1 = [['a', 1], ['b', 2]]
+    wsListList1 = [["a", 1], ["b", 2]]
     wsListCma = ListToCommaStr(wsListList1)
     wsListList2 = CommaStrToList(wsListCma, RecognizeArrays=True)
     print("ListList1 ==> " + repr(wsListList1) + " <==")

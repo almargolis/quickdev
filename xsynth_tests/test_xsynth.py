@@ -1,6 +1,7 @@
 """
 test xsynth.py
 """
+
 import os
 import stat
 

@@ -1,27 +1,29 @@
 from qdcore import qddict
 
+
 def test_basic():
     ez = qddict.QdDict()
-    ez['z'] = 1
-    ez['Z'] = 2
-    assert ez['z'] == 2
+    ez["z"] = 1
+    ez["Z"] = 2
+    assert ez["z"] == 2
+
 
 def test_equivalence_to_dict():
     ez = qddict.QdDict()
-    ez['A'] = 100
+    ez["A"] = 100
     ez2 = qddict.QdDict()
-    ez2['a'] = 1
-    ez2['b'] = 2
-    ez['sub1'] = ez2
-    ez['sub1.c'] = 3
+    ez2["a"] = 1
+    ez2["b"] = 2
+    ez["sub1"] = ez2
+    ez["sub1.c"] = 3
 
     d = {}
     d2 = {}
-    d2['a'] = 1
-    d2['b'] = 2
-    d2['c'] = 3
-    d['A'] = 100
-    d['sub1'] = d2
+    d2["a"] = 1
+    d2["b"] = 2
+    d2["c"] = 3
+    d["A"] = 100
+    d["sub1"] = d2
 
     assert d == ez
 

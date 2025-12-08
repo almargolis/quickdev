@@ -5,9 +5,9 @@
 #
 #
 #  FEATURES
-#	A FileDriver is a driver for bzVirtFile for os file descriptors.
-#	It is intended as a drop in replacement for python #built-in file
-#	objects, but with some system safety rules built-in.
+# 	A FileDriver is a driver for bzVirtFile for os file descriptors.
+# 	It is intended as a drop in replacement for python #built-in file
+# 	objects, but with some system safety rules built-in.
 #
 #  WARNINGS
 #
@@ -17,19 +17,19 @@
 #  01/19/2002:  Initial Release
 #  01/27/2002:  Add OsLseek() for bzBdamFile class
 #  02/20/2004:  Add bzBlobFileDriver class so file-like operation
-#		can be applied to a blob.  Initial need is for
-#		reading files delivered by HTTP.
+# 		can be applied to a blob.  Initial need is for
+# 		reading files delivered by HTTP.
 #  05/14/2006:  Add OsLseek() and OsTell() to blob driver to
-#		support Python Image Library access to uploaded
-#		images without creating a physical file.
+# 		support Python Image Library access to uploaded
+# 		images without creating a physical file.
 #  09/19/2006:  Allow write to blob driver to allow capture of
-#		file output. OsWrite()
+# 		file output. OsWrite()
 #  05/12/2013:  Add OsLock, OsUnlock, OsTruncate, OsFlush to support
-#		incremental counter in a file. Need to make sure
-#		that these are compatible with PHP. Python docs mentions
-#		POSIX locks and ioctl locks without clarity if different.
-#		Also seems to have a set that specifies parts of a file.
-#		Also need to research difference between flush and fsync.
+# 		incremental counter in a file. Need to make sure
+# 		that these are compatible with PHP. Python docs mentions
+# 		POSIX locks and ioctl locks without clarity if different.
+# 		Also seems to have a set that specifies parts of a file.
+# 		Also need to research difference between flush and fsync.
 #
 #############################################
 
@@ -45,16 +45,16 @@ INVALID_FD = -1
 
 # Modes are used with POSIX fopen() - extended a bit here
 
-MODE_R = 'r'			# read an existing file
-MODE_RR = 'rr'          # read an existing file and neatly replace it
-MODE_W = 'w'			# write - making new file or erasing existing
-MODE_A = 'a'			# write - making new file or appending to existing
-MODE_C = 'c'			# create - write a new file, fail if it exists - not a POSIX mode
-MODE_N = 'n'            # not opened
-MODE_RW = 'r+'			# read/write an existing file
-MODE_RWA = 'a+'			# read/write an existing file
-MODE_RWM = 'w+'			# read/write - making new file or erasing existing
-MODE_S = 's'            # write via swap file
+MODE_R = "r"  # read an existing file
+MODE_RR = "rr"  # read an existing file and neatly replace it
+MODE_W = "w"  # write - making new file or erasing existing
+MODE_A = "a"  # write - making new file or appending to existing
+MODE_C = "c"  # create - write a new file, fail if it exists - not a POSIX mode
+MODE_N = "n"  # not opened
+MODE_RW = "r+"  # read/write an existing file
+MODE_RWA = "a+"  # read/write an existing file
+MODE_RWM = "w+"  # read/write - making new file or erasing existing
+MODE_S = "s"  # write via swap file
 
 # Flags are used by POSIX file descriptor open()
 # Modes which are not in FLAGS are translated by VirtFile.open()
@@ -68,9 +68,11 @@ FLAGS[MODE_RW] = os.O_RDWR
 FLAGS[MODE_RWA] = os.O_RDWR | os.O_CREAT | os.O_APPEND
 FLAGS[MODE_RWM] = os.O_RDWR | os.O_CREAT | os.O_TRUNC
 
+
 def is_writeable(flags):
     FLAGS_WRITEABLE = os.O_WRONLY | os.O_RDWR
     return (flags & FLAGS_WRITEABLE) > 0
+
 
 def is_readable(flags):
     FLAGS_READABLE = os.O_RDONLY | os.O_RDWR
@@ -88,14 +90,14 @@ class FileDriverException:
 
 
 class FileDriver(object):
-    __slots__ = ('debug', 'encoding', 'fd', 'open_flags', 'parent', 'path')
+    __slots__ = ("debug", "encoding", "fd", "open_flags", "parent", "path")
 
-    def __init__(self, Encoding='ascii', parent=None, debug=0):
+    def __init__(self, Encoding="ascii", parent=None, debug=0):
         self.encoding = Encoding
         self.debug = debug
         self.fd = INVALID_FD
         self.open_flags = None
-        self.path = None           # FQN of opened file
+        self.path = None  # FQN of opened file
         self.parent = parent
 
     def __repr__(self):
@@ -119,14 +121,11 @@ class FileDriver(object):
     def OsClose(self):
         self.OsFsync()
         result = os.close(self.fd)
-        self.fd = INVALID_FD            # leave open_flags and path
+        self.fd = INVALID_FD  # leave open_flags and path
         return result
 
     def OsDup(self, parent, debug=0):
-        wsDup = FileDriver(
-            Encoding=self.encoding,
-            parent=self.parent,
-            debug=self.debug)
+        wsDup = FileDriver(Encoding=self.encoding, parent=self.parent, debug=self.debug)
         if self.fd >= 0:
             wsDup.fd = os.dup(self.fd)
         else:
@@ -139,9 +138,9 @@ class FileDriver(object):
         if self.fd < 0:
             return 0
         if not self.is_writeable:
-            return 0				# not a writeable file
+            return 0  # not a writeable file
         if self.fd == STDOUT_FD:
-            return 0				# maybe we should flush() prob prob not
+            return 0  # maybe we should flush() prob prob not
         return os.fsync(self.fd)
 
     def OsLock(self):
@@ -162,8 +161,9 @@ class FileDriver(object):
         Symetry must be maintained between OsOpen() and OsTemp()
         """
         if self.debug >= 3:
-            print("FileDriver.OsOpen(%s, %d, %s)" % (
-                parmFn, parmFlags, parmPermissions))
+            print(
+                "FileDriver.OsOpen(%s, %d, %s)" % (parmFn, parmFlags, parmPermissions)
+            )
 
         self.fd = INVALID_FD
         self.open_flags = parmFlags
@@ -175,8 +175,9 @@ class FileDriver(object):
             if self.open_flags != FLAGS[MODE_R]:
                 if self.debug >= 1:
                     print(
-                        "FileDriver.open(%s, %d, %s) ** invalid flags for stdin" %
-                        (parmFn, parmFlags, parmPermissions))
+                        "FileDriver.open(%s, %d, %s) ** invalid flags for stdin"
+                        % (parmFn, parmFlags, parmPermissions)
+                    )
                 return self.fd
             self.fd = STDIN_FD
             return self.fd
@@ -184,13 +185,14 @@ class FileDriver(object):
             if self.open_flags != FLAGS[MODE_W]:
                 if self.debug >= 1:
                     print(
-                        "FileDriver.open(%s, %d, %s) ** invalid flags for stdout" %
-                        (parmFn, parmFlags, parmPermissions))
+                        "FileDriver.open(%s, %d, %s) ** invalid flags for stdout"
+                        % (parmFn, parmFlags, parmPermissions)
+                    )
                 return self.fd
             self.fd = STDOUT_FD
             return self.fd
 
-        #try:
+        # try:
         self.path = os.path.abspath(self.path)
         try:
             if parmPermissions is None:
@@ -200,15 +202,20 @@ class FileDriver(object):
         except FileNotFoundError:
             return INVALID_FD
         if self.fd >= 0:
-            #self.path = os.readlink('/proc/self/fd/{}'.format(self.fd))
+            # self.path = os.readlink('/proc/self/fd/{}'.format(self.fd))
             if self.debug >= 1:
-                print('FileDriver.open() fd={} flags={} permissions={} path={} ** sucessful'.format(
-                    self.fd, self.open_flags, parmPermissions, self.path))
+                print(
+                    "FileDriver.open() fd={} flags={} permissions={} path={} ** sucessful".format(
+                        self.fd, self.open_flags, parmPermissions, self.path
+                    )
+                )
         else:
             self.path = None
             if self.debug >= 1:
-                print("FileDriver.open(%s, %d, %s) ** failed" % (
-                    parmFn, parmFlags, parmPermissions))
+                print(
+                    "FileDriver.open(%s, %d, %s) ** failed"
+                    % (parmFn, parmFlags, parmPermissions)
+                )
 
         return self.fd
 
@@ -229,7 +236,9 @@ class FileDriver(object):
         # Symetry must be maintained between OsOpen() and OsTemp()
         # !!!! NOT TESTED ***********
         # This should be used for process temp files
-        (self.fd, self.path) = tempfile.mkstemp(suffix='.tmp', prefix='tmp_', dir=None, text=False)
+        (self.fd, self.path) = tempfile.mkstemp(
+            suffix=".tmp", prefix="tmp_", dir=None, text=False
+        )
         self.open_flags = os.O_WRONLY
         return self.fd
 
@@ -243,7 +252,7 @@ class FileDriver(object):
         fcntl.flock(self.fd, os.LOCK_UN)
 
     def OsWrite(self, data):
-        """ Write a byte array or string to a file descriptor. """
+        """Write a byte array or string to a file descriptor."""
         if isinstance(data, str):
             data = data.encode()
         return os.write(self.fd, data)
@@ -251,16 +260,17 @@ class FileDriver(object):
 
 class bzBlobFileDriver(object):
     __slots__ = (
-        'blob',
-        'blobIx',
-        'blobLen',
-        'debug',
-        'encoding',
-        'fd',
-        'open_flags',
-        'parent')
+        "blob",
+        "blobIx",
+        "blobLen",
+        "debug",
+        "encoding",
+        "fd",
+        "open_flags",
+        "parent",
+    )
 
-    def __init__(self, Encoding='ascii', parent=None, debug=0):
+    def __init__(self, Encoding="ascii", parent=None, debug=0):
         self.blob = None
         self.blobLen = 0
         self.blobIx = 0
@@ -269,14 +279,14 @@ class bzBlobFileDriver(object):
         self.debug = debug
         self.open_flags = None
         self.parent = parent
-        self.ClearBlob()					# encoding must be set
+        self.ClearBlob()  # encoding must be set
 
     def AddBlob(self, parmBlob):
         self.blob += parmBlob
         self.blobLen = len(self.blob)
 
     def ClearBlob(self):
-        if self.encoding == 'ascii':
+        if self.encoding == "ascii":
             self.blob = ""
         else:
             self.blob = ""
@@ -293,8 +303,10 @@ class bzBlobFileDriver(object):
 
     def OsOpen(self, parmFn, parmFlags, parmPermissions=None):
         if self.debug >= 3:
-            print("bzBlobFileDriver.OsOpen(%s, %d, %s)" % (
-                parmFn, parmFlags, parmPermissions))
+            print(
+                "bzBlobFileDriver.OsOpen(%s, %d, %s)"
+                % (parmFn, parmFlags, parmPermissions)
+            )
 
         self.open_flags = parmFlags
         self.fd = STDOUT_FD
@@ -305,7 +317,7 @@ class bzBlobFileDriver(object):
             return ""
         wsStart = self.blobIx
         self.blobIx += parmMaxBytes
-        return self.blob[wsStart:self.blobIx]
+        return self.blob[wsStart : self.blobIx]
 
     def OsWrite(self, parmData):
         self.blob += parmData
@@ -318,7 +330,7 @@ class bzBlobFileDriver(object):
             self.blobIx += parmOfs
         elif whence == 2:
             self.blobIx = self.blobLen - parmOfs
-        else:						# default 0, absolute
+        else:  # default 0, absolute
             self.blobIx = parmOfs
         if self.blobIx < 0:
             self.blobIx = 0

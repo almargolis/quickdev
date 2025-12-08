@@ -17,12 +17,12 @@
 #  2/12/2001:  Add True, False, IsDigit(), IsLetter(), IsWhiteSpace()
 #  2/15/2001:  Add GetLineLen()
 #  2/28/2001:  Add CommaStrToList(), bzLineParse, ListToCommaStr()
-#		broken out from bzTextFile.readcma() and bzMySql
+# 		broken out from bzTextFile.readcma() and bzMySql
 #  3/ 2/2001:  Add DateYmdToDisp(), DispToDateYmd(), Fill(), Repl()
 #  3/ 3/2001:  Add GetEnv()
 #  4/22/2001:  Fix GetLineLen() to handle empty line
 #  5/05/2001:  Add ChangeFileNameExtension(), BinToString(),
-#		NibbleToHex() and ByteToHex()
+# 		NibbleToHex() and ByteToHex()
 #  5/13/2001:  Add GetFileNameExtension()
 #  8/11/2001:  Add EOL and StripEOL(), change GetLineLen() to use EOL
 #  8/18/2001:  Add FilterText()
@@ -34,7 +34,7 @@
 # 01/26/2002:  Add GetFilePath()
 # 01/27/2002:  Add CalcCRC() and DumpRaw()
 # 12/20/2002:  Add Filter(), NUMBERS, LETTERS, UPPCASELETTERS,
-#		LOWERCASELETTERS, Strip()
+# 		LOWERCASELETTERS, Strip()
 # 12/22/2002:  Add Int() and IsDigits()
 #  1/ 8/2003:  Add getKewords to CommaStrToList()
 #  2/ 9/2003:  Add GetRandom()
@@ -44,22 +44,22 @@
 #  2/22/2003:  Add ParseFileName()
 #  3/22/2003:  Add ListStripTrailingBlanks()
 #  4/05/2003:  Modify ListToCommaStr() to strip trailing "L" from long ints
-#			and substitute "" for None
+# 			and substitute "" for None
 #  4/15/2003:  Add BoolAsStr(), AsInt(), AsArray()
 #  4/18/2003:  Add QuoteStr() and AsStr() by pulling from ListToCommaStr()
 #  8/18/2003:  Add HexToInt()
 #  8/26/2003:  Add WrapText()
 #  8/30/2003:  Modify ListToCommaStr() to filter non-text characters.
-#		<CR> in string would cause file reading to fail.
-#		Modify FilterText() to handle null and non-string input.
-#		Add fldSkipMap to ListToCommaStr().
+# 		<CR> in string would cause file reading to fail.
+# 		Modify FilterText() to handle null and non-string input.
+# 		Add fldSkipMap to ListToCommaStr().
 #  9/09/2003:  Add GetArrayFieldAsInt(), GetArrayFieldAsStr()
 #  9/26/2003:  Fix GetArrayFieldAsStr() to return "" for errors instead
-#		of 0.  Fix AsInt() to use Int() for consistency.
-#		Add DictLookup() and DictLookupAsStr().
-#		Add PutArrayField()
+# 		of 0.  Fix AsInt() to use Int() for consistency.
+# 		Add DictLookup() and DictLookupAsStr().
+# 		Add PutArrayField()
 # 10/24/2003:  Add GetArrayFieldAsBool(), modify AsBool() to recognize
-#		"1" as true in case a boolean gets written as an integer
+# 		"1" as true in case a boolean gets written as an integer
 # 11/17/2003:  Add Upper() to be null and type safe.
 # 12/15/2003:  Add PRINTABLE
 # 12/20/2003:  Add NowYMDHM()
@@ -67,7 +67,7 @@
 # 03/23/2004:  Modify CommaStrToList() to support lists of lists
 # 05/02/2004:  Modify CommaStrToList() to support other delimiters
 # 05/12/2004:  Modify CommaStrToList() to support prevent quoting
-#		of tab delimited data.
+# 		of tab delimited data.
 # 09/25/2004:  Add CommaColonStrToList()
 # 03/18/2006:  Add FilterMultiLineText(), CheckBankNumber()
 # 09/09/2009:  Add AppendDirectoryPath(), AppendDirectorySlash()
@@ -102,12 +102,42 @@ LETTERS = LOWERCASELETTERS + UPPERCASELETTERS
 LETTERSANDNUMBERS = LETTERS + NUMBERS
 PRINTABLE = LETTERS + NUMBERS + r" `~!@#$%^&*()_+[{]}\|;:,<.>/?" + '"' + "'"
 PRINTABLE_HTML = LETTERS + NUMBERS + r" `~!@#$%^*()_+[{]}\|;:,./?" + '"' + "'"
-DIGITNAMES = ['zero', 'one', 'two', 'three', 'four', 'five',
-              'six', 'seven', 'eight', 'nine', 'ten',
-              'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
-              'sixteen', 'seventeen', 'eighteen', 'nineteen']
-MONTHNAMES3 = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-               'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+DIGITNAMES = [
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+]
+MONTHNAMES3 = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+]
 
 
 def MakeBankCheckDigit(parmAcctNum):
@@ -156,7 +186,7 @@ def iif(parmExpr, parmTrueValue, parmFalseValue):
 
 
 def IsBool(parmData):
-    if (isinstance(parmData, type(""))):
+    if isinstance(parmData, type("")):
         parmData = Strip(parmData)
         if len(parmData) > 0:
             wsC = parmData[:1]
@@ -193,12 +223,12 @@ def IsNumber(parmStr):
         return False
     if parmStr[0] in "+-":
         parmStr = parmStr[1:]
-    wsPos = parmStr.find('.')
+    wsPos = parmStr.find(".")
     if wsPos < 0:
         return IsDigits(parmStr)
     if not IsDigits(parmStr[:wsPos]):
         return False
-    return IsDigits(parmStr[wsPos + 1:])
+    return IsDigits(parmStr[wsPos + 1 :])
 
 
 def IsLetter(parmC):
@@ -225,7 +255,7 @@ def IsWhiteSpace(parmC):
 def FindFirstWhiteSpace(parmStr, Whitespace=WHITESPACE, StartPos=0):
     for wsIx, wsC in enumerate(parmStr[StartPos:]):
         if wsC in Whitespace:
-            return wsIx + StartPos			# return index within original string
+            return wsIx + StartPos  # return index within original string
     return -1
 
 
@@ -237,16 +267,12 @@ def FindFirstNonWhiteSpace(parmStr, Whitespace=WHITESPACE, StartPos=0):
 
 
 def FindFirstUpperCaseLetter(parmStr, StartPos=0):
-    return FindFirstWhiteSpace(
-        parmStr,
-        Whitespace=UPPERCASELETTERS,
-        StartPos=0)
+    return FindFirstWhiteSpace(parmStr, Whitespace=UPPERCASELETTERS, StartPos=0)
 
 
 def FindFirstNonLetter(parmStr, StartPos=0):
     wsStr = parmStr.upper()
-    return FindFirstNonWhiteSpace(
-        wsStr, Whitespace=UPPERCASELETTERS, StartPos=0)
+    return FindFirstNonWhiteSpace(wsStr, Whitespace=UPPERCASELETTERS, StartPos=0)
 
 
 def FindFirstNumber(parmStr, StartPos=0):
@@ -272,19 +298,21 @@ def FindBetween(parmStr, parmStart, parmEnd):
     wsPos = parmStr.find(parmStart)
     if wsPos < 0:
         return ""
-    wsRemainder = parmStr[wsPos + len(parmStart):]
+    wsRemainder = parmStr[wsPos + len(parmStart) :]
     wsPos = wsRemainder.find(parmEnd)
     if wsPos < 0:
         return ""
     wsRemainder = wsRemainder[:wsPos]
     return wsRemainder.strip()
 
+
 def Match(str, target, start=0):
     target_len = len(target)
-    if str[start:start+target_len] == target:
+    if str[start : start + target_len] == target:
         return target_len
     else:
         return -1
+
 
 def UnQuote(parmStr):
     wsClean = Strip(parmStr)
@@ -314,46 +342,58 @@ def ReportTypeError(parmMessage, parmErrs, SilentErrors=False):
         parmErrs.AddUserCriticalMessage(parmMessage)
 
 
-def NumericToInt(parmN, ImpliedDecimals=0, UnitsOfMeasure=None,
-                 RoundExtraDigits=False,
-                 Errs=None,
-                 SilentErrors=False
-                 ):
+def NumericToInt(
+    parmN,
+    ImpliedDecimals=0,
+    UnitsOfMeasure=None,
+    RoundExtraDigits=False,
+    Errs=None,
+    SilentErrors=False,
+):
     if isinstance(parmN, int):
         return parmN
     if isinstance(parmN, int):
         return parmN
-    if (parmN == '') or (parmN is None):
+    if (parmN == "") or (parmN is None):
         return 0
     wsStr = parmN
     if UnitsOfMeasure is None:
         pass
-    elif UnitsOfMeasure == 'USD':
-        if parmN[0] == '$':
+    elif UnitsOfMeasure == "USD":
+        if parmN[0] == "$":
             wsStr = wsStr[1:]
         elif parmN[:4] == "USD$":
             wsStr = wsStr[4:]
     else:
-        ReportTypeError("Unknown Units of Measure '{UOM} for value '{Parm}'.".format(
-            UOM=UnitsOfMeasure, Parm=parmN), Errs, SilentErros=SilentErrors)
+        ReportTypeError(
+            "Unknown Units of Measure '{UOM} for value '{Parm}'.".format(
+                UOM=UnitsOfMeasure, Parm=parmN
+            ),
+            Errs,
+            SilentErros=SilentErrors,
+        )
         return None
     wsStr = wsStr.strip()
-    wsParts = wsStr.split('.')
+    wsParts = wsStr.split(".")
     if ((ImpliedDecimals == 0) and (len(wsParts) > 1)) or (len(wsParts) > 2):
-        ReportTypeError("Extra decimal point for value '{Parm}'.".format(
-            Parm=parmN),
-            Errs, SilentErrors=SilentErrors)
+        ReportTypeError(
+            "Extra decimal point for value '{Parm}'.".format(Parm=parmN),
+            Errs,
+            SilentErrors=SilentErrors,
+        )
         return None
     #
-    wsDecimalStr = ''
+    wsDecimalStr = ""
     wsRoundValue = 0
     if ImpliedDecimals > 0:
         if len(wsParts) > 1:
             wsDecimalStr = wsParts[1]
             if not wsDecimalStr.isdigit():
                 ReportTypeError(
-                    "Invalid decimal character for value '{Parm}'.".format(
-                        Parm=parmN), Errs, SilentErrors=SilentErrors)
+                    "Invalid decimal character for value '{Parm}'.".format(Parm=parmN),
+                    Errs,
+                    SilentErrors=SilentErrors,
+                )
                 return None
             if len(wsDecimalStr) > ImpliedDecimals:
                 wsExtraDecimals = wsDecimalStr[ImpliedDecimals:]
@@ -364,32 +404,38 @@ def NumericToInt(parmN, ImpliedDecimals=0, UnitsOfMeasure=None,
                     else:
                         ReportTypeError(
                             "Extra decimal digits for value '{Parm}, only {DigitCt} allowed'.".format(
-                                Parm=parmN, DigitCt=ImpliedDecimals), Errs, SilentErrors=SilentErrors)
+                                Parm=parmN, DigitCt=ImpliedDecimals
+                            ),
+                            Errs,
+                            SilentErrors=SilentErrors,
+                        )
                         return None
-        wsDecimalStr = Pad(wsDecimalStr, ImpliedDecimals, '0')
+        wsDecimalStr = Pad(wsDecimalStr, ImpliedDecimals, "0")
     #
-    wsIntegerStr = ''
+    wsIntegerStr = ""
     if wsParts is not None:
         wsIntegerStr = wsParts[0]
-    if wsIntegerStr == '':
+    if wsIntegerStr == "":
         # this happens for values like ".00"
-        wsIntegerStr = '0'
+        wsIntegerStr = "0"
     wsNegativeValue = False
-    if wsIntegerStr[0] in '-+':
-        if wsIntegerStr[0] == '-':
+    if wsIntegerStr[0] in "-+":
+        if wsIntegerStr[0] == "-":
             wsNegativeValue = True
         wsIntegerStr = wsIntegerStr[1:]
     if len(wsIntegerStr) > 8:
-        if wsIntegerStr[-8] == ',':
+        if wsIntegerStr[-8] == ",":
             wsIntegerStr = wsIntegerStr[:-8] + wsIntegerStr[-7:]
     if len(wsIntegerStr) > 4:
-        if wsIntegerStr[-4] == ',':
+        if wsIntegerStr[-4] == ",":
             wsIntegerStr = wsIntegerStr[:-4] + wsIntegerStr[-3:]
 
     if not wsIntegerStr.isdigit():
-        ReportTypeError("Invalid integer character for value '{Parm}'.".format(
-            Parm=parmN),
-            Errs, SilentErrors=SilentErrors)
+        ReportTypeError(
+            "Invalid integer character for value '{Parm}'.".format(Parm=parmN),
+            Errs,
+            SilentErrors=SilentErrors,
+        )
         return None
     wsValue = int(wsIntegerStr + wsDecimalStr)
     if wsRoundValue > 5:
@@ -426,10 +472,10 @@ def Str(parmData):
         parmData = repr(parmData)
         if parmData[-1:] == "L":
             parmData = parmData[:-1]
-        if parmData == '':
-            parmData = '0'
+        if parmData == "":
+            parmData = "0"
     elif not parmData:
-        parmData = ''
+        parmData = ""
     elif not isinstance(parmData, str):
         parmData = repr(parmData)
     return parmData
@@ -458,7 +504,7 @@ def Codex(parmOriginalCode):
     wsPrevCCt = 0
     for wsC in parmOriginalCode:
         if wsC == " ":
-            continue					# ignore all spaces
+            continue  # ignore all spaces
         if wsC == "O":
             wsC = "0"
         elif wsC == "I":
@@ -466,15 +512,15 @@ def Codex(parmOriginalCode):
         elif wsC == "L":
             wsC = "1"
         if (wsC == "0") and (not wsIsDigits):
-            continue 					# ignore leading zero of any number sequence
+            continue  # ignore leading zero of any number sequence
         if wsC in NUMBERS:
             wsIsDigits = True
         else:
-            wsIsDigits = False		# stop, even for decimal point
+            wsIsDigits = False  # stop, even for decimal point
         if wsC == wsPrevC:
             wsPrevCCt += 1
             if wsPrevCCt >= 2:
-                continue				# allow only two consecutive of same character
+                continue  # allow only two consecutive of same character
             else:
                 wsNewCode += wsC
         else:
@@ -486,7 +532,7 @@ def Codex(parmOriginalCode):
 
 
 def IsSubclass(parmClass, parmTestClass):
-    wsTestElements = parmTestClass.__module__.split('.')
+    wsTestElements = parmTestClass.__module__.split(".")
     try:
         wsBaseClasses = parmClass.__bases__
     except BaseException:
@@ -494,7 +540,7 @@ def IsSubclass(parmClass, parmTestClass):
     for wsThisBaseClass in wsBaseClasses:
         if wsThisBaseClass.__name__ != parmTestClass.__name__:
             continue
-        wsModuleNameElements = wsThisBaseClass.__module__.split('.')
+        wsModuleNameElements = wsThisBaseClass.__module__.split(".")
         if wsModuleNameElements[-1] != wsTestElements[-1]:
             continue
         if wsModuleNameElements[-2] == wsTestElements[-2]:
@@ -507,8 +553,8 @@ def DumpRaw(parmData):
     wsHex = ""
     wsHasHex = False
     for wsC in parmData:
-        if (wsC < ' ') or (wsC >= chr(127)):
-            wsText += ' '
+        if (wsC < " ") or (wsC >= chr(127)):
+            wsText += " "
             wsHasHex = True
         else:
             wsText += wsC
@@ -557,24 +603,17 @@ def AsBool(parmData):
 
 def BoolAsStr(parmData):
     if Bool(parmData):
-        return 'Y'
-    return 'N'
+        return "Y"
+    return "N"
 
 
-UomStandardUnits = {
-    'mm': 'm',
-    'in': 'm'
-}
+UomStandardUnits = {"mm": "m", "in": "m"}
 
-UomConversion = {
-    'mm:m': 0.001,
-    'm:in': 39.3701,
-    'in:m': 0.0254
-}
+UomConversion = {"mm:m": 0.001, "m:in": 39.3701, "in:m": 0.0254}
 
 
 def ConvertStep(parmValue, parmSourceUom, parmTargetUom):
-    wsKey = parmSourceUom + ':' + parmTargetUom
+    wsKey = parmSourceUom + ":" + parmTargetUom
     wsScale = UomConversion[wsKey]
     return parmValue * wsScale
 
@@ -591,15 +630,12 @@ def ConvertUnitsStr(parmStr, parmNewUnits, Decimals=2, IncludeUnits=True):
     wsUnits = parmStr[-wsIx:].strip()
     if wsUnits not in UomStandardUnits:
         return None
-    if wsValue == '':
+    if wsValue == "":
         return None
     wsValue = float(wsValue)
     wsStandardUnits = UomStandardUnits[wsUnits]
     wsStandardValue = ConvertStep(wsValue, wsUnits, wsStandardUnits)
-    wsConvertedValue = ConvertStep(
-        wsStandardValue,
-        wsStandardUnits,
-        parmNewUnits)
+    wsConvertedValue = ConvertStep(wsStandardValue, wsStandardUnits, parmNewUnits)
     wsFormattingStr = "{{Val:.{Digits}f}}".format(Digits=Decimals)
     wsConvertedStr = wsFormattingStr.format(Val=wsConvertedValue)
     if IncludeUnits:
@@ -608,18 +644,18 @@ def ConvertUnitsStr(parmStr, parmNewUnits, Decimals=2, IncludeUnits=True):
 
 
 def WeightStrAsTInt(parmStr, Grams=False):
-    wsP = parmStr.find('#')
+    wsP = parmStr.find("#")
     if wsP >= 0:
         wsPounds = parmStr[:wsP]
-        wsOunces = parmStr[wsP + 1:]
+        wsOunces = parmStr[wsP + 1 :]
     else:
         wsPounds = 0
         wsOunces = parmStr
     if wsOunces[-2:] == "oz":
         wsOunces = wsOunces[:-2]
-    if wsPounds == '':
+    if wsPounds == "":
         wsPounds = 0.0
-    if wsOunces == '':
+    if wsOunces == "":
         wsOunces = 0.0
     if Grams:
         return PoundsAndOuncesAsTGrams(wsPounds, wsOunces)
@@ -665,8 +701,7 @@ def PutArrayField(parmArray, parmIx, parmValue):
 
 
 def GetArrayFieldAsInt(parmArray, parmIx):
-    if (not isinstance(parmArray, type([]))) and (
-            not isinstance(parmArray, type(()))):
+    if (not isinstance(parmArray, type([]))) and (not isinstance(parmArray, type(()))):
         return 0
     if parmIx >= len(parmArray):
         return 0
@@ -674,8 +709,7 @@ def GetArrayFieldAsInt(parmArray, parmIx):
 
 
 def GetArrayFieldAsStr(parmArray, parmIx):
-    if (not isinstance(parmArray, type([]))) and (
-            not isinstance(parmArray, type(()))):
+    if (not isinstance(parmArray, type([]))) and (not isinstance(parmArray, type(()))):
         return ""
     if parmIx >= len(parmArray):
         return ""
@@ -683,8 +717,7 @@ def GetArrayFieldAsStr(parmArray, parmIx):
 
 
 def GetArrayFieldAsBool(parmArray, parmIx):
-    if (not isinstance(parmArray, type([]))) and (
-            not isinstance(parmArray, type(()))):
+    if (not isinstance(parmArray, type([]))) and (not isinstance(parmArray, type(()))):
         return False
     if parmIx >= len(parmArray):
         return False
@@ -727,8 +760,8 @@ def NibbleToHex(parmNibble):
 def ByteToHex(parmByte):
     if isinstance(parmByte, type("")):
         parmByte = ord(parmByte)
-    parmByte = parmByte & 0xff
-    wsHex = NibbleToHex(parmByte >> 4) + NibbleToHex(parmByte & 0xf)
+    parmByte = parmByte & 0xFF
+    wsHex = NibbleToHex(parmByte >> 4) + NibbleToHex(parmByte & 0xF)
     # print `parmByte` + "--" + wsHex
     return wsHex
 
@@ -792,6 +825,7 @@ def Strip(parmText):
     parmText = Str(parmText)
     return parmText.strip()
 
+
 #
 # Lower() and Upper()
 #
@@ -814,10 +848,11 @@ def Upper(parmStr):
     except BaseException:
         return parmStr
 
+
 #
 # FilterText() - delete non printable ASCII characters from string
-#		with options to eliminate specific printable characters or
-#		keep spcific non-printable characters.
+# 		with options to eliminate specific printable characters or
+# 		keep spcific non-printable characters.
 #
 # FilterMultiLineText() is FilterText() configured to all CR and LF
 #
@@ -843,6 +878,7 @@ def FilterText(parmText, parmExcept="", Allow=""):
 
 def FilterMultiLineText(parmText, parmExcept=""):
     return FilterText(parmText, parmExcept, Allow=chr(10) + chr(13))
+
 
 #
 # Filter() - delete all but specified characters from string
@@ -876,11 +912,12 @@ def Innercap(parmStr):
 
 
 def StrToInnercap(parmStr):
-    wsWords = parmStr.split(' ')
-    wsResult = ''
+    wsWords = parmStr.split(" ")
+    wsResult = ""
     for wsThis in wsWords:
         wsResult += Innercap(wsThis)
     return wsResult
+
 
 #
 # InnercapSplit() Split a string into component words/numbers
@@ -890,9 +927,9 @@ def StrToInnercap(parmStr):
 def InnercapSplit(parmText):
     wsResult = []
     if isinstance(parmText, str):
-        wsBlankStr = ''
+        wsBlankStr = ""
     else:
-        wsBlankStr = ''
+        wsBlankStr = ""
     wsThisSymbol = wsBlankStr
     wsLastWasLetter = False
     wsLastWasUpper = False
@@ -902,8 +939,8 @@ def InnercapSplit(parmText):
         wsKeep = True
         if wsThis in LOWERCASELETTERS:
             if not wsLastWasLetter:
-                if (wsThis == 'd') and (wsThisSymbol in ['2', '3']):
-                    pass					# keep 2d / 3d as idiom
+                if (wsThis == "d") and (wsThisSymbol in ["2", "3"]):
+                    pass  # keep 2d / 3d as idiom
                 else:
                     wsIsDelim = True
             wsKeep = True
@@ -911,9 +948,9 @@ def InnercapSplit(parmText):
             wsLastWasUpper = False
             wsLastWasNumber = False
         elif wsThis in UPPERCASELETTERS:
-            if not wsLastWasUpper:			# This is an innercap
-                if (wsThis == 'D') and (wsThisSymbol in ['2', '3']):
-                    pass					# keep 2D / 3D as idiom
+            if not wsLastWasUpper:  # This is an innercap
+                if (wsThis == "D") and (wsThisSymbol in ["2", "3"]):
+                    pass  # keep 2D / 3D as idiom
                 else:
                     wsIsDelim = True
             wsKeep = True
@@ -957,13 +994,13 @@ def SplitLine(parmText, parmMaxLineLen, WhiteSpace=WHITESPACE):
         wsC = parmText[wsIx]
         if wsC in WhiteSpace:
             wsPossibleBreakIx = wsIx
-        else:							# this is a content character
+        else:  # this is a content character
             if wsIx > parmMaxLineLen:
                 break
         wsIx += 1
     if wsPossibleBreakIx == 0:
         wsPossibleBreakIx = wsIx
-    return (parmText[:wsPossibleBreakIx], parmText[wsPossibleBreakIx + 1:])
+    return (parmText[:wsPossibleBreakIx], parmText[wsPossibleBreakIx + 1 :])
 
 
 def WrapText(parmText, parmColWidth):
@@ -976,18 +1013,17 @@ def WrapText(parmText, parmColWidth):
     wsNextSegmentPos = parmColWidth
     while wsPrevSpacePos < len(parmText):
         if wsNextSegmentPos >= len(parmText):
-                # This is the last line
-            wsNewLine = parmText[wsPrevSpacePos + 1:]
+            # This is the last line
+            wsNewLine = parmText[wsPrevSpacePos + 1 :]
             wsPrevSpacePos = len(parmText)
         else:
             # need to search for wrap point
-            wsSpacePos = parmText.rfind(" ",
-                                      wsPrevSpacePos + 1, wsNextSegmentPos)
+            wsSpacePos = parmText.rfind(" ", wsPrevSpacePos + 1, wsNextSegmentPos)
             if wsSpacePos < 0:  # no space, truncate line
-                wsNewLine = parmText[wsPrevSpacePos + 1:wsNextSegmentPos]
+                wsNewLine = parmText[wsPrevSpacePos + 1 : wsNextSegmentPos]
                 wsPrevSpacePos = wsNextSegmentPos - 1
             else:
-                wsNewLine = parmText[wsPrevSpacePos + 1:wsSpacePos]
+                wsNewLine = parmText[wsPrevSpacePos + 1 : wsSpacePos]
                 wsPrevSpacePos = wsSpacePos
         wsLines.append(wsNewLine.strip())
         wsNextSegmentPos = wsPrevSpacePos + parmColWidth + 1
@@ -1002,7 +1038,7 @@ def CheckDigit(parmSrc):
         if (wsD < 0) or (wsD > 9):
             return None
         if wsOdd:
-            wsSum += (9 - wsD)
+            wsSum += 9 - wsD
             wsOdd = False
         else:
             wsSum += wsD
@@ -1021,8 +1057,8 @@ def CheckDigit(parmSrc):
 def GetRandom(rlen=15):
     # 15 is the maximum useful rlen due to the matissa of floats
     wsRandom = random.Random()
-    wsRandomNo = wsRandom.random() * ((10 ** rlen) - 1)
-    wsStrFormat = '%%0%d.0f' % (rlen)
+    wsRandomNo = wsRandom.random() * ((10**rlen) - 1)
+    wsStrFormat = "%%0%d.0f" % (rlen)
     return wsStrFormat % (wsRandomNo)
 
 
@@ -1106,7 +1142,7 @@ FNLOCNAME = 5
 FNPARMS = 6
 
 
-def ParseFileName(parmPath):		# also works for URLs
+def ParseFileName(parmPath):  # also works for URLs
     # returns (type, server, root, path, file, parms)
     # protocol like http: or blank
     # server like //www.hobbyengineering.com
@@ -1120,22 +1156,22 @@ def ParseFileName(parmPath):		# also works for URLs
     if wsQuestion < 0:
         wsParms = ""
     else:
-        wsParms = parmPath[wsQuestion + 1:]
+        wsParms = parmPath[wsQuestion + 1 :]
         parmPath = parmPath[:wsQuestion]
     #
     wsPound = parmPath.find("#")
     if wsPound < 0:
         wsLocName = ""
     else:
-        wsLocName = parmPath[wsPound + 1:]
+        wsLocName = parmPath[wsPound + 1 :]
         parmPath = parmPath[:wsPound]
     #
     wsColon = parmPath.find(":")
     if wsColon < 0:
         wsProtocol = ""
     else:
-        wsProtocol = parmPath[:wsColon + 1]
-        parmPath = parmPath[wsColon + 1:]
+        wsProtocol = parmPath[: wsColon + 1]
+        parmPath = parmPath[wsColon + 1 :]
     if parmPath[0:2] == "//":
         wsSlash = parmPath.find("/", 2)
         if wsSlash < 0:
@@ -1160,18 +1196,11 @@ def ParseFileName(parmPath):		# also works for URLs
             wsSlash = parmPath.rfind("/")
             if wsSlash >= 0:
                 wsPath = parmPath[:wsSlash]
-                wsFileName = parmPath[wsSlash + 1:]
+                wsFileName = parmPath[wsSlash + 1 :]
             else:
                 # assume last part is a file
                 wsFileName = parmPath
-    return [
-        wsProtocol,
-        wsServer,
-        wsRoot,
-        wsPath,
-        wsFileName,
-        wsLocName,
-        wsParms]
+    return [wsProtocol, wsServer, wsRoot, wsPath, wsFileName, wsLocName, wsParms]
 
 
 def MergeFileNameParse(parmParse, parmDefault):
@@ -1183,24 +1212,17 @@ def MergeFileNameParse(parmParse, parmDefault):
     wsLocName = parmParse[FNLOCNAME]
     wsParms = parmParse[FNPARMS]
 
-    if wsProtocol == '':
+    if wsProtocol == "":
         wsProtocol = parmDefault[FNPROTOCOL]
-    if wsServer == '':
+    if wsServer == "":
         wsServer = parmDefault[FNSERVER]
-    if wsRoot == '':
+    if wsRoot == "":
         wsRoot = parmDefault[FNROOT]
-    if wsPath == '':
+    if wsPath == "":
         wsPath = parmDefault[FNPATH]
     # This function fills in the default path, not the reference
     # wsFileName, wsParms and wsLocName aren't filled in
-    return [
-        wsProtocol,
-        wsServer,
-        wsRoot,
-        wsPath,
-        wsFileName,
-        wsLocName,
-        wsParms]
+    return [wsProtocol, wsServer, wsRoot, wsPath, wsFileName, wsLocName, wsParms]
 
 
 def ComposeUrl(parmParse, parmDefault=None):
@@ -1214,8 +1236,9 @@ def ComposeUrl(parmParse, parmDefault=None):
         else:
             wsDefaults = parmDefault
         wsParsedTarget = MergeFileNameParse(wsParsedTarget, wsDefaults)
-    wsComposedName = wsParsedTarget[FNPROTOCOL] + \
-        wsParsedTarget[FNSERVER] + wsParsedTarget[FNROOT]
+    wsComposedName = (
+        wsParsedTarget[FNPROTOCOL] + wsParsedTarget[FNSERVER] + wsParsedTarget[FNROOT]
+    )
     if wsParsedTarget[FNPATH] is not None:
         wsComposedName += wsParsedTarget[FNPATH] + "/"
     wsComposedName += wsParsedTarget[FNFILENAME]
@@ -1225,8 +1248,7 @@ def ComposeUrl(parmParse, parmDefault=None):
 def ComposeFileName(wsParsedTarget, parmDefault=None):
     if parmDefault:
         parmParse = MergeFileNameParse(parmParse, parmDefault)
-    wsComposedName = parmParse[FNPROTOCOL] + \
-        parmParse[FNSERVER] + parmParse[FNROOT]
+    wsComposedName = parmParse[FNPROTOCOL] + parmParse[FNSERVER] + parmParse[FNROOT]
     if parmParse[FNPATH]:
         wsComposedName += parmParse[FNPATH] + "/"
     wsComposedName += parmParse[FNFILENAME]
@@ -1241,30 +1263,30 @@ def GetFileName(parmFilePath):
     wsSlash = parmFilePath.rfind("/")
     if wsSlash < 0:
         return parmFilePath
-    return parmFilePath[wsSlash + 1:]
+    return parmFilePath[wsSlash + 1 :]
 
 
 def BreakFileName(parmFilePath):
     wsNameExt = GetFileName(parmFilePath)
-    wsDot = wsNameExt.rfind('.')
+    wsDot = wsNameExt.rfind(".")
     if wsDot < 0:
-        return (wsNameExt, '')
+        return (wsNameExt, "")
     else:
-        return (wsNameExt[:wsDot], wsNameExt[wsDot + 1:])
+        return (wsNameExt[:wsDot], wsNameExt[wsDot + 1 :])
 
 
 def GetFileNameExtension(parmFileName):
     wsDot = parmFileName.rfind(".")
     if wsDot < 0:
         return ""
-    return parmFileName[wsDot + 1:]
+    return parmFileName[wsDot + 1 :]
 
 
 def GetFilePath(parmFilePath):
     wsSlash = parmFilePath.rfind("/")
     if wsSlash < 0:
         return ""
-    return parmFilePath[:wsSlash + 1]
+    return parmFilePath[: wsSlash + 1]
 
 
 def GetFileDirectory(parmFilePath):
@@ -1287,23 +1309,24 @@ def CleanSlashes(parmPath):
 
 def AppendDirectorySlash(parmDirectoryPath):
     if not parmDirectoryPath:
-        return '/'
-    if parmDirectoryPath[-1] != '/':
-        parmDirectoryPath += '/'
+        return "/"
+    if parmDirectoryPath[-1] != "/":
+        parmDirectoryPath += "/"
     return parmDirectoryPath
 
 
 def AddAppendDirectoryPath(parmBasePath, parmAppendPath):
     wsPath = AppendDirectorySlash(parmBasepath)
     wsAppendPath = AppendDirectorySlash(parmAppendPath)
-    if wsAppendPath[0] == '/':
+    if wsAppendPath[0] == "/":
         wsAppendPath = wsAppendPath[1:]
     return wsPath + wsAppendPath
 
+
 #
 # Fill() - Make string of length parmSize.
-#		Fill leading positions with specified character to achieve length.
-#		Truncate long fields, keeping trailing part.
+# 		Fill leading positions with specified character to achieve length.
+# 		Truncate long fields, keeping trailing part.
 
 
 def Fill(parmText, parmSize, parmFill="0"):
@@ -1315,15 +1338,16 @@ def Fill(parmText, parmSize, parmFill="0"):
         parmText = repr(parmText)
     wsLen = len(parmText)
     if wsLen >= parmSize:
-        wsText = parmText[wsLen - parmSize:]
+        wsText = parmText[wsLen - parmSize :]
     else:
         wsText = Repl(parmFill, parmSize - len(parmText)) + parmText
     return wsText
 
+
 #
 # Pad() - Make string of length parmSize.
-#		Fill trailing positions with specified character to achieve length.
-#		Truncate long fields, keeping leading part.
+# 		Fill trailing positions with specified character to achieve length.
+# 		Truncate long fields, keeping leading part.
 
 
 def Pad(parmText, parmSize, Fill=" "):
@@ -1352,8 +1376,17 @@ def DateYMDToEpochSeconds(parmDate=None):
         if isinstance(parmDate, type(0.0)):
             wsDate = parmDate
         elif isinstance(parmDate, type("")):
-            wsDateTup = (int(parmDate[:4]), int(parmDate[4:6]), int(
-                parmDate[6:8]), 0, 0, 0, 0, 0, -1)
+            wsDateTup = (
+                int(parmDate[:4]),
+                int(parmDate[4:6]),
+                int(parmDate[6:8]),
+                0,
+                0,
+                0,
+                0,
+                0,
+                -1,
+            )
             wsDate = time.mktime(wsDateTup)
     if not wsDate:
         wsDate = time.time()
@@ -1362,7 +1395,7 @@ def DateYMDToEpochSeconds(parmDate=None):
 
 def DaysFromYMD(parmDayCt, parmDate=None):
     wsDate = DateYMDToEpochSeconds(parmDate)
-    wsDate += (parmDayCt * 86400.0)  # seconds / day
+    wsDate += parmDayCt * 86400.0  # seconds / day
     return time.strftime("%Y%m%d", time.localtime(wsDate))
 
 
@@ -1380,11 +1413,11 @@ def DaysBetweenYMD(parmDate1, parmDate2):
 
 
 def IsDate(parmDate):
-    wsPos = parmDate.find('-')
+    wsPos = parmDate.find("-")
     if wsPos > 0:
-        wsParts = parmDate.split('-')
+        wsParts = parmDate.split("-")
     else:
-        wsParts = parmDate.split('/')
+        wsParts = parmDate.split("/")
     if len(wsParts) != 3:
         return False
     wsMo = Int(wsParts[0])
@@ -1410,13 +1443,13 @@ def TestYMD(parmDate, AllowMDZero=False):
         return None
     if len(parmDate) < 8:
         return None
-    if (parmDate[4] == '-') and (parmDate[7] == '-'):
+    if (parmDate[4] == "-") and (parmDate[7] == "-"):
         # RFC Date
         parmDate = parmDate[:4] + parmDate[5:7] + parmDate[8:10]
-    elif (parmDate[2] == '/') and (parmDate[5] == '/'):
+    elif (parmDate[2] == "/") and (parmDate[5] == "/"):
         # mo/da/yyyy
         parmDate = parmDate[6:10] + parmDate[0:2] + parmDate[3:5]
-    elif (parmDate[2] == ' ') and (parmDate[6] == ' '):
+    elif (parmDate[2] == " ") and (parmDate[6] == " "):
         # DD MMM YYYY
         wsMonthStr = parmDate[3:6].upper()
         try:
@@ -1444,12 +1477,20 @@ def TestYMD(parmDate, AllowMDZero=False):
 def DateToYMD(parmDate=None):
     wsDate = None
     if parmDate:
-        if (isinstance(parmDate, type(0.0))) or (
-                isinstance(parmDate, type(0))):
+        if (isinstance(parmDate, type(0.0))) or (isinstance(parmDate, type(0))):
             wsDate = parmDate
         elif isinstance(parmDate, type("")):
-            wsDateTup = (int(parmDate[:4]), int(parmDate[4:6]), int(
-                parmDate[6, 8]), 0, 0, 0, 0, 0, -1)
+            wsDateTup = (
+                int(parmDate[:4]),
+                int(parmDate[4:6]),
+                int(parmDate[6, 8]),
+                0,
+                0,
+                0,
+                0,
+                0,
+                -1,
+            )
             wsDate = time.mktime(wsDateTup)
     if not wsDate:
         wsDate = time.time()
@@ -1459,12 +1500,20 @@ def DateToYMD(parmDate=None):
 def DateToYMDHMS(parmDate=None):
     wsDate = None
     if parmDate:
-        if (isinstance(parmDate, type(0.0))) or (
-                isinstance(parmDate, type(0))):
+        if (isinstance(parmDate, type(0.0))) or (isinstance(parmDate, type(0))):
             wsDate = parmDate
         elif isinstance(parmDate, type("")):
-            wsDateTup = (int(parmDate[:4]), int(parmDate[4:6]), int(
-                parmDate[6, 8]), 0, 0, 0, 0, 0, -1)
+            wsDateTup = (
+                int(parmDate[:4]),
+                int(parmDate[4:6]),
+                int(parmDate[6, 8]),
+                0,
+                0,
+                0,
+                0,
+                0,
+                -1,
+            )
             wsDate = time.mktime(wsDateTup)
     if not wsDate:
         wsDate = time.time()
@@ -1474,9 +1523,11 @@ def DateToYMDHMS(parmDate=None):
 def DispToDateYmd(parmDate):
     wsSlash1 = parmDate.find("/")
     wsSlash2 = parmDate.find("/", wsSlash1 + 1)
-    wsDate = Fill(parmDate[wsSlash2 + 1:], 4) \
-        + Fill(parmDate[0:wsSlash1], 2) \
-        + Fill(parmDate[wsSlash1 + 1:wsSlash2], 2)
+    wsDate = (
+        Fill(parmDate[wsSlash2 + 1 :], 4)
+        + Fill(parmDate[0:wsSlash1], 2)
+        + Fill(parmDate[wsSlash1 + 1 : wsSlash2], 2)
+    )
     return wsDate
 
 
@@ -1492,7 +1543,7 @@ def GetLineLen(parmSrcLine, parmEOL=EOL):
         return 0
     wsSrcLineLen = len(parmSrcLine)
     wsEolLen = len(parmEOL)
-    if parmSrcLine[wsSrcLineLen - wsEolLen:] == parmEOL:
+    if parmSrcLine[wsSrcLineLen - wsEolLen :] == parmEOL:
         wsSrcLineLen -= wsEolLen
     return wsSrcLineLen
 
@@ -1575,58 +1626,58 @@ def ListStripTrailingBlanks(parmList, parmMinLen=0):
 
 
 UnicodeTranslator = {
-    127: "",   # control character (u'\x79' / 127)
-    128: "",   # control character (u'\x80' / 128)
-    129: "",   # control character (u'\x81' / 129)
-    130: "",   # control character (u'\x82' / 130)
-    131: "",   # control character (u'\x83' / 131)
-    132: "",   # control character (u'\x84' / 132)
-    133: "",   # control character (u'\x85' / 133)
-    136: "",   # control character (u'\x88' / 136)
-    137: "",   # control character (u'\x89' / 137)
-    142: "",   # control character (u'\x8e' / 142)
-    143: "",   # control character (u'\x8f' / 143)
-    144: "",   # control character (u'\x90' / 144)
-    145: "",   # control character (u'\x91' / 145)
-    146: "",   # control character (u'\x92' / 146)
-    147: "",   # control character (u'\x93' / 147)
-    148: "",   # control character (u'\x94' / 148)
-    149: "*",   # GP some sort of alert (u'\x95' / 149)
-    150: "",   # control character (u'\x96' / 150)
-    151: "",   # control character (u'\x97' / 151)
-    152: "",   # control character (u'\x98' / 152)
-    153: "",   # control character (u'\x99' / 153)
-    154: "",   # control character (u'\x9a' / 154)
-    155: "",   # control character (u'\x9b' / 155)
-    156: "",   # control character (u'\x9c' / 156)
-    157: "",   # control character (u'\x9d' / 157)
-    160: " ",   # no-break space (u'\xa0' / 160)
-    161: "!",   # inverted exclamation (u'\xa1' / 161)
+    127: "",  # control character (u'\x79' / 127)
+    128: "",  # control character (u'\x80' / 128)
+    129: "",  # control character (u'\x81' / 129)
+    130: "",  # control character (u'\x82' / 130)
+    131: "",  # control character (u'\x83' / 131)
+    132: "",  # control character (u'\x84' / 132)
+    133: "",  # control character (u'\x85' / 133)
+    136: "",  # control character (u'\x88' / 136)
+    137: "",  # control character (u'\x89' / 137)
+    142: "",  # control character (u'\x8e' / 142)
+    143: "",  # control character (u'\x8f' / 143)
+    144: "",  # control character (u'\x90' / 144)
+    145: "",  # control character (u'\x91' / 145)
+    146: "",  # control character (u'\x92' / 146)
+    147: "",  # control character (u'\x93' / 147)
+    148: "",  # control character (u'\x94' / 148)
+    149: "*",  # GP some sort of alert (u'\x95' / 149)
+    150: "",  # control character (u'\x96' / 150)
+    151: "",  # control character (u'\x97' / 151)
+    152: "",  # control character (u'\x98' / 152)
+    153: "",  # control character (u'\x99' / 153)
+    154: "",  # control character (u'\x9a' / 154)
+    155: "",  # control character (u'\x9b' / 155)
+    156: "",  # control character (u'\x9c' / 156)
+    157: "",  # control character (u'\x9d' / 157)
+    160: " ",  # no-break space (u'\xa0' / 160)
+    161: "!",  # inverted exclamation (u'\xa1' / 161)
     162: " cents",  # cents sign  (u'\xa2' / 162)
-    163: "BP",   # pounds currency (u'\xa3' / 163)
+    163: "BP",  # pounds currency (u'\xa3' / 163)
     164: " currency",  # currency sign   (u'\xa4' / 164) looks like a box
-    165: "YEN",   # Yen currency   (u'\xa5' / 165)
-    166: "|",   # broken bar   (u'\xa6' / 166)
-    167: "S",   # section symbol (u'\xa7' / 167)
-    168: "",   # DIAERESIS  (u'\xa8' / 168) the two dots over oomlout, etc.
-    169: "(C)",   # copyright symbol (u'\xa9' / 169)
-    170: "",   # feminine ordinal (u'\xaa' / 170)
-    171: "<<",   # lf point double arrow (u'\xab' / 171)
+    165: "YEN",  # Yen currency   (u'\xa5' / 165)
+    166: "|",  # broken bar   (u'\xa6' / 166)
+    167: "S",  # section symbol (u'\xa7' / 167)
+    168: "",  # DIAERESIS  (u'\xa8' / 168) the two dots over oomlout, etc.
+    169: "(C)",  # copyright symbol (u'\xa9' / 169)
+    170: "",  # feminine ordinal (u'\xaa' / 170)
+    171: "<<",  # lf point double arrow (u'\xab' / 171)
     172: ".NOT.",  # NOT logical operator (u'\xac' / 172)
-    173: "",   # soft hyphen  (u'\xad' / 173)
-    174: "(R)",   # registered trademark (u'/xae' / 174)
+    173: "",  # soft hyphen  (u'\xad' / 173)
+    174: "(R)",  # registered trademark (u'/xae' / 174)
     176: " degree",  # degree symbol  (u'/xb0' / 176)
-    177: "+/-",   # degree symbol  (u'/xb1' / 177)
-    178: "^2",   # superscript 2  (u'/xb2' / 178)
-    179: "^3",   # superscript 3  (u'/xb3' / 179)
-    181: "u",   # micro symbol  (u'/xb5' / 181)
-    182: "P",   # pilcro / paragraph (u'/xb6' / 182)
-    186: "",   # masculine ordinal (u'/xba' / 186) looks like degree
-    187: ">>",   # rt point double arrow (u'/xbb' / 187)
-    188: "1/4",   # vulgar fraction (u'/xbc' / 188)
-    189: "1/2",   # vulgar fraction (u'/xbd' / 189)
-    190: "3/4",   # vulgar fraction (u'/xbe' / 190)
-    191: "?",   # inverted question (u'\xbf' / 193)
+    177: "+/-",  # degree symbol  (u'/xb1' / 177)
+    178: "^2",  # superscript 2  (u'/xb2' / 178)
+    179: "^3",  # superscript 3  (u'/xb3' / 179)
+    181: "u",  # micro symbol  (u'/xb5' / 181)
+    182: "P",  # pilcro / paragraph (u'/xb6' / 182)
+    186: "",  # masculine ordinal (u'/xba' / 186) looks like degree
+    187: ">>",  # rt point double arrow (u'/xbb' / 187)
+    188: "1/4",  # vulgar fraction (u'/xbc' / 188)
+    189: "1/2",  # vulgar fraction (u'/xbd' / 189)
+    190: "3/4",  # vulgar fraction (u'/xbe' / 190)
+    191: "?",  # inverted question (u'\xbf' / 193)
     192: "A",  # (u'\xc0' / 192)
     193: "A",  # (u'\xc1' / 193)
     194: "A",  # (u'\xc2' / 194)
@@ -1635,24 +1686,24 @@ UnicodeTranslator = {
     197: "A",  # (u'\xc5' / 197)
     198: "A",  # (u'\xc6' / 198)
     202: " degree",  # degree symbol? GP (u'\xca' / 202)
-    209: "a",   # GP a-oomlout  (u'\xd1' / 209)
+    209: "a",  # GP a-oomlout  (u'\xd1' / 209)
     # 211 is probably wrong. Came from AKA8045 for tire bead size. Neither
     # GP nor AKA had reasonable representation and I couldn't find reference
     # in a hurry.
-    211: " ...",   # ??? GP  (u'\xd3' / 211)
-    215: "x",   # raised mult GP (u'\xd7' / 215)
+    211: " ...",  # ??? GP  (u'\xd3' / 211)
+    215: "x",  # raised mult GP (u'\xd7' / 215)
     216: " diameter",  # theta GP  (u'\xd8' / 216)
-    220: "U",   # GP U-Oomlout Uberlite (u'\xdc' / 220)
-    225: "a",   # GP a' (or o')  (u'\xe1' / 225)
-    226: '"',   # ELENCO " (inch) (u'\xe2' / 226)
+    220: "U",  # GP U-Oomlout Uberlite (u'\xdc' / 220)
+    225: "a",  # GP a' (or o')  (u'\xe1' / 225)
+    226: '"',  # ELENCO " (inch) (u'\xe2' / 226)
     # The same line kicked out 209 and 228 but only one special character visible
     # Search for Navy U-201 in technote.txt
-    228: "a",   # GP ???  (u'\xe4' / 228)
-    231: "c",   # GP c' Fac'ade  (u'\xe7' / 231)
-    233: "e",   # GP e' Applique' (u'\xe9' / 233)
-    243: "o",   # GP o'   (u'\xf3' / 243)
-    246: "u",   # GP u-oomlout  (u'\xf6' / 246)
-    248: "--",   # GP long dash  (u'\xf8' / 248)
+    228: "a",  # GP ???  (u'\xe4' / 228)
+    231: "c",  # GP c' Fac'ade  (u'\xe7' / 231)
+    233: "e",  # GP e' Applique' (u'\xe9' / 233)
+    243: "o",  # GP o'   (u'\xf3' / 243)
+    246: "u",  # GP u-oomlout  (u'\xf6' / 246)
+    248: "--",  # GP long dash  (u'\xf8' / 248)
     249: "u",  # (u'\xf9' / 249)
     250: "u",  # (u'\xfa' / 250)
     251: "u",  # (u'\xfb' / 251)
@@ -1660,16 +1711,16 @@ UnicodeTranslator = {
     253: "y",  # (u'\xfd' / 253)
     # characters >= 128 and <= 255 may be extended ascii / maybe Latin-1
     937: " ohms",  # capital omega  (u'\x03a9' / 937)
-    956: "u",   # small mu (micro) (u'\x03bc' / 956)
-    8211: "--",   # EN (long) dash (u'\x2013' / 8211)
-    8212: "-",   # EM dash  (u'\x2014' / 8212)
-    8216: "'",   # left single quote (u'\x2018' / 8216)
-    8217: "'",   # right single quote (u'\x2019' / 8217)
-    8220: "'",   # left single quote (u'\x201c' / 8220)
-    8221: '"',   # right double quote (u'\x201d' / 8221)
-    8226: "*",   # chinese han character (u'\x2022' / 8226)
-    8230: '...',   # horizontal elipse (u'\x2026' / 8230)
-    8243: '"'   # double prime (accent) (u'\x2033' / 8243)
+    956: "u",  # small mu (micro) (u'\x03bc' / 956)
+    8211: "--",  # EN (long) dash (u'\x2013' / 8211)
+    8212: "-",  # EM dash  (u'\x2014' / 8212)
+    8216: "'",  # left single quote (u'\x2018' / 8216)
+    8217: "'",  # right single quote (u'\x2019' / 8217)
+    8220: "'",  # left single quote (u'\x201c' / 8220)
+    8221: '"',  # right double quote (u'\x201d' / 8221)
+    8226: "*",  # chinese han character (u'\x2022' / 8226)
+    8230: "...",  # horizontal elipse (u'\x2026' / 8230)
+    8243: '"',  # double prime (accent) (u'\x2033' / 8243)
 }
 
 
@@ -1677,7 +1728,7 @@ def UnicodeToAscii(parmStr, Errs=None):
     if parmStr is None:
         return ""
     try:
-        wsResult = parmStr.encode('ascii')
+        wsResult = parmStr.encode("ascii")
         return wsResult
     except BaseException:
         pass
@@ -1689,47 +1740,58 @@ def UnicodeToAscii(parmStr, Errs=None):
             if wsOrd in [10]:
                 continue
             ReportTypeError(
-                "Invalid control character {COrd}".format(
-                    COrd=ord(wsC)), Errs)
+                "Invalid control character {COrd}".format(COrd=ord(wsC)), Errs
+            )
         if wsOrd >= 127:
             if wsOrd in UnicodeTranslator:
                 wsN = UnicodeTranslator[wsOrd]
             else:
                 print("***", parmStr, "***")
                 ReportTypeError(
-                    "Unknown unicode char {COrd}".format(
-                        COrd=ord(wsC)), Errs)
+                    "Unknown unicode char {COrd}".format(COrd=ord(wsC)), Errs
+                )
         else:
-            wsN = wsC.encode('ascii')
+            wsN = wsC.encode("ascii")
         wsResult += wsN
     return wsResult
 
+
 #
 # QuoteStr() Conditionally quotes a string if it contains a quote character or delimiter
-#		It is intended primaryily when creating comma separated files for export
+# 		It is intended primaryily when creating comma separated files for export
 #
 # There are lots of options:
-#	- The opening quote character, closing quote character and delimiter character
-#		can be specified
-#	- A list of additional characters can be specified whihc force quoting if found in the data.
-#	- An escape character can be specified to mark internal quote characters, otherwise
-#		the double quote convention is used.
+# 	- The opening quote character, closing quote character and delimiter character
+# 		can be specified
+# 	- A list of additional characters can be specified whihc force quoting if found in the data.
+# 	- An escape character can be specified to mark internal quote characters, otherwise
+# 		the double quote convention is used.
 #
 
 
-def QuoteStr(parmData, Quote='"', QuoteAlways=False, Escape=None,
-             QuoteEnd='"', Delim=",", AlsoQuote=""):
+def QuoteStr(
+    parmData,
+    Quote='"',
+    QuoteAlways=False,
+    Escape=None,
+    QuoteEnd='"',
+    Delim=",",
+    AlsoQuote="",
+):
     #
     # When deciding to quote, only look at first character of
     # delimiter -- assume that any extra characters are padding like ", "
     #
     parmData = AsStr(parmData)
     wsNeedQuotes = False
-    if QuoteAlways or (parmData.find(Delim[0]) >= 0) \
-            or (parmData.find(QuoteEnd) >= 0) \
-            or (parmData[:1] == Quote):
+    if (
+        QuoteAlways
+        or (parmData.find(Delim[0]) >= 0)
+        or (parmData.find(QuoteEnd) >= 0)
+        or (parmData[:1] == Quote)
+    ):
         wsNeedQuotes = True
-    if (not wsNeedQuotes):
+    if not wsNeedQuotes:
         for wsC in AlsoQuote:
             if parmData.find(wsC) >= 0:
                 wsNeedQuotes = True
@@ -1752,6 +1814,7 @@ def QuoteStr(parmData, Quote='"', QuoteAlways=False, Escape=None,
     parmData = Quote + parmData + QuoteEnd
     return parmData
 
+
 #
 # Sort(_ sort an array based on the value of the elements as discovered by cmp()
 #
@@ -1759,6 +1822,7 @@ def QuoteStr(parmData, Quote='"', QuoteAlways=False, Escape=None,
 
 def Sort(parmArray):
     parmArray.sort(lambda a, b: cmp(a, b))
+
 
 #
 # SortIx() sort an array of arrays or tuypples based on the value of any column

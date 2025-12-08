@@ -1,27 +1,27 @@
 #!python
 """
-    Create, repair or update the configuration of an QuickDev qdsite.
+Create, repair or update the configuration of an QuickDev qdsite.
 
-    The qdstart utility is run by the site owner / user to update
-    things that they can control. qdstart objecs and functions are
-    also used by the hosting utilities as they manage global
-    system resources.
+The qdstart utility is run by the site owner / user to update
+things that they can control. qdstart objecs and functions are
+also used by the hosting utilities as they manage global
+system resources.
 
-    The QuickDev system uses QuickDev features, which creates a
-    bootstraping challenge for QuickDev development.
-    This impacts QuickDev core developers, not application
-    developers using QuickDev.
+The QuickDev system uses QuickDev features, which creates a
+bootstraping challenge for QuickDev development.
+This impacts QuickDev core developers, not application
+developers using QuickDev.
 
-    Some of the functions in this module are used by other
-    QuickDev utililities such as apache.py.
+Some of the functions in this module are used by other
+QuickDev utililities such as apache.py.
 
-    *XSynth has a stand-alone mode which can be used to
-     translate the qdutils directory without any pre-configuration.
-     It only uses non-xpy modules and only QuickDev modules which are
-     in the qdutils directory.
-    *QdStart for an QuickDev core development site may run before
-     the virtual environment has been established. It has code
-     to locate required packages if not visible.
+*XSynth has a stand-alone mode which can be used to
+ translate the qdutils directory without any pre-configuration.
+ It only uses non-xpy modules and only QuickDev modules which are
+ in the qdutils directory.
+*QdStart for an QuickDev core development site may run before
+ the virtual environment has been established. It has code
+ to locate required packages if not visible.
 
 """
 
