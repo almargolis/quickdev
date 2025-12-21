@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Editor - CommerceNode</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .editor-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .sidebar {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .main-editor {
+            position: relative;
+        }
+        #image-canvas {
+            max-width: 800px;
+            max-height: 600px;
+            display: block;
+        }
+        /* Remove Cropper.js gray background */
+        .cropper-container {
+            background: transparent !important;
+        }
+        .cropper-modal {
+            background: transparent !important;
+            opacity: 0 !important;
+        }
+        .cropper-bg {
+            background: transparent !important;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .slider-control {
+            flex: 1;
+            min-width: 200px;
+        }
+        .slider-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .slider-control input[type="range"] {
+            width: 100%;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .file-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .file-item:hover {
+            border-color: #667eea;
+        }
+        .file-item.active {
+            background: #667eea;
+            color: white;
+        }
+        .file-item small {
+            display: block;
+            opacity: 0.8;
+            font-size: 11px;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .loading.active {
+            display: block;
+        }
+        h1 a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        /* Mode Switcher Styles */
+        .mode-tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0;
+        }
+        .mode-tab {
+            padding: 12px 24px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .mode-tab:hover {
+            background: #e0e0e0;
+        }
+        .mode-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .mode-panel {
+            display: none;
+        }
+        .mode-panel.active {
+            display: block;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .preview-box {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-box img {
+            max-width: 100%;
+            max-height: 400px;
+        }
+        .breadcrumb {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .grid-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .grid-item {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .grid-item:hover {
+            border-color: #667eea;
+            background: #f9f9ff;
+        }
+        .grid-item.folder {
+            background: #fff8dc;
+        }
+        .grid-item img {
+            max-width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .search-results {
+            margin-top: 20px;
+        }
+        .result-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .result-item:hover {
+            background: #f0f0ff;
+            border: 2px solid #667eea;
+        }
+        .result-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .result-info {
+            flex: 1;
+        }
+        .result-info h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .result-info p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        .control-group {
+            background: #f9f9f9;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .control-group h4 {
+            margin: 0 0 12px 0;
+            color: #667eea;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .control-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .control-field {
+            flex: 1;
+            min-width: 100px;
+        }
+        .control-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            color: #555;
+        }
+        .control-field input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Manager <a href="/">← Back to Home</a></h1>
+
+        <!-- Mode Switcher -->
+        <div class="mode-tabs">
+            <button class="mode-tab" onclick="switchMode('upload')">📤 Upload</button>
+            <button class="mode-tab" onclick="switchMode('import')">📥 Import Staging</button>
+            <button class="mode-tab" onclick="switchMode('browse')">📁 Browse Library</button>
+            <button class="mode-tab" onclick="switchMode('search')">🔍 Search</button>
+            <button class="mode-tab active" onclick="switchMode('edit')">✏️ Edit</button>
+        </div>
+
+        <!-- Mode 1: Upload -->
+        <div id="mode-upload" class="mode-panel">
+            <h2>Upload New Image</h2>
+            <div class="grid-2col">
+                <div>
+                    <div class="form-group">
+                        <label>Select Image File:</label>
+                        <input type="file" id="upload-file-input" accept="image/*" onchange="previewUpload(this)">
+                    </div>
+                    <div class="form-group">
+                        <label>Keywords (space-separated):</label>
+                        <input type="text" id="upload-keywords" placeholder="ebay product electronics">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="upload-open-editor" style="width: auto;">
+                            <span>Open in editor after upload</span>
+                        </label>
+                    </div>
+                    <button class="btn" onclick="uploadDirectToStorage()">Upload to Storage</button>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Preview:</label>
+                    <div class="preview-box" id="upload-preview">
+                        <p>No image selected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode 2: Import from Staging -->
+        <div id="mode-import" class="mode-panel">
+            <h2>Import from Staging Area</h2>
+            <button class="btn btn-secondary" onclick="loadStagingFiles()" style="margin-bottom: 15px;">🔄 Refresh List</button>
+            <div id="staging-list" class="file-list" style="max-height: 500px;">
+                <p>Click Refresh to load staging files...</p>
+            </div>
+        </div>
+
+        <!-- Mode 3: Browse Library -->
+        <div id="mode-browse" class="mode-panel">
+            <h2>Browse Image Library</h2>
+            <div class="breadcrumb" id="browse-breadcrumb">
+                <a onclick="browseTo()">📁 Home</a>
+            </div>
+            <div id="browse-content" class="grid-items">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <!-- Mode 4: Search -->
+        <div id="mode-search" class="mode-panel">
+            <h2>Search Images</h2>
+            <div class="grid-2col">
+                <div class="form-group">
+                    <label>Keywords:</label>
+                    <input type="text" id="search-keywords" placeholder="ebay product electronics">
+                </div>
+                <div class="form-group">
+                    <label>Format:</label>
+                    <select id="search-format" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Any</option>
+                        <option value="JPEG">JPEG</option>
+                        <option value="PNG">PNG</option>
+                        <option value="GIF">GIF</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Min Width (px):</label>
+                    <input type="number" id="search-width" placeholder="e.g., 1000">
+                </div>
+                <div class="form-group">
+                    <label>Min Height (px):</label>
+                    <input type="number" id="search-height" placeholder="e.g., 800">
+                </div>
+            </div>
+            <button class="btn" onclick="searchImages()">🔍 Search</button>
+            <div class="search-results" id="search-results"></div>
+        </div>
+
+        <!-- Mode 5: Edit (Existing Editor) -->
+        <div id="mode-edit" class="mode-panel active">
+            <!-- No Image Selected State -->
+            <div id="no-image-state" style="text-align: center; padding: 60px 20px;">
+                <h2 style="color: #666; margin-bottom: 30px;">No Image Selected</h2>
+                <p style="color: #888; margin-bottom: 40px;">Choose an option below to select an image to edit:</p>
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn" onclick="switchMode('upload')" style="padding: 20px 40px; font-size: 16px;">
+                        📤 Upload New Image
+                    </button>
+                    <button class="btn" onclick="switchMode('browse')" style="padding: 20px 40px; font-size: 16px;">
+                        📁 Browse Library
+                    </button>
+                    <button class="btn" onclick="switchMode('search')" style="padding: 20px 40px; font-size: 16px;">
+                        🔍 Search Images
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor Interface (hidden until image loaded) -->
+            <div id="editor-interface" style="display: none;">
+            <div class="main-editor">
+                <div id="image-container">
+                    <img id="image-canvas" src="" alt="Select an image to edit" style="display: none;">
+                    <p id="placeholder-text">Select an image from the sidebar to begin editing</p>
+                </div>
+
+                <div id="image-info" style="padding: 15px; background: #f0f0f0; border-radius: 8px; margin-bottom: 15px; display: none;">
+                    <strong>Current Size:</strong> <span id="current-dimensions">-</span>
+                </div>
+
+                <div class="controls">
+                    <div class="slider-control">
+                        <label>Brightness: <span id="brightness-value">100%</span></label>
+                        <input type="range" id="brightness" min="50" max="200" value="100">
+                    </div>
+
+                    <div class="slider-control">
+                        <label>Contrast: <span id="contrast-value">100%</span></label>
+                        <input type="range" id="contrast" min="50" max="200" value="100">
+                    </div>
+                </div>
+
+                <!-- Crop Control Group -->
+                <div class="control-group">
+                    <h4>✂️ Crop</h4>
+                    <div class="control-row" style="margin-bottom: 10px;">
+                        <div class="control-field">
+                            <label>Upper-Left X (px):</label>
+                            <input type="number" id="crop-x" placeholder="0" min="0" step="1" oninput="updateCropFromInputs()">
+                        </div>
+                        <div class="control-field">
+                            <label>Upper-Left Y (px):</label>
+                            <input type="number" id="crop-y" placeholder="0" min="0" step="1" oninput="updateCropFromInputs()">
+                        </div>
+                        <div class="control-field">
+                            <label>Width (px):</label>
+                            <input type="number" id="crop-width" placeholder="Auto" min="1" step="1" oninput="updateCropFromInputs()">
+                        </div>
+                        <div class="control-field">
+                            <label>Height (px):</label>
+                            <input type="number" id="crop-height" placeholder="Auto" min="1" step="1" oninput="updateCropFromInputs()">
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <button class="btn" onclick="processImage()" id="process-btn" disabled>Apply Crop</button>
+                    </div>
+                </div>
+
+                <!-- Resize Control Group -->
+                <div class="control-group">
+                    <h4>📐 Resize</h4>
+                    <div class="control-row">
+                        <div class="control-field">
+                            <label>Width (px):</label>
+                            <input type="number" id="resize-width" placeholder="Auto" min="1" step="1">
+                        </div>
+                        <div class="control-field">
+                            <label>Height (px):</label>
+                            <input type="number" id="resize-height" placeholder="Auto" min="1" step="1">
+                        </div>
+                        <div style="align-self: flex-end;">
+                            <button class="btn btn-secondary" onclick="resizeImage()" id="resize-btn" disabled>Apply Resize</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="removeBackground()" id="bg-btn" disabled>Remove Background</button>
+                    <button class="btn btn-secondary" onclick="resetImage()" id="reset-btn" disabled>Reset</button>
+                    <button class="btn btn-secondary" onclick="revertImage()" id="revert-btn" disabled style="background: #dc3545; color: white;">Revert</button>
+                    <button class="btn" onclick="saveFinalImage()" id="save-final-btn" disabled style="background: #28a745;">Save</button>
+                </div>
+
+                <div id="status-message" style="padding: 10px; background: #fff3cd; border-radius: 4px; margin-top: 15px; display: none;">
+                    <span id="status-text"></span>
+                </div>
+
+                <div class="loading" id="loading">
+                    <strong>Processing image...</strong> This may take 10-30 seconds for background removal.
+                </div>
+            </div>
+            </div><!-- Close editor-interface -->
+
+            <!-- Hidden file input for legacy upload -->
+            <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="uploadFile(this)">
+        </div><!-- Close mode-edit panel -->
+    </div><!-- Close container -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script>
+        // ========== Mode Switcher ==========
+        function switchMode(mode) {
+            // Hide all panels
+            document.querySelectorAll('.mode-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active from all tabs
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById('mode-' + mode).classList.add('active');
+
+            // Activate corresponding tab button
+            const tabs = document.querySelectorAll('.mode-tab');
+            tabs.forEach(tab => {
+                if (tab.textContent.toLowerCase().includes(mode) ||
+                    (mode === 'edit' && tab.textContent.includes('Edit')) ||
+                    (mode === 'import' && tab.textContent.includes('Import'))) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // Load data for specific modes
+            if (mode === 'browse') {
+                browseTo(); // Load home
+            } else if (mode === 'edit') {
+                // Check if we have an image loaded, if not show no-image state
+                if (!currentImage) {
+                    document.getElementById('no-image-state').style.display = 'block';
+                    document.getElementById('editor-interface').style.display = 'none';
+                }
+            }
+        }
+
+        // ========== Mode 1: Upload Functions ==========
+        let uploadPreviewImage = null;
+
+        function previewUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('upload-preview');
+                    preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
+                    uploadPreviewImage = input.files[0];
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function uploadDirectToStorage() {
+            if (!uploadPreviewImage) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const keywords = document.getElementById('upload-keywords').value;
+            const openInEditor = document.getElementById('upload-open-editor').checked;
+            const formData = new FormData();
+            formData.append('file', uploadPreviewImage);
+
+            // First upload to temp
+            fetch('/api/images/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Always save to hierarchical storage first (archive original)
+                    return fetch('/api/images/save', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            temp_path: data.filepath,
+                            keywords: keywords
+                        })
+                    });
+                } else {
+                    throw new Error(data.error);
+                }
+            })
+            .then(response => response.json())
+            .then(saveData => {
+                if (saveData.success) {
+                    const message = 'Image uploaded successfully!\\nPath: ' + saveData.path + '\\nImage ID: ' + saveData.image_id;
+
+                    // Reset form
+                    document.getElementById('upload-file-input').value = '';
+                    document.getElementById('upload-keywords').value = '';
+                    document.getElementById('upload-preview').innerHTML = '<p>No image selected</p>';
+                    uploadPreviewImage = null;
+
+                    if (openInEditor) {
+                        // Switch to editor and load the saved image
+                        alert(message + '\\n\\nOpening in editor...');
+                        // saveData.path is already in correct format: "a1/b2/3.jpg"
+                        switchMode('edit');
+                        setTimeout(() => loadImage(saveData.path), 500);
+                    } else {
+                        alert(message);
+                    }
+                } else {
+                    if (saveData.duplicate) {
+                        alert('Duplicate image detected!\\n\\n' + saveData.error + '\\n\\nExisting image: ' + saveData.existing_path);
+                    } else {
+                        alert('Error saving: ' + saveData.error);
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Error uploading image: ' + error.message);
+            });
+        }
+
+        // ========== Mode 2: Import from Staging Functions ==========
+        function loadStagingFiles() {
+            const listDiv = document.getElementById('staging-list');
+            listDiv.innerHTML = '<p>Loading...</p>';
+
+            fetch('/api/images/temp-staging/list')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.files.length === 0) {
+                            listDiv.innerHTML = '<p>No files in staging area</p>';
+                        } else {
+                            listDiv.innerHTML = data.files.map(file => `
+                                <div class="file-item" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>${file.name}</strong><br>
+                                        <small>${file.size} | ${file.modified}</small>
+                                    </div>
+                                    <button class="btn btn-secondary" onclick="importStagingFile(\`${file.path}\`, \`${file.name}\`)">Import</button>
+                                </div>
+                            `).join('');
+                        }
+                    } else {
+                        listDiv.innerHTML = '<p>Error loading files: ' + data.error + '</p>';
+                    }
+                })
+                .catch(error => {
+                    listDiv.innerHTML = '<p>Error: ' + error.message + '</p>';
+                });
+        }
+
+        function importStagingFile(filepath, filename) {
+            const keywords = prompt('Enter keywords for this image (space-separated):', '');
+            if (keywords === null) return; // Cancelled
+
+            fetch('/api/images/temp-staging/import', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filepath: filepath,
+                    keywords: keywords
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Image imported successfully!\\nPath: ' + data.path + '\\nImage ID: ' + data.image_id);
+                    loadStagingFiles(); // Refresh list
+                } else {
+                    if (data.duplicate) {
+                        alert('Duplicate image detected!\\n\\n' + data.error + '\\n\\nExisting image: ' + data.existing_path);
+                    } else {
+                        alert('Error importing: ' + data.error);
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        // ========== Mode 3: Browse Functions ==========
+        let currentBrowsePath = { dir1: null, dir2: null };
+
+        function browseEditKeywords(imagePath, event) {
+            event.stopPropagation(); // Prevent grid-item click
+
+            // Extract image ID from database using path
+            // For now, use a simpler approach - prompt for keywords and update by path
+            const newKeywords = prompt('Edit keywords (space-separated):');
+            if (newKeywords === null) return; // Cancelled
+
+            // We need to get the image_id first - let's search for it
+            alert('Keyword editing from browse view requires image ID. Please use Search mode to edit keywords.');
+        }
+
+        function browseOpenEditor(imagePath, event) {
+            event.stopPropagation(); // Prevent grid-item click
+
+            // Switch to edit mode and load this image
+            // imagePath is already in the correct format: "a1/b2/3.jpg"
+            switchMode('edit');
+            setTimeout(() => loadImage(imagePath), 500);
+        }
+
+        function browseTo(dir1, dir2) {
+            currentBrowsePath = { dir1: dir1 || null, dir2: dir2 || null };
+
+            let url = '/api/images/browse';
+            if (dir1 && dir2) {
+                url += '?dir1=' + dir1 + '&dir2=' + dir2;
+            } else if (dir1) {
+                url += '?dir1=' + dir1;
+            }
+
+            // Update breadcrumb
+            let breadcrumb = '<a onclick="browseTo()">📁 Home</a>';
+            if (dir1) {
+                breadcrumb += ' / <a onclick="browseTo(\''+dir1+'\')">'+dir1+'</a>';
+            }
+            if (dir2) {
+                breadcrumb += ' / '+dir2;
+            }
+            document.getElementById('browse-breadcrumb').innerHTML = breadcrumb;
+
+            // Load content
+            const contentDiv = document.getElementById('browse-content');
+            contentDiv.innerHTML = '<p>Loading...</p>';
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.items.length === 0) {
+                            contentDiv.innerHTML = '<p>No items found</p>';
+                        } else {
+                            if (data.type === 'directories') {
+                                // Show directory grid
+                                contentDiv.innerHTML = data.items.map(item => {
+                                    const clickFunc = data.level === 'dir1'
+                                        ? `browseTo('${item.name}')`
+                                        : `browseTo('${currentBrowsePath.dir1}', '${item.name}')`;
+                                    const count = item.subdir_count !== undefined
+                                        ? `${item.subdir_count} subdirs`
+                                        : `${item.image_count} images`;
+                                    return `
+                                        <div class="grid-item folder" onclick="${clickFunc}">
+                                            <div style="font-size: 48px;">📁</div>
+                                            <strong>${item.name}</strong><br>
+                                            <small>${count}</small>
+                                        </div>
+                                    `;
+                                }).join('');
+                            } else {
+                                // Show image grid with action buttons
+                                contentDiv.innerHTML = data.items.map(item => `
+                                    <div class="grid-item" style="position: relative;">
+                                        <img src="/images/${item.path}" alt="${item.filename}">
+                                        <strong>${item.filename}</strong><br>
+                                        <small>${item.size}</small>
+                                        <div style="margin-top: 8px; display: flex; gap: 5px; flex-direction: column;">
+                                            <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px;" onclick="browseEditKeywords('${item.path}', event)">Edit Keywords</button>
+                                            <button class="btn" style="padding: 6px 10px; font-size: 11px;" onclick="browseOpenEditor('${item.path}', event)">Open in Editor</button>
+                                        </div>
+                                    </div>
+                                `).join('');
+                            }
+                        }
+                    } else {
+                        contentDiv.innerHTML = '<p>Error: ' + data.error + '</p>';
+                    }
+                })
+                .catch(error => {
+                    contentDiv.innerHTML = '<p>Error: ' + error.message + '</p>';
+                });
+        }
+
+        // ========== Mode 4: Search Functions ==========
+        function searchImages() {
+            const keywords = document.getElementById('search-keywords').value;
+            const format = document.getElementById('search-format').value;
+            const width_min = document.getElementById('search-width').value;
+            const height_min = document.getElementById('search-height').value;
+
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '<p>Searching...</p>';
+
+            fetch('/api/images/search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    keywords: keywords,
+                    format: format,
+                    width_min: width_min,
+                    height_min: height_min
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.count === 0) {
+                        resultsDiv.innerHTML = '<p>No results found</p>';
+                    } else {
+                        resultsDiv.innerHTML = `<h3>${data.count} Results</h3>` +
+                            data.results.map(item => `
+                                <div class="result-item">
+                                    <img src="/images/${item.path}" alt="${item.filename}">
+                                    <div class="result-info">
+                                        <h4>${item.filename}</h4>
+                                        <p><strong>Path:</strong> ${item.path}</p>
+                                        <p><strong>Dimensions:</strong> ${item.width} x ${item.height}</p>
+                                        <p><strong>Format:</strong> ${item.format} | <strong>Size:</strong> ${item.size}</p>
+                                        <p><strong>Keywords:</strong> ${item.keywords || '(none)'}</p>
+                                        <p><strong>Created:</strong> ${item.created_at}</p>
+                                        <div style="display: flex; gap: 10px;">
+                                            <button class="btn btn-secondary" onclick="editKeywords(${item.image_id}, '${item.keywords}')">Edit Keywords</button>
+                                            <button class="btn" onclick="searchOpenEditor('${item.path}')">Open in Editor</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                    }
+                } else {
+                    resultsDiv.innerHTML = '<p>Error: ' + data.error + '</p>';
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = '<p>Error: ' + error.message + '</p>';
+            });
+        }
+
+        function editKeywords(imageId, currentKeywords) {
+            const newKeywords = prompt('Edit keywords (space-separated):', currentKeywords);
+            if (newKeywords === null) return; // Cancelled
+
+            fetch('/api/images/metadata/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    image_id: imageId,
+                    keywords: newKeywords
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Keywords updated successfully!');
+                    searchImages(); // Refresh search results
+                } else {
+                    alert('Error updating keywords: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        function searchOpenEditor(imagePath) {
+            // Switch to edit mode and load this image
+            // imagePath is already in the correct format: "a1/b2/3.jpg"
+            switchMode('edit');
+            setTimeout(() => loadImage(imagePath), 500);
+        }
+
+        // ========== Mode 5: Edit (Original Editor) JavaScript ==========
+    </script>
+    <script>
+        let cropper = null;
+        let currentImage = null;
+        let currentTempPath = null;  // Track temp file path for saving
+        let originalImage = null;  // Track original image for revert
+
+        function loadImage(path, element) {
+            currentImage = path;
+            originalImage = path;  // Store original for revert
+            currentTempPath = null;  // Clear temp path when loading new image
+
+            // Show editor interface, hide no-image state
+            document.getElementById('no-image-state').style.display = 'none';
+            document.getElementById('editor-interface').style.display = 'block';
+
+            const img = document.getElementById('image-canvas');
+            const placeholder = document.getElementById('placeholder-text');
+
+            // Load metadata for this image (if exists)
+            fetch('/api/images/metadata', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filepath: path})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.has_metadata) {
+                    console.log('Loaded metadata:', data.metadata);
+                    // Store for future use (not currently displayed in UI)
+                }
+            })
+            .catch(error => {
+                console.log('No metadata or error loading:', error);
+            });
+
+            img.src = '/images/' + encodeURIComponent(path);
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            // Enable buttons
+            document.getElementById('process-btn').disabled = false;
+            document.getElementById('bg-btn').disabled = false;
+            document.getElementById('reset-btn').disabled = false;
+            document.getElementById('resize-btn').disabled = false;
+            document.getElementById('revert-btn').disabled = false;
+
+            // Disable save button (no changes yet)
+            document.getElementById('save-final-btn').disabled = true;
+
+            // Reset sliders
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            document.getElementById('brightness-value').textContent = '100%';
+            document.getElementById('contrast-value').textContent = '100%';
+
+            // Clear status message
+            document.getElementById('status-message').style.display = 'none';
+
+            if (cropper) {
+                cropper.destroy();
+            }
+
+            img.onload = function() {
+                // Display image dimensions
+                document.getElementById('image-info').style.display = 'block';
+                document.getElementById('current-dimensions').textContent =
+                    `${img.naturalWidth} × ${img.naturalHeight} pixels`;
+
+                // Clear resize inputs
+                document.getElementById('resize-width').value = '';
+                document.getElementById('resize-height').value = '';
+
+                // Clear crop inputs
+                document.getElementById('crop-x').value = '';
+                document.getElementById('crop-y').value = '';
+                document.getElementById('crop-width').value = '';
+                document.getElementById('crop-height').value = '';
+
+                cropper = new Cropper(img, {
+                    viewMode: 1,
+                    autoCropArea: 1.0,
+                    responsive: false,
+                    zoomable: false,
+                    scalable: false,
+                    dragMode: 'crop',
+                    background: false,
+                    modal: false,
+                    crop: function(event) {
+                        // Update crop input fields when crop box moves
+                        document.getElementById('crop-x').value = Math.round(event.detail.x);
+                        document.getElementById('crop-y').value = Math.round(event.detail.y);
+                        document.getElementById('crop-width').value = Math.round(event.detail.width);
+                        document.getElementById('crop-height').value = Math.round(event.detail.height);
+                    }
+                });
+            };
+        }
+
+        // Check if there are unsaved changes
+        function checkChanges() {
+            const brightness = document.getElementById('brightness').value;
+            const contrast = document.getElementById('contrast').value;
+
+            // Enable save button if brightness or contrast changed from default
+            if (brightness != 100 || contrast != 100 || currentTempPath) {
+                document.getElementById('save-final-btn').disabled = false;
+            } else {
+                document.getElementById('save-final-btn').disabled = true;
+            }
+        }
+
+        // Brightness/Contrast preview with CSS filters
+        document.getElementById('brightness').oninput = function() {
+            const val = this.value;
+            document.getElementById('brightness-value').textContent = val + '%';
+            applyFilters();
+            checkChanges();
+        };
+
+        document.getElementById('contrast').oninput = function() {
+            const val = this.value;
+            document.getElementById('contrast-value').textContent = val + '%';
+            applyFilters();
+            checkChanges();
+        };
+
+        function applyFilters() {
+            const brightness = document.getElementById('brightness').value;
+            const contrast = document.getElementById('contrast').value;
+
+            // Apply filter to the cropper's canvas containers (what's actually visible)
+            const canvasContainers = document.querySelectorAll('.cropper-canvas, .cropper-crop-box');
+            canvasContainers.forEach(el => {
+                el.style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+            });
+
+            // Also apply to the main image if cropper hasn't initialized yet
+            const img = document.getElementById('image-canvas');
+            if (img && !cropper) {
+                img.style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+            }
+        }
+
+        function reloadImageInPlace(tempPath, filename) {
+            // Destroy current Cropper instance
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+
+            // Update current image to temp path
+            currentImage = tempPath;
+            currentTempPath = tempPath;
+
+            // Reload the image
+            const img = document.getElementById('image-canvas');
+            img.src = '/images/' + encodeURIComponent(tempPath) + '?t=' + Date.now();
+
+            // Show status message
+            document.getElementById('status-text').textContent =
+                'Changes applied. Editing temporary file: ' + filename;
+            document.getElementById('status-message').style.display = 'block';
+
+            // Enable Save button
+            document.getElementById('save-final-btn').disabled = false;
+
+            // Reinitialize Cropper when image loads
+            img.onload = function() {
+                if (cropper) {
+                    cropper.destroy();
+                }
+
+                // Clear crop inputs for new image
+                document.getElementById('crop-x').value = '';
+                document.getElementById('crop-y').value = '';
+                document.getElementById('crop-width').value = '';
+                document.getElementById('crop-height').value = '';
+
+                cropper = new Cropper(img, {
+                    viewMode: 1,
+                    autoCropArea: 1.0,
+                    responsive: false,
+                    zoomable: false,
+                    scalable: false,
+                    dragMode: 'crop',
+                    background: false,
+                    modal: false,
+                    ready: function() {
+                        // Get new dimensions
+                        const imageData = cropper.getImageData();
+                        document.getElementById('current-dimensions').textContent =
+                            Math.round(imageData.naturalWidth) + ' × ' + Math.round(imageData.naturalHeight) + ' px';
+                        document.getElementById('image-info').style.display = 'block';
+                        document.getElementById('resize-btn').disabled = false;
+                    },
+                    crop: function(event) {
+                        // Update crop input fields when crop box moves
+                        document.getElementById('crop-x').value = Math.round(event.detail.x);
+                        document.getElementById('crop-y').value = Math.round(event.detail.y);
+                        document.getElementById('crop-width').value = Math.round(event.detail.width);
+                        document.getElementById('crop-height').value = Math.round(event.detail.height);
+                    }
+                });
+            };
+        }
+
+        function processImage() {
+            if (!currentImage) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const operations = [];
+
+            // Get crop coordinates if cropped
+            if (cropper) {
+                const cropData = cropper.getData(true);
+                if (cropData.width > 0 && cropData.height > 0) {
+                    operations.push({
+                        type: 'crop',
+                        coords: [
+                            Math.round(cropData.x),
+                            Math.round(cropData.y),
+                            Math.round(cropData.x + cropData.width),
+                            Math.round(cropData.y + cropData.height)
+                        ]
+                    });
+                }
+            }
+
+            // Get brightness/contrast
+            const brightness = document.getElementById('brightness').value / 100;
+            const contrast = document.getElementById('contrast').value / 100;
+            if (brightness !== 1.0 || contrast !== 1.0) {
+                operations.push({
+                    type: 'brilliance',
+                    brightness: brightness,
+                    contrast: contrast
+                });
+            }
+
+            if (operations.length === 0) {
+                alert('No changes to apply. Adjust crop, brightness, or contrast first.');
+                return;
+            }
+
+            // Show loading indicator
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('process-btn').disabled = true;
+
+            // Send to server for processing
+            fetch('/api/images/process', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filepath: currentImage,
+                    operations: operations
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('process-btn').disabled = false;
+
+                if (data.success) {
+                    // Reload image in place with temp file
+                    reloadImageInPlace(data.output_path, data.filename);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('process-btn').disabled = false;
+                alert('Error processing image: ' + error);
+            });
+        }
+
+        function removeBackground() {
+            if (!currentImage) {
+                alert('Please select an image first');
+                return;
+            }
+
+            if (!confirm('Background removal may take 10-30 seconds. The first run will download a 176MB AI model. Continue?')) {
+                return;
+            }
+
+            // Show loading indicator
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('bg-btn').disabled = true;
+
+            fetch('/api/images/process', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filepath: currentImage,
+                    operations: [{'type': 'remove_background'}]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('bg-btn').disabled = false;
+
+                if (data.success) {
+                    // Reload image in place with temp file
+                    reloadImageInPlace(data.output_path, data.filename);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('bg-btn').disabled = false;
+                alert('Error removing background: ' + error);
+            });
+        }
+
+        function resetImage() {
+            if (cropper) {
+                cropper.reset();
+            }
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            document.getElementById('brightness-value').textContent = '100%';
+            document.getElementById('contrast-value').textContent = '100%';
+            document.getElementById('resize-width').value = '';
+            document.getElementById('resize-height').value = '';
+            document.getElementById('crop-x').value = '';
+            document.getElementById('crop-y').value = '';
+            document.getElementById('crop-width').value = '';
+            document.getElementById('crop-height').value = '';
+            applyFilters();
+
+            // Clear status message and reset background color
+            document.getElementById('status-message').style.display = 'none';
+            document.getElementById('status-message').style.background = '#fff3cd';
+        }
+
+        function revertImage() {
+            if (!originalImage) {
+                alert('No original image to revert to');
+                return;
+            }
+
+            if (!confirm('Revert to original image? All unsaved changes will be lost.')) {
+                return;
+            }
+
+            // Reload the original image
+            const img = document.getElementById('image-canvas');
+
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+
+            // Reset to original
+            currentImage = originalImage;
+            currentTempPath = null;
+
+            img.src = '/images/' + encodeURIComponent(originalImage) + '?t=' + Date.now();
+
+            // Reset all controls
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            document.getElementById('brightness-value').textContent = '100%';
+            document.getElementById('contrast-value').textContent = '100%';
+            document.getElementById('resize-width').value = '';
+            document.getElementById('resize-height').value = '';
+            document.getElementById('crop-x').value = '';
+            document.getElementById('crop-y').value = '';
+            document.getElementById('crop-width').value = '';
+            document.getElementById('crop-height').value = '';
+            applyFilters();
+
+            // Disable save button (no changes)
+            document.getElementById('save-final-btn').disabled = true;
+
+            // Clear status message
+            document.getElementById('status-message').style.display = 'none';
+            document.getElementById('status-message').style.background = '#fff3cd';
+
+            // Reinitialize Cropper when image loads
+            img.onload = function() {
+                document.getElementById('image-info').style.display = 'block';
+                document.getElementById('current-dimensions').textContent =
+                    `${img.naturalWidth} × ${img.naturalHeight} pixels`;
+
+                cropper = new Cropper(img, {
+                    viewMode: 1,
+                    autoCropArea: 1.0,
+                    responsive: false,
+                    zoomable: false,
+                    scalable: false,
+                    dragMode: 'crop',
+                    background: false,
+                    modal: false,
+                    crop: function(event) {
+                        // Update crop input fields when crop box moves
+                        document.getElementById('crop-x').value = Math.round(event.detail.x);
+                        document.getElementById('crop-y').value = Math.round(event.detail.y);
+                        document.getElementById('crop-width').value = Math.round(event.detail.width);
+                        document.getElementById('crop-height').value = Math.round(event.detail.height);
+                    }
+                });
+            };
+        }
+
+        // Update cropper when crop input values change
+        function updateCropFromInputs() {
+            if (!cropper) return;
+
+            const x = parseFloat(document.getElementById('crop-x').value) || 0;
+            const y = parseFloat(document.getElementById('crop-y').value) || 0;
+            const width = parseFloat(document.getElementById('crop-width').value);
+            const height = parseFloat(document.getElementById('crop-height').value);
+
+            if (width > 0 && height > 0) {
+                cropper.setData({
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height
+                });
+            }
+        }
+
+
+        function resizeImage() {
+            if (!currentImage) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const width = document.getElementById('resize-width').value;
+            const height = document.getElementById('resize-height').value;
+
+            if (!width && !height) {
+                alert('Please enter at least one dimension (width or height)');
+                return;
+            }
+
+            // Show loading indicator
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('resize-btn').disabled = true;
+
+            const operations = [{
+                type: 'resize',
+                width: width ? parseInt(width) : null,
+                height: height ? parseInt(height) : null
+            }];
+
+            fetch('/api/images/process', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filepath: currentImage,
+                    operations: operations
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('resize-btn').disabled = false;
+
+                if (data.success) {
+                    // Reload image in place with temp file
+                    reloadImageInPlace(data.output_path, data.filename);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('resize-btn').disabled = false;
+                alert('Error resizing image: ' + error);
+            });
+        }
+
+        function saveFinalImage() {
+            const brightness = document.getElementById('brightness').value;
+            const contrast = document.getElementById('contrast').value;
+
+            // Check if we need to process brightness/contrast changes first
+            if (!currentTempPath && (brightness != 100 || contrast != 100)) {
+                // Process brightness/contrast first, then save
+                document.getElementById('loading').classList.add('active');
+                document.getElementById('save-final-btn').disabled = true;
+
+                const operations = [{
+                    type: 'brilliance',
+                    brightness: brightness / 100,
+                    contrast: contrast / 100
+                }];
+
+                fetch('/api/images/process', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        filepath: currentImage,
+                        operations: operations
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentTempPath = data.output_path;
+                        // Now save the processed image
+                        saveProcessedImage();
+                    } else {
+                        document.getElementById('loading').classList.remove('active');
+                        document.getElementById('save-final-btn').disabled = false;
+                        alert('Error processing image: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('save-final-btn').disabled = false;
+                    alert('Error processing image: ' + error);
+                });
+            } else if (currentTempPath) {
+                // Already have temp file, save it
+                saveProcessedImage();
+            } else {
+                alert('No changes to save');
+            }
+        }
+
+        function saveProcessedImage() {
+            fetch('/api/images/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    temp_path: currentTempPath
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.success) {
+                    // Ask user if they want to open the saved image
+                    const message = 'Image saved successfully!\\n\\nPath: ' + data.path + '\\nImage ID: ' + data.image_id + '\\n\\nWould you like to open the saved image in the editor?';
+
+                    if (confirm(message)) {
+                        // Load the newly saved image
+                        loadImage(data.path);
+                    } else {
+                        // Hide editor interface, show no-image state
+                        document.getElementById('editor-interface').style.display = 'none';
+                        document.getElementById('no-image-state').style.display = 'block';
+
+                        // Destroy cropper
+                        if (cropper) {
+                            cropper.destroy();
+                            cropper = null;
+                        }
+
+                        // Clear state
+                        currentImage = null;
+                        currentTempPath = null;
+                        originalImage = null;
+                    }
+                } else {
+                    alert('Error saving image: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                alert('Error saving image: ' + error);
+            });
+        }
+    </script>
+</body>
+</html>
