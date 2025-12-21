@@ -51,6 +51,43 @@ The codebase is organized into several package directories:
 - **qdconfig/**: Configuration and setup utilities
   - `configure.py`: Application configuration system
 
+- **qdflask/**: Flask authentication package (reusable)
+  - `auth.py`: Login, logout, and authentication routes
+  - `models.py`: User model with role-based access control
+  - `cli.py`: Command-line tools for user management
+  - `templates/qdflask/`: Login and user management UI templates
+
+- **qdimages/**: Flask image management package (reusable)
+  - `routes.py`: 16 API endpoints for image operations
+  - `storage.py`: Hierarchical xxHash-based content storage
+  - `editor.py`: Image processing (crop, resize, brightness, background removal)
+  - `models.py`: Image metadata database model
+  - `file_handler.py`: File I/O operations
+  - `templates/`: Web-based image editor interface
+
+### Flask Integration Packages
+
+QuickDev includes reusable Flask packages for common web application features:
+
+**qdflask** - User authentication with Flask-Login integration
+- Initialize: `from qdflask import init_auth`
+- Role-based access control with customizable roles
+- User management interface and CLI commands
+- See `qdflask/README.md` for full documentation
+- Installable: `pip install -e ./qdflask` (recommended)
+- Dependencies: Flask, Flask-SQLAlchemy, Flask-Login, Werkzeug
+
+**qdimages** - Image management with hierarchical storage
+- Initialize: `from qdimages import init_image_manager`
+- xxHash-based content-addressed storage with automatic deduplication
+- Web-based image editor (crop, resize, brightness, background removal)
+- Metadata tracking with keywords and EXIF data
+- See `qdimages/README.md` for full documentation
+- Installable: `pip install -e ./qdimages`
+- Dependencies: Flask, Pillow, xxhash, PyYAML, rembg
+
+Both packages follow the QuickDev pattern of simple integration via init functions and work seamlessly together.
+
 ### Bootstrapping Architecture
 
 QuickDev has a carefully designed bootstrapping sequence because the framework uses its own features:
