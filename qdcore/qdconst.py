@@ -1,5 +1,5 @@
 """
-These are constants and utiilities for the EzDev environment.
+These are constants and utiilities for the QuickDev environment.
 
 """
 

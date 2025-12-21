@@ -1,4 +1,4 @@
-EzDev Coding Style
+QuickDev Coding Style
 ========================
 
 General
@@ -35,14 +35,14 @@ path to a file, including expansion of tilde and dots using
 os.path.abspath().
 
 Applications should be able to provide file_name and dir in a manner
-that is natural to users and EzDev should just do the right thing.
+that is natural to users and QuickDev should just do the right thing.
 
 Exe_Controller / Err_Message
 ---------------------------------
 EzCore modules should be usable as stand-alone utility functions
-as well as integrate into EzDev applications.
+as well as integrate into QuickDev applications.
 
-Exe_Controller provides a suite of services to EzDev applications.
+Exe_Controller provides a suite of services to QuickDev applications.
 Whenever possible exe_controller should be an optional parameter for
 ezcore modules. If provided, it should be used but teh module
 should be useful without it.

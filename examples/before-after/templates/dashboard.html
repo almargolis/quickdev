@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Dashboard</h2>
+
+    <p>Welcome, <strong>{{ current_user.email }}</strong>!</p>
+
+    <div style="margin-top: 2rem;">
+        <h3>Account Information</h3>
+        <p><strong>Email:</strong> {{ current_user.email }}</p>
+        <p><strong>Account Created:</strong> {{ current_user.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p><strong>Status:</strong> {% if current_user.is_active %}Active{% else %}Inactive{% endif %}</p>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <a href="/logout" class="btn btn-secondary">Logout</a>
+    </div>
+</div>
+{% endblock %}

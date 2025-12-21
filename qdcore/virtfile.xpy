@@ -503,7 +503,7 @@ class VirtFile(object):
         """
         Request OS flock() with exclusive flag.
 
-        This functionality is not well supported by EzDev.
+        This functionality is not well supported by QuickDev.
         Implementation is mainly up to the application.
         Use the lock_file feature of open() for an easier to understand
         lock at the cost of a performance hit and some crudeness.

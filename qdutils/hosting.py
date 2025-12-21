@@ -1,5 +1,5 @@
 """
-Hosting manages the base configuration for computers that host EzDev sites.
+Hosting manages the base configuration for computers that host QuickDev sites.
 
 This is called hosting because it will most commonly be used to
 configure internet servers of various kinds, but it also is used

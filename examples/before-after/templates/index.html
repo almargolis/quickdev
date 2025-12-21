@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to the Auth Example</h2>
+
+    <p>This demonstrates user authentication with Flask.</p>
+
+    <div style="margin-top: 2rem;">
+        <h3>Features:</h3>
+        <ul style="margin-left: 2rem;">
+            <li>User registration</li>
+            <li>Login/logout</li>
+            <li>Password hashing</li>
+            <li>Protected routes</li>
+            <li>Session management</li>
+        </ul>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        {% if current_user.is_authenticated %}
+            <p>You are logged in as <strong>{{ current_user.email }}</strong></p>
+            <a href="/dashboard" class="btn">Go to Dashboard</a>
+            <a href="/logout" class="btn btn-secondary">Logout</a>
+        {% else %}
+            <a href="/login" class="btn">Login</a>
+            <a href="/register" class="btn btn-secondary">Register</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>About This Example</h3>
+    <p>Check the source code to see the difference between:</p>
+    <ul style="margin-left: 2rem;">
+        <li><code>before_manual.py</code> - Traditional implementation (~200 lines)</li>
+        <li><code>after_quickdev.py</code> - QuickDev idioms (~30 lines)</li>
+    </ul>
+    <p style="margin-top: 1rem;">
+        <strong>Same functionality, 85% less code!</strong>
+    </p>
+</div>
+{% endblock %}

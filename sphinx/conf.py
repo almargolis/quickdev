@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath("../ezutils"))
 
 # -- Project information -----------------------------------------------------
 
-project = "EzDev"
+project = "QuickDev"
 copyright = "2020, Al Margolis"
 author = "Al Margolis"
 

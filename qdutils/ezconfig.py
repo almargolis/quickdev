@@ -1,6 +1,6 @@
 #!python
 """
-EzConfig completes the bootstrap process for an EzDev project.
+EzConfig completes the bootstrap process for a QuickDev project.
 
 It creates program stubs and ???. It is run after EzStart creates
 the basic directory structure and Xpython processes xpy source

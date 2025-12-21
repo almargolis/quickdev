@@ -1,21 +1,28 @@
-.. EzDev documentation master file, created by
+.. QuickDev documentation master file, created by
    sphinx-quickstart on Mon Oct  5 09:54:34 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to EzDev's documentation!
+Welcome to QuickDev's documentation!
 ========================================
 
-EzDev is an application framework supporting Don't Repeat Yourself (DRY) principles
-and advanced data modeling. It includes support for development and operations.
+QuickDev is a metaprogramming toolkit and collection of DRY idioms that eliminates
+boilerplate in Python applications. Rather than being a framework that competes with
+Flask or Django, QuickDev works alongside them - generating the repetitive code you'd
+otherwise write by hand.
 
-Developing an application requires a significant amount of environmental
-configuration. None of that is very hard, but can be a minor nuisance.
-EzDev attempts to provide frictionless project start-up so you can
-immediately start coding and testing application code.
-The environment configuration has defaults which "just work".
-A personal configuration file to specify your preferences so
-it works the way you like.
+**Core Capabilities:**
+
+- **XSynth Preprocessor**: Transforms `.xpy` files into Python, using dictionaries and
+  introspection to generate data models, classes, and patterns from high-level declarations
+- **Reusable Idioms**: Pre-built packages like qdflask (authentication) and qdimages
+  (image management) that integrate with Flask applications
+- **Code Generation**: Extends DRY principles beyond runtime reuse into compile-time
+  code generation
+
+QuickDev captures decades of refined patterns, allowing you to reduce boilerplate while
+maintaining readable, standard Python output. Use as much or as little as you need -
+it complements your existing development workflow.
 
 
 .. toctree::

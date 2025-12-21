@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-QuickDev (also referred to as EzDev) is an application development and hosting framework for Python. It includes a preprocessor called XSynth that adds data modeling and structured programming features to Python source files.
+QuickDev is a metaprogramming toolkit and collection of DRY idioms for Python development. It is **not a framework** - it works alongside Flask, Django, and other tools to eliminate boilerplate through preprocessor-based code generation.
+
+The core value proposition is reducing repetitive code by:
+- Using the XSynth preprocessor to generate Python from high-level declarations
+- Providing reusable idioms (like qdflask for auth, qdimages for image management)
+- Employing dictionaries and introspection to auto-generate common patterns
+
+QuickDev complements existing frameworks rather than replacing them.
 
 ## Key Architectural Concepts
 
@@ -34,7 +41,7 @@ The codebase is organized into several package directories:
   - `pdict.py`: Dictionary utilities
   - `simplelex.py`: Simple lexical analysis
 
-- **qdcore/**: Core application framework features
+- **qdcore/**: Core idioms and utilities
   - `execontroller.py`: Program execution environment controller
   - `qdsite.py`: Site configuration and management
   - `qddict.py`: Enhanced dictionary class (generated from `qddict.xpy`)

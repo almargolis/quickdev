@@ -157,7 +157,7 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
     The main differences are that CliCommandLine calls an action function
     while arg_parser just parses the command line to be processed
     separately. CliCommandLine is also more explicit about value types
-    and is intentially similar to other EzDev dictionary components.
+    and is intentially similar to other QuickDev dictionary components.
     """
 
     __slots__ = (

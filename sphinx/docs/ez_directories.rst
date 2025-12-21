@@ -1,4 +1,4 @@
-EzDev Directories
+QuickDev Directories
 ========================
 
 **Site:** A directory which is the root of execution for an application on a particular server.
@@ -35,20 +35,20 @@ Site Types
 Most operations sites reference critical operational data.
 Operations sites have a minimum of development tools available.
 
-**Development Site:** A site used to develop an EzDev application.
+**Development Site:** A site used to develop a QuickDev application.
 Most dev sites reference test data.
 Development sites have access to a full set of development tools.
-EzDev automatically creates basic configuration files for primary
+QuickDev automatically creates basic configuration files for primary
 development tools.
 
 **PIP Site:** A development site for a PIP installable python package.
-EzDev has utilities to assist with the boilerplate required for PIP.
+QuickDev has utilities to assist with the boilerplate required for PIP.
 
 
 Site Directory Content
 ------------------------
 
-Every EzDev site directory contains a menu of content
+Every QuickDev site directory contains a menu of content
 which varies with the site type and application
 requirements.
 
@@ -63,7 +63,7 @@ requirements.
 | [acronym].venv/ | most | Python virtual environment.        |
 |                 |      | Potentially omitted for non-Python |
 |                 |      | applications, but may be required  |
-|                 |      | for EzDev utilities.               |
+|                 |      | for QuickDev utilities.            |
 +-----------------+------+------------------------------------+
 | pip/            | pip  | this is the root directory for     |
 |                 |      | the pip upload    

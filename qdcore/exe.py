@@ -1,5 +1,5 @@
 """
-EzExe provides the operating environment for normal EzDev application
+EzExe provides the operating environment for normal QuickDev application
 execution. It provides common services so application code can be small
 and focussed on direct application functionality.
 
