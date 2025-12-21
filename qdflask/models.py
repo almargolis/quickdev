@@ -24,6 +24,8 @@ class User(UserMixin, db.Model):
         created_at: Timestamp when user was created
         last_login: Timestamp of last successful login
         is_active: Whether the user account is active
+        comment_style: Comment formatting style ('t'=text, 'h'=HTML, 'm'=markdown)
+        moderation_level: Comment moderation level ('0'=blocked, '1'=requires approval, '9'=auto-approved)
 
     Example:
         user = User(username='john', role='editor')
@@ -40,6 +42,10 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
+
+    # Comment-related fields (used by qdcomments package)
+    comment_style = db.Column(db.String(1), nullable=False, default='t')  # 't', 'h', 'm'
+    moderation_level = db.Column(db.String(1), nullable=False, default='1')  # '0', '1', '9'
 
     def set_password(self, password):
         """

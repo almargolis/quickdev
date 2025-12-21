@@ -1,0 +1,6 @@
+[console_scripts]
+qdcomments-approve = qdcomments.cli:approve_comment_cli
+qdcomments-init-blocked-words = qdcomments.cli:init_blocked_words_file
+qdcomments-migrate-users = qdcomments.cli:migrate_user_table
+qdcomments-pending = qdcomments.cli:list_pending_comments
+qdcomments-reject = qdcomments.cli:reject_comment_cli

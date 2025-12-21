@@ -1,0 +1,8 @@
+README.md
+setup.py
+qdcomments.egg-info/PKG-INFO
+qdcomments.egg-info/SOURCES.txt
+qdcomments.egg-info/dependency_links.txt
+qdcomments.egg-info/entry_points.txt
+qdcomments.egg-info/requires.txt
+qdcomments.egg-info/top_level.txt

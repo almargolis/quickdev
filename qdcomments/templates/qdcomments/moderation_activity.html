@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Comment Activity{% endblock %}
+
+{% block content %}
+<h1>Global Comment Activity</h1>
+
+<div class="activity-filters">
+    <form method="GET">
+        <label>
+            Status:
+            <select name="status">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                <option value="p" {% if status_filter == 'p' %}selected{% endif %}>Posted</option>
+                <option value="m" {% if status_filter == 'm' %}selected{% endif %}>Moderation</option>
+                <option value="b" {% if status_filter == 'b' %}selected{% endif %}>Blocked</option>
+            </select>
+        </label>
+
+        <label>
+            Content Type:
+            <input type="text" name="content_type" value="{{ content_type_filter or '' }}" placeholder="e.g., article">
+        </label>
+
+        <label>
+            User ID:
+            <input type="number" name="user_id" value="{{ user_id_filter or '' }}" placeholder="User ID">
+        </label>
+
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('comments.global_activity') }}">Clear</a>
+    </form>
+</div>
+
+<p>Total comments: <strong>{{ pagination.total }}</strong></p>
+
+{% if comments %}
+    <div class="activity-list">
+        {% for item in comments %}
+            <div class="activity-item status-{{ item.comment.status }}">
+                <div class="comment-meta">
+                    <strong>{{ item.comment.user.username }}</strong>
+                    on {{ item.comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    <br>
+                    Content: <code>{{ item.comment.content_type }}/{{ item.comment.content_id }}</code>
+                    <br>
+                    Status:
+                    <span class="status-badge status-{{ item.comment.status }}">
+                        {% if item.comment.status == 'p' %}Posted
+                        {% elif item.comment.status == 'm' %}Pending
+                        {% elif item.comment.status == 'b' %}Blocked
+                        {% endif %}
+                    </span>
+                    (Reason: {{ item.comment.status_reason }})
+                </div>
+
+                <div class="comment-content">
+                    {{ item.content_html|safe }}
+                </div>
+
+                {% if item.comment.status == 'm' %}
+                    <div class="moderation-actions">
+                        <form method="POST" action="{{ url_for('comments.approve_comment', comment_id=item.comment.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-success">Approve</button>
+                        </form>
+
+                        <form method="POST" action="{{ url_for('comments.reject_comment', comment_id=item.comment.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-danger">Reject</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="?page={{ pagination.page - 1 }}&status={{ status_filter }}&content_type={{ content_type_filter or '' }}&user_id={{ user_id_filter or '' }}">Previous</a>
+            {% endif %}
+
+            Page {{ pagination.page }} of {{ pagination.pages }}
+
+            {% if pagination.has_next %}
+                <a href="?page={{ pagination.page + 1 }}&status={{ status_filter }}&content_type={{ content_type_filter or '' }}&user_id={{ user_id_filter or '' }}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% else %}
+    <p>No comments found.</p>
+{% endif %}
+
+<p><a href="{{ url_for('comments.moderation_queue') }}">Back to moderation queue</a></p>
+
+{% endblock %}

@@ -1,0 +1,88 @@
+{# Comment submission form - Include in content pages #}
+<div class="comment-form-container">
+    {% if current_user.is_authenticated %}
+        <form id="comment-form" class="comment-form">
+            <textarea
+                id="comment-content"
+                name="content"
+                placeholder="Add your comment..."
+                rows="4"
+                maxlength="{{ config.COMMENT_MAX_LENGTH or 5000 }}"
+                required></textarea>
+
+            <div class="comment-form-footer">
+                <span class="comment-style-badge">
+                    Style:
+                    {% if current_user.comment_style == 'm' %}
+                        Markdown
+                    {% elif current_user.comment_style == 'h' %}
+                        HTML (limited)
+                    {% else %}
+                        Text
+                    {% endif %}
+                </span>
+                <button type="submit" class="comment-submit-btn">Post Comment</button>
+            </div>
+        </form>
+
+        <div id="comment-status-message" style="display: none;"></div>
+    {% else %}
+        <p>
+            <a href="{{ url_for('auth.login') }}">Log in</a> to leave a comment.
+        </p>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('comment-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const content = document.getElementById('comment-content').value.trim();
+        if (!content) {
+            alert('Please enter a comment');
+            return;
+        }
+
+        // Get content info from page context
+        const contentType = '{{ content_type|default("article") }}';
+        const contentId = '{{ content_id|default("") }}';
+
+        try {
+            const response = await fetch('/comments/post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content_type: contentType,
+                    content_id: contentId,
+                    content: content
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('comment-content').value = '';
+                const statusMsg = document.getElementById('comment-status-message');
+                statusMsg.textContent = data.message;
+                statusMsg.className = data.status === 'p' ? 'success' : 'info';
+                statusMsg.style.display = 'block';
+
+                // Reload comments if posted
+                if (data.status === 'p') {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Failed to post comment: ' + error.message);
+        }
+    });
+});
+</script>

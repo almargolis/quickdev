@@ -1,0 +1,27 @@
+{# Single comment item - Used recursively for threading #}
+<div class="comment-item {% if comment.parent_id %}comment-reply{% endif %}" id="comment-{{ comment.id }}">
+    <div class="comment-header">
+        <span class="comment-author">{{ comment.user.username if comment.user else 'Unknown' }}</span>
+        <span class="comment-date">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+
+        {% if comment.user_comment_style == 'm' %}
+            <span class="comment-badge">Markdown</span>
+        {% elif comment.user_comment_style == 'h' %}
+            <span class="comment-badge">HTML</span>
+        {% endif %}
+    </div>
+
+    <div class="comment-content">
+        {{ comment.content|safe }}
+    </div>
+
+    {% if config.ALLOW_THREADING and comment.replies %}
+        <div class="comment-replies">
+            {% for reply in comment.replies %}
+                {% with comment=reply %}
+                    {% include 'qdcomments/comment_item.html' %}
+                {% endwith %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

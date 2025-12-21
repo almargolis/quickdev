@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Blocked Words{% endblock %}
+
+{% block content %}
+<h1>Edit Blocked Words</h1>
+
+<p>File: <code>{{ path }}</code></p>
+
+<form method="POST">
+    <textarea name="content" rows="20" style="width: 100%; font-family: monospace;">{{ content }}</textarea>
+    <br>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{{ url_for('comments.moderation_queue') }}">Cancel</a>
+</form>
+
+<div class="help-text">
+    <h3>Format:</h3>
+    <pre>
+words:
+  - spam
+  - viagra
+  - badword
+
+case_sensitive: false
+whole_word_only: true
+    </pre>
+</div>
+
+{% endblock %}

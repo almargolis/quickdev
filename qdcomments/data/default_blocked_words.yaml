@@ -1,0 +1,40 @@
+# Blocked Words Configuration for qdcomments
+#
+# This file is automatically copied to your DATA_DIR on first initialization.
+# Edit this file via the admin interface at /comments/admin/blocked-words
+# or directly edit the copy in your DATA_DIR.
+#
+# Last updated: 2025-12-21
+
+# List of words to filter from comments
+# Add or remove words as needed for your site's moderation policy
+words:
+  # Common spam terms
+  - spam
+  - viagra
+  - cialis
+  - casino
+  - lottery
+  - prize
+  - winner
+  - congratulations
+  - click here
+  - buy now
+  - limited offer
+  - act now
+  - free money
+  - work from home
+
+  # Offensive language (basic list - expand as needed)
+  - profanity1
+  - profanity2
+  - slur1
+  - slur2
+
+# Configuration options
+# case_sensitive: If true, "Spam" and "spam" are treated differently
+case_sensitive: false
+
+# whole_word_only: If true, only matches complete words
+# Example: If false, "spam" matches "spammer". If true, it only matches " spam "
+whole_word_only: true

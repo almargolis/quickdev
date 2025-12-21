@@ -1,0 +1,440 @@
+Metadata-Version: 2.4
+Name: qdcomments
+Version: 0.1.0
+Summary: Reusable Flask commenting system with moderation and content filtering
+Home-page: https://github.com/almargolis/QuickDev
+Author: QuickDev
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Framework :: Flask
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: Flask>=2.0.0
+Requires-Dist: Flask-SQLAlchemy>=2.5.0
+Requires-Dist: Flask-Login>=0.5.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: Markdown>=3.3.0
+Requires-Dist: Werkzeug>=2.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: pytest-flask>=1.0; extra == "dev"
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# qdcomments - QuickDev Commenting System
+
+A reusable Flask commenting system with sophisticated moderation, user permissions, and content filtering.
+
+## Features
+
+- **User-level comment permissions**
+  - Text-only ('t'): Plain text with HTML escaping
+  - Limited HTML ('h'): Safe HTML tags only (bold, italic, links)
+  - Markdown ('m'): Full markdown support
+
+- **Three-tier moderation system**
+  - '0': Blocked (all comments auto-rejected)
+  - '1': Requires approval (comments held for moderation)
+  - '9': Auto-approved (comments posted immediately)
+
+- **Content filtering**
+  - Configurable blocked_words list via YAML file
+  - Automatic flagging of comments with blocked words
+  - Site-editable word list through admin interface
+
+- **Content-agnostic design**
+  - Works with articles, products, listings, or any content type
+  - Flexible content_type + content_id pattern
+
+- **Comment threading**
+  - Nested replies with configurable depth limit
+  - Parent-child comment relationships
+
+- **Global moderation dashboard**
+  - View pending comments
+  - Approve/reject workflow
+  - Filter by status, content type, user
+  - Track moderation history
+
+- **Admin interface**
+  - Edit blocked_words.yaml
+  - Toggle global settings
+  - Monitor all comment activity
+
+## Installation
+
+### From local directory (development):
+
+```bash
+cd /path/to/QuickDev/qdcomments
+pip install -e .
+```
+
+### Requirements:
+
+- Python 3.7+
+- Flask 2.0+
+- Flask-SQLAlchemy
+- Flask-Login
+- PyYAML
+- Markdown
+- **qdflask** (required for User model)
+
+## Quick Start
+
+### 1. Install qdcomments
+
+```bash
+pip install -e /path/to/QuickDev/qdcomments
+```
+
+### 2. Initialize your Flask app
+
+```python
+from flask import Flask
+from qdflask import init_auth
+from qdflask.models import db
+from qdcomments import init_comments
+
+app = Flask(__name__)
+
+# Configure
+app.config['SECRET_KEY'] = 'your-secret-key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['DATA_DIR'] = '/path/to/data'
+
+# Initialize authentication (qdflask)
+init_auth(app)
+
+# Initialize commenting
+init_comments(app, config={
+    'COMMENTS_ENABLED': True,
+    'BLOCKED_WORDS_PATH': '/path/to/data/blocked_words.yaml'
+}, db_instance=db)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+### 3. Migrate user table
+
+Add comment fields to existing users:
+
+```bash
+qdcomments-migrate-users --app myapp:create_app
+```
+
+### 4. Initialize blocked words
+
+Create default blocked_words.yaml:
+
+```bash
+qdcomments-init-blocked-words --app myapp:create_app
+```
+
+### 5. Add to templates
+
+In your content template (e.g., article.html):
+
+```jinja2
+{% if comments_enabled %}
+    <div id="comments">
+        <h2>Comments</h2>
+
+        {# Comment submission form #}
+        {% include 'qdcomments/comment_form.html' %}
+
+        {# Comment list #}
+        {% include 'qdcomments/comment_list.html' %}
+    </div>
+{% endif %}
+```
+
+### 6. Update your route
+
+Pass comments to the template:
+
+```python
+from qdcomments.models import Comment
+
+@app.route('/article/<slug>')
+def article(slug):
+    # ... load article ...
+
+    # Load comments
+    comments = Comment.get_for_content(
+        content_type='article',
+        content_id=slug,
+        status='p'
+    ).all()
+
+    return render_template('article.html',
+        article=article,
+        comments_enabled=True,
+        comments=comments,
+        content_type='article',
+        content_id=slug
+    )
+```
+
+## Configuration Options
+
+Pass to `init_comments()` via the `config` dict:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `COMMENTS_ENABLED` | True | Enable/disable comments globally |
+| `COMMENTS_REQUIRE_LOGIN` | True | Require authentication to comment |
+| `BLOCKED_WORDS_PATH` | DATA_DIR/blocked_words.yaml | Path to blocked words file |
+| `COMMENTS_PER_PAGE` | 50 | Pagination limit |
+| `COMMENT_MAX_LENGTH` | 5000 | Maximum comment length (characters) |
+| `ALLOW_THREADING` | True | Enable comment replies |
+| `MAX_THREAD_DEPTH` | 3 | Maximum nesting level for replies |
+
+## Database Schema
+
+### Extended User Model (qdflask)
+
+```python
+class User:
+    # ... existing fields ...
+    comment_style = Column(String(1), default='t')  # 't', 'h', 'm'
+    moderation_level = Column(String(1), default='1')  # '0', '1', '9'
+```
+
+### Comment Model
+
+```python
+class Comment:
+    id = Integer (PK)
+    user_id = Integer (FK to users)
+    content_type = String  # 'article', 'product', etc.
+    content_id = String    # slug, product ID, etc.
+    content = Text         # Raw comment content
+    user_comment_style = String  # Snapshot of user's style at comment time
+    user_moderation_level = String  # Snapshot of user's level at comment time
+    status = String        # 'p' (posted), 'm' (moderation), 'b' (blocked)
+    status_reason = String # 'a' (automatic), 'm' (moderator), 'd' (blocked_words)
+    parent_id = Integer (FK to comments, nullable)
+    created_at = DateTime
+    updated_at = DateTime
+    moderated_at = DateTime (nullable)
+    moderated_by_id = Integer (FK to users, nullable)
+```
+
+## Routes
+
+### Public Routes
+
+- `POST /comments/post` - Submit a comment
+- `GET /comments/list/<content_type>/<path:content_id>` - Get comments for content
+- `GET /comments/count/<content_type>/<path:content_id>` - Get comment count
+
+### Moderation Routes (admin/editor)
+
+- `GET /comments/moderation/queue` - View pending comments
+- `POST /comments/moderation/approve/<id>` - Approve comment
+- `POST /comments/moderation/reject/<id>` - Reject comment
+- `GET /comments/moderation/activity` - View all comments with filters
+
+### Admin Routes (admin only)
+
+- `GET/POST /comments/admin/blocked-words` - Edit blocked_words.yaml
+- `GET/POST /comments/admin/config` - Toggle global settings
+
+## CLI Tools
+
+### Migrate Users Table
+
+Add comment fields to existing User table:
+
+```bash
+qdcomments-migrate-users --app myapp:create_app
+```
+
+### Initialize Blocked Words
+
+Create default blocked_words.yaml:
+
+```bash
+qdcomments-init-blocked-words --app myapp:create_app [--path /custom/path.yaml]
+```
+
+### List Pending Comments
+
+```bash
+qdcomments-pending --app myapp:create_app
+```
+
+### Approve Comment
+
+```bash
+qdcomments-approve --app myapp:create_app --id 123 [--moderator-id 1]
+```
+
+### Reject Comment
+
+```bash
+qdcomments-reject --app myapp:create_app --id 123 [--moderator-id 1]
+```
+
+## Content-Agnostic Usage
+
+qdcomments works with any content type by using the `content_type` + `content_id` pattern:
+
+### Articles (Trellis):
+```python
+content_type = 'article'
+content_id = 'python/my-article-slug'
+```
+
+### Products (e-commerce):
+```python
+content_type = 'product'
+content_id = 'SKU-12345'
+```
+
+### Listings:
+```python
+content_type = 'listing'
+content_id = 'ebay-293847562938'
+```
+
+## User Permission Levels
+
+### comment_style
+
+| Value | Name | Behavior |
+|-------|------|----------|
+| 't' | Text | Plain text, HTML escaped, newlines → `<br>` |
+| 'h' | Limited HTML | Safe tags only: `<b>, <i>, <strong>, <em>, <a>, <br>` |
+| 'm' | Markdown | Full markdown support, raw HTML escaped |
+
+**Defaults:**
+- New users: 't'
+- Admin/editor: 'm' (after migration)
+
+### moderation_level
+
+| Value | Name | Behavior |
+|-------|------|----------|
+| '0' | Blocked | All comments automatically blocked (status='b') |
+| '1' | Requires Approval | Comments held for moderation (status='m') |
+| '9' | Auto-Approved | Comments posted immediately (status='p') |
+
+**Defaults:**
+- New users: '1'
+- Admin/editor: '9' (after migration)
+
+## blocked_words.yaml Format
+
+```yaml
+# Blocked words for comment filtering
+words:
+  - spam
+  - viagra
+  - badword
+
+# Configuration
+case_sensitive: false  # Treat "Spam" and "spam" the same
+whole_word_only: true  # Only match complete words (not substrings)
+```
+
+Edit via:
+- Admin interface: `/comments/admin/blocked-words`
+- Direct file edit: `$DATA_DIR/blocked_words.yaml`
+
+## Security Features
+
+1. **XSS Prevention**
+   - Text mode: HTML escaping
+   - HTML mode: Whitelist sanitization
+   - Markdown mode: Safe rendering with HTML escape
+
+2. **SQL Injection Protection**
+   - Uses SQLAlchemy ORM (parameterized queries)
+
+3. **Content Filtering**
+   - blocked_words detection
+   - Automatic moderation queue
+
+4. **Authentication & Authorization**
+   - Requires login for commenting (configurable)
+   - Role-based moderation access (admin/editor)
+
+5. **Input Validation**
+   - Content length limits
+   - Thread depth limits
+   - YAML validation for blocked_words
+
+## Workflow Examples
+
+### New User Comments:
+
+1. User (comment_style='t', moderation_level='1') submits comment
+2. Content is HTML-escaped
+3. Checked against blocked_words
+4. If clean: status='m', status_reason='a' (held for moderation)
+5. If blocked words found: status='m', status_reason='d'
+6. Admin/editor reviews in moderation queue
+7. Approve: status='p', status_reason='m', moderated_at/moderated_by_id set
+8. Comment now visible to public
+
+### Admin Comments:
+
+1. Admin (comment_style='m', moderation_level='9') submits comment
+2. Content processed as markdown
+3. Checked against blocked_words
+4. If clean: status='p', status_reason='a' (immediately posted)
+5. If blocked words found: status='m', status_reason='d' (held for review)
+
+## Architecture Notes
+
+- **Shares database with qdflask**: Uses `db_instance` parameter to ensure Comment and User models use the same database
+- **Content-agnostic**: Works with any content by using flexible content_type/content_id pattern
+- **User snapshot**: Stores user's comment_style and moderation_level at comment time (prevents retroactive permission changes)
+- **Status tracking**: Comprehensive status and status_reason codes for audit trail
+
+## Integration with Trellis
+
+See `INTEGRATION.md` for full Trellis integration guide (if available).
+
+Quick summary:
+1. Install qdcomments
+2. Add `init_comments()` to `trellis/__init__.py`
+3. Run `qdcomments-migrate-users`
+4. Update article route to load comments
+5. Add `{% include 'qdcomments/comment_form.html' %}` to article template
+
+## Integration with CommerceNode
+
+Works identically to Trellis, but use:
+- `content_type='product'` for product pages
+- `content_type='listing'` for marketplace listings
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Author
+
+QuickDev / Allan Margolis
+
+## Contributing
+
+This is part of the QuickDev suite of reusable Flask components. Contributions welcome!

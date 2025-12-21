@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Comment Moderation Queue{% endblock %}
+
+{% block content %}
+<h1>Comment Moderation Queue</h1>
+
+<p>Comments pending approval: <strong>{{ pagination.total }}</strong></p>
+
+{% if comments %}
+    <div class="moderation-queue">
+        {% for item in comments %}
+            <div class="moderation-item">
+                <div class="comment-meta">
+                    <strong>{{ item.comment.user.username }}</strong>
+                    on {{ item.comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    <br>
+                    Content: <code>{{ item.comment.content_type }}/{{ item.comment.content_id }}</code>
+                    <br>
+                    Style: <span class="badge">{{ item.comment.user_comment_style }}</span>
+                    {% if item.comment.status_reason == 'd' %}
+                        <span class="warning">Blocked words detected: {{ item.blocked_words|join(', ') }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="comment-content">
+                    {{ item.content_html|safe }}
+                </div>
+
+                <div class="moderation-actions">
+                    <form method="POST" action="{{ url_for('comments.approve_comment', comment_id=item.comment.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-success">Approve</button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('comments.reject_comment', comment_id=item.comment.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger">Reject</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="?page={{ pagination.page - 1 }}">Previous</a>
+            {% endif %}
+
+            Page {{ pagination.page }} of {{ pagination.pages }}
+
+            {% if pagination.has_next %}
+                <a href="?page={{ pagination.page + 1 }}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% else %}
+    <p>No comments pending moderation.</p>
+{% endif %}
+
+<p><a href="{{ url_for('comments.global_activity') }}">View all comments</a></p>
+
+{% endblock %}
