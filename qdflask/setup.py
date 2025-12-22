@@ -14,7 +14,8 @@ setup(
     description="Reusable Flask authentication package with role-based access control",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(),
+    packages=['qdflask'],
+    package_dir={'qdflask': '.'},
     include_package_data=True,
     package_data={
         'qdflask': [

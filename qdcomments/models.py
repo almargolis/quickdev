@@ -2,18 +2,13 @@
 Database models for qdcomments.
 
 Provides Comment model for storing user comments with moderation support.
+
+Note: This module imports the canonical db and User from qdflask.models to ensure
+all Flask modules share the same database instance and User model.
 """
 
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-
-db = SQLAlchemy()
-
-
-def use_existing_db(db_instance):
-    """Use an existing SQLAlchemy db instance instead of creating a new one."""
-    global db
-    db = db_instance
+from qdflask.models import db, User
 
 
 class Comment(db.Model):
@@ -71,8 +66,10 @@ class Comment(db.Model):
     user_moderation_level = db.Column(db.String(1), nullable=False)  # '0', '1', '9'
 
     # Status tracking
-    status = db.Column(db.String(1), nullable=False, default='p', index=True)  # 'p', 'm', 'b'
+    status = db.Column(db.String(1), nullable=False, default='p', index=True)  # 'p', 'm', 'b', 'r'
+    # Status values: 'p'=posted, 'm'=moderation, 'b'=blocked, 'r'=revoked
     status_reason = db.Column(db.String(1), nullable=False, default='a')  # 'a', 'm', 'd'
+    # Reason values: 'a'=automatic, 'm'=moderator, 'd'=dirty_words
 
     # Threading support
     parent_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=True)
@@ -84,8 +81,8 @@ class Comment(db.Model):
     moderated_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     # Relationships
-    user = db.relationship('User', foreign_keys=[user_id], backref='comments')
-    moderator = db.relationship('User', foreign_keys=[moderated_by_id])
+    user = db.relationship(User, foreign_keys=[user_id], backref='comments')
+    moderator = db.relationship(User, foreign_keys=[moderated_by_id])
     parent = db.relationship('Comment', remote_side=[id], backref='replies')
 
     # Composite indexes for common queries
@@ -190,6 +187,37 @@ class Comment(db.Model):
             moderator_id: ID of user rejecting the comment
         """
         self.status = 'b'
+        self.status_reason = 'm'  # Moderator decision
+        self.moderated_at = datetime.utcnow()
+        self.moderated_by_id = moderator_id
+        db.session.commit()
+
+    def revoke(self, moderator_id):
+        """
+        Revoke a comment (change status to 'r').
+        Used when a previously approved comment needs to be removed.
+
+        Args:
+            moderator_id: ID of user revoking the comment
+        """
+        self.status = 'r'
+        self.status_reason = 'm'  # Moderator decision
+        self.moderated_at = datetime.utcnow()
+        self.moderated_by_id = moderator_id
+        db.session.commit()
+
+    def set_status(self, new_status, moderator_id):
+        """
+        Change comment status.
+
+        Args:
+            new_status: New status ('p', 'm', 'b', or 'r')
+            moderator_id: ID of user changing the status
+        """
+        if new_status not in ['p', 'm', 'b', 'r']:
+            raise ValueError(f"Invalid status: {new_status}")
+
+        self.status = new_status
         self.status_reason = 'm'  # Moderator decision
         self.moderated_at = datetime.utcnow()
         self.moderated_by_id = moderator_id

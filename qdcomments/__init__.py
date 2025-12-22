@@ -16,7 +16,6 @@ Features:
 Usage:
     from flask import Flask
     from qdflask import init_auth
-    from qdflask.models import db
     from qdcomments import init_comments
 
     app = Flask(__name__)
@@ -25,14 +24,14 @@ Usage:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
     app.config['DATA_DIR'] = '/path/to/data'
 
-    # Initialize authentication (qdflask)
+    # Initialize authentication (qdflask owns db and User model)
     init_auth(app)
 
-    # Initialize commenting
+    # Initialize commenting (shares qdflask's db)
     init_comments(app, config={
         'COMMENTS_ENABLED': True,
         'BLOCKED_WORDS_PATH': '/path/to/blocked_words.yaml'
-    }, db_instance=db)
+    })
 
     if __name__ == '__main__':
         app.run(debug=True)
@@ -54,9 +53,12 @@ comments_bp = Blueprint(
 )
 
 
-def init_comments(app, config=None, db_instance=None):
+def init_comments(app, config=None):
     """
     Initialize commenting system for a Flask application.
+
+    Note: This must be called AFTER init_auth() from qdflask, as qdcomments
+    shares qdflask's database instance and User model.
 
     Args:
         app: Flask application instance
@@ -68,25 +70,19 @@ def init_comments(app, config=None, db_instance=None):
             - COMMENT_MAX_LENGTH: Max comment length (default: 5000)
             - ALLOW_THREADING: Enable comment replies (default: True)
             - MAX_THREAD_DEPTH: Maximum nesting level (default: 3)
-        db_instance: SQLAlchemy db instance (required - must be from qdflask)
 
     Returns:
         None
 
-    Raises:
-        ValueError: If db_instance is not provided
-
     Example:
-        >>> from qdflask.models import db
+        >>> from qdflask import init_auth
+        >>> from qdcomments import init_comments
+        >>> init_auth(app)  # Initialize qdflask first
         >>> init_comments(app, config={
         ...     'COMMENTS_ENABLED': True,
         ...     'BLOCKED_WORDS_PATH': '/var/www/data/blocked_words.yaml'
-        ... }, db_instance=db)
+        ... })
     """
-    # Require db_instance (must share database with qdflask for User FK)
-    if not db_instance:
-        raise ValueError("db_instance is required - pass qdflask's db instance")
-
     # Default configuration
     data_dir = app.config.get('DATA_DIR', os.getcwd())
     defaults = {
@@ -107,13 +103,13 @@ def init_comments(app, config=None, db_instance=None):
     for key, value in defaults.items():
         app.config.setdefault(key, value)
 
-    # Use existing database (critical for FK to users table)
-    from qdcomments.models import use_existing_db
-    use_existing_db(db_instance)
+    # Import models (db and User are already imported from qdflask.models)
+    from qdcomments.models import Comment, db
 
-    # Create Comment tables if they don't exist
+    # Create Comment table if it doesn't exist
+    # (db was already initialized by qdflask's init_auth)
     with app.app_context():
-        db_instance.create_all()
+        db.create_all()
 
     # Initialize blocked_words.yaml if doesn't exist
     blocked_words_path = app.config['BLOCKED_WORDS_PATH']

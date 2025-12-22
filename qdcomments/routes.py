@@ -319,6 +319,57 @@ def reject_comment(comment_id):
     return redirect(url_for('comments.moderation_queue'))
 
 
+@comments_bp.route('/moderation/set-status/<int:comment_id>', methods=['POST'])
+@login_required
+@require_role('admin', 'editor')
+def set_comment_status(comment_id):
+    """
+    Change comment status to any valid status ('p', 'm', 'b', 'r').
+
+    POST data/JSON:
+        status: New status code
+
+    Returns:
+        Redirect to referring page or JSON response
+    """
+    comment = Comment.query.get_or_404(comment_id)
+
+    # Get new status from form or JSON
+    if request.is_json:
+        new_status = request.json.get('status')
+    else:
+        new_status = request.form.get('status')
+
+    if not new_status or new_status not in ['p', 'm', 'b', 'r']:
+        if request.is_json:
+            return jsonify({'error': 'Invalid status'}), 400
+        flash('Invalid status', 'error')
+        return redirect(request.referrer or url_for('comments.global_activity'))
+
+    # Map status codes to human-readable names
+    status_names = {
+        'p': 'approved',
+        'm': 'pending moderation',
+        'b': 'blocked',
+        'r': 'revoked'
+    }
+
+    try:
+        comment.set_status(new_status, current_user.id)
+        message = f'Comment {status_names[new_status]}'
+
+        if request.is_json:
+            return jsonify({'success': True, 'message': message, 'status': new_status})
+
+        flash(message, 'success')
+    except ValueError as e:
+        if request.is_json:
+            return jsonify({'error': str(e)}), 400
+        flash(str(e), 'error')
+
+    return redirect(request.referrer or url_for('comments.global_activity'))
+
+
 @comments_bp.route('/moderation/activity')
 @login_required
 @require_role('admin', 'editor')

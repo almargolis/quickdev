@@ -14,6 +14,7 @@
                 <option value="p" {% if status_filter == 'p' %}selected{% endif %}>Posted</option>
                 <option value="m" {% if status_filter == 'm' %}selected{% endif %}>Moderation</option>
                 <option value="b" {% if status_filter == 'b' %}selected{% endif %}>Blocked</option>
+                <option value="r" {% if status_filter == 'r' %}selected{% endif %}>Revoked</option>
             </select>
         </label>
 
@@ -49,6 +50,8 @@
                         {% if item.comment.status == 'p' %}Posted
                         {% elif item.comment.status == 'm' %}Pending
                         {% elif item.comment.status == 'b' %}Blocked
+                        {% elif item.comment.status == 'r' %}Revoked
+                        {% else %}Unknown
                         {% endif %}
                     </span>
                     (Reason: {{ item.comment.status_reason }})
@@ -58,17 +61,25 @@
                     {{ item.content_html|safe }}
                 </div>
 
-                {% if item.comment.status == 'm' %}
-                    <div class="moderation-actions">
-                        <form method="POST" action="{{ url_for('comments.approve_comment', comment_id=item.comment.id) }}" style="display: inline;">
-                            <button type="submit" class="btn btn-success">Approve</button>
-                        </form>
+                <div class="status-change-actions">
+                    <form method="POST" action="{{ url_for('comments.set_comment_status', comment_id=item.comment.id) }}" style="display: inline-block;">
+                        <label for="status-{{ item.comment.id }}">Change status:</label>
+                        <select name="status" id="status-{{ item.comment.id }}">
+                            <option value="p" {% if item.comment.status == 'p' %}selected{% endif %}>Posted</option>
+                            <option value="m" {% if item.comment.status == 'm' %}selected{% endif %}>Pending</option>
+                            <option value="b" {% if item.comment.status == 'b' %}selected{% endif %}>Blocked</option>
+                            <option value="r" {% if item.comment.status == 'r' %}selected{% endif %}>Revoked</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm">Update</button>
+                    </form>
 
-                        <form method="POST" action="{{ url_for('comments.reject_comment', comment_id=item.comment.id) }}" style="display: inline;">
-                            <button type="submit" class="btn btn-danger">Reject</button>
-                        </form>
-                    </div>
-                {% endif %}
+                    {% if item.comment.moderated_by_id %}
+                        <small class="moderation-info">
+                            Last moderated by user #{{ item.comment.moderated_by_id }}
+                            on {{ item.comment.moderated_at.strftime('%Y-%m-%d %H:%M') if item.comment.moderated_at else 'N/A' }}
+                        </small>
+                    {% endif %}
+                </div>
             </div>
         {% endfor %}
     </div>

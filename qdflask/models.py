@@ -19,8 +19,10 @@ class User(UserMixin, db.Model):
     Attributes:
         id: Primary key
         username: Unique username
+        email_address: Email address (required, unique)
+        email_verified: Whether email is verified ('Y' or 'N')
         password_hash: Hashed password (never store plain text)
-        role: User role (e.g., 'admin', 'editor', 'viewer')
+        role: User role ('admin', 'editor', or 'reader')
         created_at: Timestamp when user was created
         last_login: Timestamp of last successful login
         is_active: Whether the user account is active
@@ -28,7 +30,7 @@ class User(UserMixin, db.Model):
         moderation_level: Comment moderation level ('0'=blocked, '1'=requires approval, '9'=auto-approved)
 
     Example:
-        user = User(username='john', role='editor')
+        user = User(username='john', email_address='john@example.com', role='reader')
         user.set_password('secret123')
         db.session.add(user)
         db.session.commit()
@@ -37,8 +39,10 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    email_address = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    email_verified = db.Column(db.String(1), nullable=False, default='N')  # 'Y' or 'N'
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='editor')
+    role = db.Column(db.String(20), nullable=False, default='reader')  # 'admin', 'editor', 'reader'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
@@ -76,6 +80,24 @@ class User(UserMixin, db.Model):
             bool: True if user is admin
         """
         return self.role == 'admin'
+
+    def is_editor(self):
+        """
+        Check if user has editor or admin role.
+
+        Returns:
+            bool: True if user can edit content
+        """
+        return self.role in ('admin', 'editor')
+
+    def is_reader(self):
+        """
+        Check if user has reader role (not admin or editor).
+
+        Returns:
+            bool: True if user is a reader
+        """
+        return self.role == 'reader'
 
     def has_role(self, *roles):
         """
@@ -123,6 +145,40 @@ class User(UserMixin, db.Model):
             User object or None
         """
         return User.query.filter_by(username=username).first()
+
+    @staticmethod
+    def get_by_email(email_address):
+        """
+        Get user by email address.
+
+        Args:
+            email_address: Email address to search for
+
+        Returns:
+            User object or None
+        """
+        return User.query.filter_by(email_address=email_address).first()
+
+    @staticmethod
+    def validate_email(email_address):
+        """
+        Simple email validation.
+
+        Args:
+            email_address: Email address to validate
+
+        Returns:
+            bool: True if email appears valid
+        """
+        if not email_address or '@' not in email_address:
+            return False
+        parts = email_address.split('@')
+        if len(parts) != 2:
+            return False
+        local, domain = parts
+        if not local or not domain or '.' not in domain:
+            return False
+        return True
 
     @staticmethod
     def get_all_active():

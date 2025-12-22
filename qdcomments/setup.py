@@ -11,7 +11,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almargolis/QuickDev",
-    packages=find_packages(),
+    packages=['qdcomments'],
+    package_dir={'qdcomments': '.'},
     include_package_data=True,
     package_data={
         'qdcomments': [
