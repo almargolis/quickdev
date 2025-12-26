@@ -16,6 +16,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: Flask>=2.0.0
 Requires-Dist: Flask-SQLAlchemy>=2.5.0
 Requires-Dist: Flask-Login>=0.5.0
+Requires-Dist: Flask-Mail>=0.9.1
 Requires-Dist: Werkzeug>=2.0.0
 Dynamic: author
 Dynamic: classifier

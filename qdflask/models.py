@@ -19,7 +19,7 @@ class User(UserMixin, db.Model):
     Attributes:
         id: Primary key
         username: Unique username
-        email_address: Email address (required, unique)
+        email_address: Email address (optional, unique if provided)
         email_verified: Whether email is verified ('Y' or 'N')
         password_hash: Hashed password (never store plain text)
         role: User role ('admin', 'editor', or 'reader')
@@ -28,6 +28,10 @@ class User(UserMixin, db.Model):
         is_active: Whether the user account is active
         comment_style: Comment formatting style ('t'=text, 'h'=HTML, 'm'=markdown)
         moderation_level: Comment moderation level ('0'=blocked, '1'=requires approval, '9'=auto-approved)
+
+    Note:
+        Routine email notifications are only sent to users with email_verified='Y'.
+        Admins can clear email_address to prevent a user from receiving emails.
 
     Example:
         user = User(username='john', email_address='john@example.com', role='reader')
@@ -39,7 +43,7 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email_address = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    email_address = db.Column(db.String(255), nullable=True, unique=True, index=True)
     email_verified = db.Column(db.String(1), nullable=False, default='N')  # 'Y' or 'N'
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='reader')  # 'admin', 'editor', 'reader'
@@ -199,6 +203,21 @@ class User(UserMixin, db.Model):
             List of all User objects
         """
         return User.query.order_by(User.username).all()
+
+    @staticmethod
+    def get_verified_admins():
+        """
+        Get all admin users with verified email addresses.
+
+        Returns:
+            List of admin User objects with verified emails
+        """
+        return User.query.filter(
+            User.role == 'admin',
+            User.email_verified == 'Y',
+            User.email_address.isnot(None),
+            User.email_address != ''
+        ).all()
 
     def __repr__(self):
         return f'<User {self.username} ({self.role})>'

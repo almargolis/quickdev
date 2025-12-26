@@ -139,6 +139,28 @@ def post_comment():
     db.session.add(comment)
     db.session.commit()
 
+    # Send email notification if comment needs moderation
+    if status == 'm':
+        try:
+            from qdflask.email import send_to_admins
+            reason = "blocked words detected" if status_reason == 'd' else "user requires moderation"
+            send_to_admins(
+                subject="New Comment Pending Moderation",
+                body=f"""A new comment is pending moderation.
+
+User: {current_user.username}
+Content: {content_type}/{content_id}
+Reason: {reason}
+
+Comment preview:
+{content[:200]}{'...' if len(content) > 200 else ''}
+
+Review at: {current_app.config.get('SERVER_NAME', 'your-site')}/comments/moderation/queue
+"""
+            )
+        except Exception as e:
+            current_app.logger.error(f"Failed to send moderation notification: {e}")
+
     return jsonify({
         'success': True,
         'comment_id': comment.id,
