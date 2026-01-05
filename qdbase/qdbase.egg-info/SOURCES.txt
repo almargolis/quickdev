@@ -1,0 +1,6 @@
+README.md
+setup.py
+qdbase.egg-info/PKG-INFO
+qdbase.egg-info/SOURCES.txt
+qdbase.egg-info/dependency_links.txt
+qdbase.egg-info/top_level.txt

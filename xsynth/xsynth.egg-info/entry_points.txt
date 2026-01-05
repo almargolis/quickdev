@@ -1,0 +1,2 @@
+[console_scripts]
+xsynth = qdutils.xsynth:main

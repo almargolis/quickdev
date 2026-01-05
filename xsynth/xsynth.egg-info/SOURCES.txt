@@ -1,0 +1,8 @@
+README.md
+setup.py
+xsynth.egg-info/PKG-INFO
+xsynth.egg-info/SOURCES.txt
+xsynth.egg-info/dependency_links.txt
+xsynth.egg-info/entry_points.txt
+xsynth.egg-info/requires.txt
+xsynth.egg-info/top_level.txt
