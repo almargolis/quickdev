@@ -75,10 +75,57 @@ Perfect for developers who:
 - Want to capture their own patterns as reusable idioms
 - Appreciate metaprogramming without magic
 
+## Installation
+
+QuickDev packages can be installed individually from PyPI:
+
+```bash
+# Foundation utilities
+pip install qdbase
+
+# XSynth preprocessor
+pip install xsynth
+
+# Flask authentication
+pip install qdflask
+
+# Flask image management
+pip install qdimages
+```
+
+Or for development:
+
+```bash
+git clone https://github.com/almargolis/quickdev.git
+cd quickdev
+pip install -e ./qdbase
+pip install -e ./xsynth
+pip install -e ./qdflask
+pip install -e ./qdimages
+```
+
+## Documentation
+
+- [Package Architecture](PACKAGING.md) - Multi-package structure and publishing
+- [Claude Code Guide](CLAUDE.md) - Project instructions for AI assistants
+- Individual package READMEs in each subdirectory
+
 ## License
 
-[Add your license here]
+MIT License - See [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2001-2026 Albert B. Margolis
 
 ## Contributing
 
-This project is being prepared for open source release. Documentation and examples are actively being developed.
+QuickDev is now open source! Contributions are welcome.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `pytest`
+5. Submit a pull request
+
+## History
+
+QuickDev has been in development since the 1990s, evolving from a C library to the current Python toolkit. Recently moved to open source to share patterns refined over three decades of development.

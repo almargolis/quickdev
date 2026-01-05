@@ -38,11 +38,16 @@ setup(
     name="qdbase",
     version="0.2.0",
     author="Albert Margolis",
-    author_email="albert@quickdev.org",
+    author_email="almargolis@gmail.com",
     description="Foundation utilities for Python development with zero external dependencies",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almargolis/quickdev",
+    project_urls={
+        "Bug Tracker": "https://github.com/almargolis/quickdev/issues",
+        "Documentation": "https://github.com/almargolis/quickdev/blob/master/qdbase/README.md",
+        "Source Code": "https://github.com/almargolis/quickdev/tree/master/qdbase",
+    },
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     include_package_data=True,
     install_requires=[

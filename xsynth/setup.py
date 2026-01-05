@@ -41,11 +41,16 @@ setup(
     name="xsynth",
     version="0.3.0",
     author="Albert Margolis",
-    author_email="albert@quickdev.org",
+    author_email="almargolis@gmail.com",
     description="A preprocessor for Python adding data modeling and structured programming",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almargolis/quickdev",
+    project_urls={
+        "Bug Tracker": "https://github.com/almargolis/quickdev/issues",
+        "Documentation": "https://github.com/almargolis/quickdev/blob/master/xsynth/README.md",
+        "Source Code": "https://github.com/almargolis/quickdev/tree/master/xsynth",
+    },
     py_modules=["xsynth"],
     install_requires=[
         "qdbase>=0.2.0",  # Requires qdbase foundation
