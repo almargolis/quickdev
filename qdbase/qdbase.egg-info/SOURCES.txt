@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.py
 qdbase.egg-info/PKG-INFO

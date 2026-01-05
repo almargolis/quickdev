@@ -4,7 +4,10 @@ Version: 0.3.0
 Summary: A preprocessor for Python adding data modeling and structured programming
 Home-page: https://github.com/almargolis/quickdev
 Author: Albert Margolis
-Author-email: albert@quickdev.org
+Author-email: almargolis@gmail.com
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/xsynth/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/xsynth
 Keywords: preprocessor metaprogramming code-generation data-modeling
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
@@ -31,6 +34,7 @@ Dynamic: description
 Dynamic: description-content-type
 Dynamic: home-page
 Dynamic: keywords
+Dynamic: project-url
 Dynamic: provides-extra
 Dynamic: requires-dist
 Dynamic: requires-python

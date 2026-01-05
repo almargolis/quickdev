@@ -3,7 +3,7 @@ test xsource.py
 """
 
 from qdbase import qdsqlite
-from xsynth import xsource
+from qdbase import xsource
 
 ex1_src = []
 ex1_src.append("#$ dict sample")

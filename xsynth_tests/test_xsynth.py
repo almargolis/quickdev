@@ -6,8 +6,8 @@ import os
 import stat
 
 from qdbase import qdsqlite
-from xsynth import xsource
-from xsynth import xsynth
+from qdbase import xsource
+from qdutils import xsynth
 
 test_xpy = []
 test_xpy.append("class thing:")

@@ -1,10 +1,13 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: qdbase
 Version: 0.2.0
 Summary: Foundation utilities for Python development with zero external dependencies
 Home-page: https://github.com/almargolis/quickdev
 Author: Albert Margolis
-Author-email: albert@quickdev.org
+Author-email: almargolis@gmail.com
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/qdbase/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/qdbase
 Keywords: utilities development tools dictionary sqlite cli lexer
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
@@ -21,6 +24,18 @@ Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license-file
+Dynamic: project-url
+Dynamic: requires-python
+Dynamic: summary
 
 # qdbase
 

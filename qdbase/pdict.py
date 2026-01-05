@@ -124,6 +124,10 @@ class TupleDict(DbDictTable):
         super().__init__(name, is_rowid_table=False)
 
 
+# Alias for backwards compatibility
+DbDict = DbDictDb
+
+
 class Index:  # pylint: disable=too-few-public-methods
     """
     Represents an index for a table.
