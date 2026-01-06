@@ -56,7 +56,7 @@ XSOURCE_SOURCE_EXT = [".x" + e[1:] for e in XSOURCE_TARGET_EXT]
 PSUEDO_MODULE_QDICT = "qdict"
 RESERVED_MODULE_NAMES = ["xlocal", PSUEDO_MODULE_QDICT]
 
-xdb_dict = pdict.DbDict()
+xdb_dict = pdict.DbDictDb()
 
 # XDB_MODULES contains one entry for each module.
 # A module is generally the basename of a file

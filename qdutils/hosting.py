@@ -22,7 +22,7 @@ from qdcore import qdconst
 from . import apache
 from . import qdstart
 
-hdb_dict = pdict.DbDict()
+hdb_dict = pdict.DbDictDb()
 
 d = hdb_dict.add_table(pdict.DbDictTable(qdsite.HDB_DEVSITES))
 d.add_column(pdict.Text(qdsite.CONF_PARM_ACRONYM))
