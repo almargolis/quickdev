@@ -35,11 +35,13 @@ SQLITE_IN_MEMORY_FN = ":memory:"
 SQLITE_TEMP_FN = ""
 
 
-def sql_to_pdict_table(sql, debug=False):
+def sql_to_pdict_table(sql, db_pdict, debug=False):
     lines = sql.split("\n")
     create_parts = lines[0].split()
     table_name = create_parts[2]
     t = pdict.DbDictTable(table_name, is_rowid_table=False)
+    if debug:
+        print(f"***** Create pdict table from schema for '{table_name}'")
     for column_line in lines[1:]:
         if debug:
             print("COL SQL:", column_line)
@@ -47,28 +49,57 @@ def sql_to_pdict_table(sql, debug=False):
         if column_line in [")", ");"]:
             break
         column_parts = column_line.split()
+        if column_parts[0] == 'FOREIGN':
+            # FOREIGN KEY (col_2b) REFERENCES table_1 (id)
+            this_field_name = column_parts[2]
+            this_field_name = this_field_name[1:-1]
+            this_field_obj = t.columns[this_field_name]
+            foreign_table_name = column_parts[4]
+            foreign_table_obj = db_pdict.tables[foreign_table_name]
+            foreign_field_name = column_parts[5]
+            foreign_field_name = foreign_field_name[1:-1]
+            foreign_field_obj = foreign_table_obj.columns[foreign_field_name]
+            this_field_obj.foreign_key = pdict.ForeignKey(foreign_field_obj)
+            continue
         column_name = column_parts[0]
         field_type = column_parts[1]
         if "NOT NULL" in column_line:
             allow_nulls = False
         else:
             allow_nulls = True
+        if "PRIMARY KEY" in column_line:
+            is_primary_key = True
+        else:
+            is_primary_key = False
+        if "COLLATE NOCASE" in column_line:
+            collate = "NOCASE"
+        else:
+            collate = None
         # default_value=None, is_read_only=False)
         if field_type == "INTEGER":
             c = pdict.Number(
                 column_name,
                 allow_nulls=allow_nulls,
+                collate=collate,
                 default_value=None,
+                is_primary_key=is_primary_key,
                 is_read_only=False,
             )
-        else:
+        elif field_type == "TEXT":
             c = pdict.Text(
                 column_name,
                 allow_nulls=allow_nulls,
+                collate=collate,
                 default_value=None,
+                is_primary_key=is_primary_key,
                 is_read_only=False,
             )
+        else:
+            raise ValueError(f"Unknown field type {column_parts}")
         t.add_column(c)
+    db_pdict.add_table(t)
+    if debug:
+        print(f"***** End pdict table with {len(t.columns)} columns")
     return t
 
 

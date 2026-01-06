@@ -35,10 +35,12 @@ class Image(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     xxhash = db.Column(db.String(16), unique=True, nullable=False, index=True)
+    sha1 = db.Column(db.String(40), index=True)  # SHA1 hash for legacy compatibility
 
     # Hierarchical path components
     dir1 = db.Column(db.String(2), nullable=False, index=True)
     dir2 = db.Column(db.String(2), nullable=False, index=True)
+    sequence_num = db.Column(db.Integer, nullable=False)  # Sequence number within dir1/dir2
     filename = db.Column(db.String(255), nullable=False)  # e.g., "1.jpg", "2.png"
 
     # Image properties
@@ -49,6 +51,7 @@ class Image(db.Model):
 
     # Metadata
     keywords = db.Column(db.Text)  # Space-separated keywords
+    has_exif = db.Column(db.Boolean, default=False)  # Whether image has EXIF data
     exif_data = db.Column(db.Text)  # JSON string of EXIF data
 
     # Source tracking for edited images
@@ -56,17 +59,40 @@ class Image(db.Model):
     transformations = db.Column(db.Text)  # JSON string of edits applied
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # User tracking (optional, requires user_id from auth system)
     user_id = db.Column(db.Integer, nullable=True)
+    created_by_user_id = db.Column(db.Integer, nullable=True)  # User who created/uploaded the image
 
     # Relationships
     source_image = db.relationship('Image', remote_side=[id], backref='derived_images')
 
     def __repr__(self):
         return f'<Image {self.dir1}/{self.dir2}/{self.filename}>'
+
+
+class DirectorySequence(db.Model):
+    """
+    Tracks the next available sequence number for each directory.
+
+    Used to generate unique filenames within each dir1/dir2 directory pair.
+    """
+    __tablename__ = 'directory_sequence'
+
+    id = db.Column(db.Integer, primary_key=True)
+    dir1 = db.Column(db.String(2), nullable=False)
+    dir2 = db.Column(db.String(2), nullable=False)
+    next_sequence = db.Column(db.Integer, nullable=False, default=1)
+
+    # Composite unique constraint on dir1+dir2
+    __table_args__ = (
+        db.UniqueConstraint('dir1', 'dir2', name='uq_dir1_dir2'),
+    )
+
+    def __repr__(self):
+        return f'<DirectorySequence {self.dir1}/{self.dir2} next={self.next_sequence}>'
 
     @property
     def path(self):

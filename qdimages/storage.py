@@ -43,7 +43,7 @@ class ImageStorage:
 
         Args:
             base_path: Root directory for image storage (default: ../images)
-            db_path: Path to SQLite database (default: ../cnflask/commercenode.db)
+            db_path: Path to SQLite database (default: ../images/images.db)
         """
         if base_path is None:
             script_dir = Path(__file__).parent
@@ -53,7 +53,7 @@ class ImageStorage:
 
         if db_path is None:
             script_dir = Path(__file__).parent
-            self.db_path = (script_dir.parent / 'cnflask' / 'commercenode.db').resolve()
+            self.db_path = (script_dir.parent / 'images' / 'images.db').resolve()
         else:
             self.db_path = Path(db_path).resolve()
 
