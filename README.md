@@ -32,10 +32,15 @@ from qdimages import init_image_manager
 # Generates: 16 API endpoints, content-addressed storage, web-based editor, metadata tracking
 ```
 
-Both packages are installable and work with any Flask application:
+**qdcomments** - Commenting system idiom
+```python
+from qdcomments import init_comments
+# Generates: Comment model, moderation system, content filtering, email notifications
+```
+
+All Flask packages are published on PyPI and work with any Flask application:
 ```bash
-pip install -e ./qdflask
-pip install -e ./qdimages
+pip install qdflask qdimages qdcomments
 ```
 
 ## Why Use QuickDev?
@@ -51,6 +56,7 @@ pip install -e ./qdimages
 - **qdcore/** - Core idioms (databases, HTML generation, HTTP automation)
 - **qdflask/** - Flask authentication package
 - **qdimages/** - Flask image management package
+- **qdcomments/** - Flask commenting system package
 - **qdutils/** - Development tools (XSynth preprocessor, site initialization)
 
 ## Getting Started
@@ -80,17 +86,22 @@ Perfect for developers who:
 QuickDev packages can be installed individually from PyPI:
 
 ```bash
-# Foundation utilities
+# Foundation utilities (v0.2.0)
 pip install qdbase
 
-# XSynth preprocessor
+# XSynth preprocessor (v0.3.0)
 pip install xsynth
 
-# Flask authentication
-pip install qdflask
+# Flask packages (v0.1.0)
+pip install qdflask      # User authentication
+pip install qdimages     # Image management
+pip install qdcomments   # Commenting system
+```
 
-# Flask image management
-pip install qdimages
+Or install all Flask packages at once:
+
+```bash
+pip install qdflask qdimages qdcomments
 ```
 
 Or for development:
@@ -102,7 +113,18 @@ pip install -e ./qdbase
 pip install -e ./xsynth
 pip install -e ./qdflask
 pip install -e ./qdimages
+pip install -e ./qdcomments
 ```
+
+## Published Packages
+
+| Package | Version | PyPI | Description |
+|---------|---------|------|-------------|
+| **qdbase** | 0.2.0 | [pypi.org/project/qdbase](https://pypi.org/project/qdbase/) | Foundation utilities with zero dependencies |
+| **xsynth** | 0.3.0 | [pypi.org/project/xsynth](https://pypi.org/project/xsynth/) | XSynth preprocessor for code generation |
+| **qdflask** | 0.1.0 | [pypi.org/project/qdflask](https://pypi.org/project/qdflask/) | Flask authentication with role-based access |
+| **qdimages** | 0.1.0 | [pypi.org/project/qdimages](https://pypi.org/project/qdimages/) | Flask image management with hierarchical storage |
+| **qdcomments** | 0.1.0 | [pypi.org/project/qdcomments](https://pypi.org/project/qdcomments/) | Flask commenting system with moderation |
 
 ## Documentation
 
