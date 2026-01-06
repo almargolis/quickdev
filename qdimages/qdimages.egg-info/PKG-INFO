@@ -2,7 +2,13 @@ Metadata-Version: 2.4
 Name: qdimages
 Version: 0.1.0
 Summary: Reusable Flask image management package with hierarchical storage and web-based editor
-Author: QuickDev
+Home-page: https://github.com/almargolis/quickdev
+Author: Albert Margolis
+Author-email: almargolis@gmail.com
+License: MIT
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/qdimages/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/qdimages
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: Framework :: Flask
@@ -22,9 +28,13 @@ Requires-Dist: PyYAML>=6.0
 Requires-Dist: rembg>=2.0.0
 Requires-Dist: Werkzeug>=2.0.0
 Dynamic: author
+Dynamic: author-email
 Dynamic: classifier
 Dynamic: description
 Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: project-url
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary

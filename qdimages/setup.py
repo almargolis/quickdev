@@ -10,10 +10,18 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="qdimages",
     version="0.1.0",
-    author="QuickDev",
+    author="Albert Margolis",
+    author_email="almargolis@gmail.com",
     description="Reusable Flask image management package with hierarchical storage and web-based editor",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    url="https://github.com/almargolis/quickdev",
+    project_urls={
+        "Bug Tracker": "https://github.com/almargolis/quickdev/issues",
+        "Documentation": "https://github.com/almargolis/quickdev/blob/master/qdimages/README.md",
+        "Source Code": "https://github.com/almargolis/quickdev/tree/master/qdimages",
+    },
+    license="MIT",
     packages=find_packages(),
     include_package_data=True,
     package_data={

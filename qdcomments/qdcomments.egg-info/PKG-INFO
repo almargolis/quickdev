@@ -2,8 +2,13 @@ Metadata-Version: 2.4
 Name: qdcomments
 Version: 0.1.0
 Summary: Reusable Flask commenting system with moderation and content filtering
-Home-page: https://github.com/almargolis/QuickDev
-Author: QuickDev
+Home-page: https://github.com/almargolis/quickdev
+Author: Albert Margolis
+Author-email: almargolis@gmail.com
+License: MIT
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/qdcomments/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/qdcomments
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
@@ -27,10 +32,13 @@ Provides-Extra: dev
 Requires-Dist: pytest>=6.0; extra == "dev"
 Requires-Dist: pytest-flask>=1.0; extra == "dev"
 Dynamic: author
+Dynamic: author-email
 Dynamic: classifier
 Dynamic: description
 Dynamic: description-content-type
 Dynamic: home-page
+Dynamic: license
+Dynamic: project-url
 Dynamic: provides-extra
 Dynamic: requires-dist
 Dynamic: requires-python

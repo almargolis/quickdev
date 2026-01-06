@@ -1,3 +1,41 @@
+Metadata-Version: 2.4
+Name: qdflask
+Version: 0.1.0
+Summary: Reusable Flask authentication package with role-based access control
+Home-page: https://github.com/almargolis/quickdev
+Author: Albert Margolis
+Author-email: almargolis@gmail.com
+License: MIT
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/qdflask/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/qdflask
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Framework :: Flask
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: Flask>=2.0.0
+Requires-Dist: Flask-SQLAlchemy>=2.5.0
+Requires-Dist: Flask-Login>=0.5.0
+Requires-Dist: Flask-Mail>=0.9.1
+Requires-Dist: Werkzeug>=2.0.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: project-url
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
 # qdflask - QuickDev Flask Authentication
 
 A reusable Flask authentication package that provides user login, role-based access control, and user management. Designed to be easily integrated into any Flask application.
