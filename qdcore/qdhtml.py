@@ -163,6 +163,9 @@ class HtmlPage:
         self.body_content = self.html_content.append(HtmlContent("body", page=self))
         self.active_element = self.body_content
 
+    def append_html_content(self, html_content):
+        self.html_content.append(html_content)
+
     def render_html(self, file_path=None):
         self.html_str = ""
         if not self.is_snippet:

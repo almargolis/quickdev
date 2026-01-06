@@ -178,6 +178,10 @@ class QdSite:
         except FileNotFoundError:
             return []
 
+    def reload(self, qdsite_dpath=None, host_site_ini=None):
+        # needs population
+        pass
+
     def save_source_directories(self, sources):
         source_dirs_path = os.path.join(self.conf_dpath, SOURCE_DIRECORIES_FNAME)
         print(f"QdSite.save_source_directories({sources}) @ {source_dirs_path}")

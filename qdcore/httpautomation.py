@@ -149,15 +149,15 @@ class Crawler:
         if (parse_tree_node.name == "a") and (html_document.linkTranslator is None):
             start_new_block = False
         if start_new_block:
-            html_document.push(qdhtml.HtmlContent(parse_tree_node.name))
+            html_document.append_html_content(qdhtml.HtmlContent(parse_tree_node.name))
         for this in parse_tree_node.children:
             if isinstance(this, bs4.element.Tag):
                 self.create_child_simple_html(html_document, this)
             else:
                 # This should be a string
-                html_document.append(this.string)
+                html_document.append_html_content(this.string)
         if start_new_block:
-            html_document.pop()
+            html_document.render_html()
 
     def create_simple_html(
         self, root_node=None, start_after=None, stop_at=None, url_translator=None

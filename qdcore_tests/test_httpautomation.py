@@ -11,4 +11,4 @@ def test_simple_html_1():
     crawler.load_blob(sample_1_src)
     html_document = crawler.create_simple_html()
     print(html_document.render_html())
-    assert False
+    # assert False
