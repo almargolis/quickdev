@@ -101,9 +101,64 @@ def test_hierarchical_path_generation(storage):
 
 def test_save_image(storage, sample_image):
     """Test saving an image to hierarchical storage."""
-    pytest.skip("Storage.save_image_with_metadata needs additional database tables (source_tracking, etc.) - schema mismatch between storage.py and models.py")
+    # Load the sample image
+    from PIL import Image
+    img = Image.open(sample_image)
+
+    # Save the image with metadata
+    result = storage.save_image_with_metadata(
+        image=img,
+        keywords='test sample red',
+        user_id=1
+    )
+
+    assert result['success'] is True
+    assert result['image_id'] is not None
+    assert result['path'] is not None
+    assert result['xxhash'] is not None
+    assert 'error' not in result or result['error'] is None
+
+    # Verify the image file was created
+    import os
+    full_path = result['full_path']
+    assert os.path.exists(full_path)
+
+    # Verify YAML metadata was created
+    yaml_path = full_path.replace('.png', '.yaml')
+    assert os.path.exists(yaml_path)
 
 
 def test_get_image_by_hash(storage, sample_image):
     """Test retrieving image by hash."""
-    pytest.skip("Depends on test_save_image which requires additional database schema")
+    # First save an image
+    from PIL import Image
+    img = Image.open(sample_image)
+
+    save_result = storage.save_image_with_metadata(
+        image=img,
+        keywords='test lookup',
+        user_id=1
+    )
+
+    assert save_result['success'] is True
+    xxhash = save_result['xxhash']
+
+    # Now retrieve it by hash
+    retrieved = storage.get_image_by_hash(xxhash)
+
+    assert retrieved is not None
+    assert retrieved['xxhash'] == xxhash
+    assert retrieved['keywords'] == 'test lookup'
+    assert retrieved['width'] == 100
+    assert retrieved['height'] == 100
+
+    # Verify duplicate detection works
+    dup_result = storage.save_image_with_metadata(
+        image=img,
+        keywords='duplicate test',
+        user_id=1
+    )
+
+    assert dup_result['success'] is False
+    assert dup_result.get('duplicate') is True
+    assert dup_result['existing_image_id'] == save_result['image_id']

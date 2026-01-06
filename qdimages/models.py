@@ -94,23 +94,44 @@ class DirectorySequence(db.Model):
     def __repr__(self):
         return f'<DirectorySequence {self.dir1}/{self.dir2} next={self.next_sequence}>'
 
-    @property
-    def path(self):
-        """Return the relative path: dir1/dir2/filename"""
-        return f"{self.dir1}/{self.dir2}/{self.filename}"
 
-    def to_dict(self):
-        """Convert to dictionary for JSON serialization."""
-        return {
-            'id': self.id,
-            'xxhash': self.xxhash,
-            'path': self.path,
-            'format': self.format,
-            'width': self.width,
-            'height': self.height,
-            'file_size': self.file_size,
-            'keywords': self.keywords,
-            'source_image_id': self.source_image_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+class ImageExif(db.Model):
+    """
+    EXIF metadata extracted from images.
+
+    Stores individual EXIF tags as separate records for flexible querying.
+    """
+    __tablename__ = 'image_exif'
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_id = db.Column(db.Integer, db.ForeignKey('images.id'), nullable=False, index=True)
+    tag_name = db.Column(db.String(100), nullable=False)
+    tag_value = db.Column(db.Text)
+
+    # Relationship
+    image = db.relationship('Image', backref='exif_tags')
+
+    def __repr__(self):
+        return f'<ImageExif {self.tag_name}={self.tag_value[:50]}>'
+
+
+class SourceTracking(db.Model):
+    """
+    Tracks source images and transformations for edited images.
+
+    When an image is edited (cropped, resized, etc.), this table records
+    the source image and what transformations were applied.
+    """
+    __tablename__ = 'source_tracking'
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_id = db.Column(db.Integer, db.ForeignKey('images.id'), nullable=False, index=True)
+    source_image_id = db.Column(db.Integer, db.ForeignKey('images.id'), nullable=False)
+    transformations = db.Column(db.Text)  # JSON string of transformations applied
+
+    # Relationships
+    image = db.relationship('Image', foreign_keys=[image_id], backref='source_tracking_records')
+    source_image = db.relationship('Image', foreign_keys=[source_image_id])
+
+    def __repr__(self):
+        return f'<SourceTracking image_id={self.image_id} source={self.source_image_id}>'
