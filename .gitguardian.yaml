@@ -1,0 +1,11 @@
+version: 2
+
+# Paths to ignore - these contain documentation examples, not real credentials
+paths-ignore:
+  - qdflask/mail_utils.py  # SendGrid SMTP documentation examples with placeholder credentials
+  - qdflask/README.md      # Documentation that may reference mail configuration examples
+
+# Patterns that are documentation/examples, not real secrets
+matches-ignore:
+  - name: SMTP Configuration Examples
+    match: apikey  # SendGrid's documented literal username value
