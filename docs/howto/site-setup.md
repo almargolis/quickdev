@@ -60,6 +60,10 @@ python -m qdutils.qdstart /var/www/mysite --acronym mysite
 3. Creates configuration files in `conf/`
 4. Sets up symlinks for convenience
 
+**Answers to have ready:**
+
+1. Acronym: a two or three letter acronym that will be used in various places to help distinguish between similar looking sites and applications.
+
 ### Site in Current Directory
 
 ```bash
@@ -158,14 +162,17 @@ acronym = mysite
 
 ## Virtual Environment
 
-Each site has its own virtual environment:
+Each site has its own virtual environment. You can create and manage it separately 
+but qdstart and other quickdev components will handle it for you. When you need
+to activate the venv,
 
 ```bash
 # Activate virtual environment
-source /var/www/mysite/mysite.venv/bin/activate
+cd /<site directory> # usually like /var/www/<site>/
+source venv
 
-# Or use the symlink
-source /var/www/mysite/venv/bin/activate
+# Note that the environment reference in the CLI prompt includes the site
+# acronym to help you keep track of which site you have enabled.
 ```
 
 ### Installing Dependencies

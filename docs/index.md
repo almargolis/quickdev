@@ -6,41 +6,21 @@ QuickDev is a metaprogramming toolkit that eliminates boilerplate through prepro
 
 ## Quick Links
 
-<div class="grid cards" markdown>
+### :zap: Quick Start
+Get started with QuickDev in minutes
+→ [Quick Start Guide](howto/quickstart.md)
 
--   :material-lightning-bolt:{ .lg .middle } __Quick Start__
+### :package: Flask Integration
+Add auth, images, and comments to Flask apps
+→ [Flask Packages](guides/flask-integration.md)
 
-    ---
+### :wrench: Site Management
+Deploy and manage QuickDev sites
+→ [Site Setup](howto/site-setup.md)
 
-    Get started with QuickDev in minutes
-
-    [:octicons-arrow-right-24: Quick Start Guide](howto/quickstart.md)
-
--   :material-flask:{ .lg .middle } __Flask Integration__
-
-    ---
-
-    Add auth, images, and comments to Flask apps
-
-    [:octicons-arrow-right-24: Flask Packages](guides/flask-integration.md)
-
--   :material-cog:{ .lg .middle } __Site Management__
-
-    ---
-
-    Deploy and manage QuickDev sites
-
-    [:octicons-arrow-right-24: Site Setup](howto/site-setup.md)
-
--   :material-code-braces:{ .lg .middle } __XSynth Preprocessor__
-
-    ---
-
-    Generate Python from high-level declarations
-
-    [:octicons-arrow-right-24: XSynth Guide](guides/xsynth.md)
-
-</div>
+### :computer: XSynth Preprocessor
+Generate Python from high-level declarations
+→ [XSynth Guide](guides/xsynth.md)
 
 ## What Makes QuickDev Different
 
