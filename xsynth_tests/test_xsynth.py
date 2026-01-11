@@ -4,6 +4,7 @@ test xsynth.py
 
 import os
 import stat
+import sys
 
 from qdbase import qdsqlite
 from qdbase import xsource
@@ -73,4 +74,14 @@ def test_xsynth(tmpdir):
 
 def test_main():
     """This makes sure XSynth() initializes, which was failing."""
-    xsynth.main(debug=1)
+    # Test that XSynth can be instantiated in stand-alone mode
+    # This bypasses CLI argument parsing to avoid pytest interference
+    xsynth_instance = xsynth.XSynth(
+        site=None,
+        sources=[],
+        no_site=True,
+        quiet=False,
+        debug=1
+    )
+    # If we get here without exceptions, the test passes
+    assert xsynth_instance is not None
