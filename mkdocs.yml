@@ -1,0 +1,101 @@
+site_name: QuickDev Documentation
+site_description: Metaprogramming toolkit and DRY idioms for Python web applications
+site_author: Albert Margolis
+site_url: https://github.com/almargolis/quickdev
+
+repo_name: almargolis/quickdev
+repo_url: https://github.com/almargolis/quickdev
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - section-index
+
+nav:
+  - Home: index.md
+  - Overview:
+      - overview/index.md
+      - Philosophy: overview/philosophy.md
+      - Architecture: overview/architecture.md
+      - vs Frameworks: overview/vs-frameworks.md
+  - How-To Guides:
+      - howto/index.md
+      - Quick Start: howto/quickstart.md
+      - Site Setup: howto/site-setup.md
+      - Apache Configuration: howto/apache-config.md
+      - Secrets Management: howto/secrets.md
+      - Configuration Files: howto/configuration.md
+      - Deployment: howto/deployment.md
+  - Development:
+      - guides/index.md
+      - Site Structure: guides/site-structure.md
+      - Flask Integration: guides/flask-integration.md
+      - XSynth Preprocessor: guides/xsynth.md
+      - Extending QuickDev: guides/extending.md
+  - Reference:
+      - reference/index.md
+      - qdstart: reference/qdstart.md
+      - qdapache: reference/qdapache.md
+      - qdhost: reference/qdhost.md
+      - Site Configuration: reference/site-config.md
+  - Packages:
+      - qdbase: packages/qdbase.md
+      - xsynth: packages/xsynth.md
+      - qdflask: packages/qdflask.md
+      - qdimages: packages/qdimages.md
+      - qdcomments: packages/qdcomments.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/almargolis/quickdev
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/user/almargolis/
+
+copyright: Copyright &copy; 2001-2026 Albert B. Margolis

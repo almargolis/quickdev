@@ -10,3 +10,4 @@ __pycache__
 examples/temp/*
 examples/cncore
 xsynth.db
+site/
