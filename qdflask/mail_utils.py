@@ -84,7 +84,7 @@ def init_mail(app, config_path=None):
     app.config.setdefault('MAIL_USE_TLS', email_config.get('MAIL_USE_TLS', True))
     app.config.setdefault('MAIL_USE_SSL', email_config.get('MAIL_USE_SSL', False))
     app.config.setdefault('MAIL_USERNAME', email_config.get('MAIL_USERNAME', ''))
-    app.config.setdefault('MAIL_DEFAULT_SENDER', email_config.get('default_sender', 'noreply@example.com'))
+    app.config.setdefault('MAIL_DEFAULT_SENDER', email_config.get('MAIL_DEFAULT_SENDER', 'noreply@example.com'))
 
     # Set password from environment
     if smtp_password:
