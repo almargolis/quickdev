@@ -63,12 +63,12 @@ def test_email_config(recipient):
             init_mail(app)
 
             # Display loaded configuration
-            print(f"  Server: {app.config.get('server')}")
-            print(f"  Port: {app.config.get('port')}")
-            print(f"  TLS: {app.config.get('use_tls')}")
-            print(f"  SSL: {app.config.get('use_ssl')}")
-            print(f"  Username: {app.config.get('username')}")
-            print(f"  Sender: {app.config.get('default_sender')}")
+            print(f"  Server: {app.config.get('MAIL_SERVER')}")
+            print(f"  Port: {app.config.get('MAIL_PORT')}")
+            print(f"  TLS: {app.config.get('MAIL_USE_TLS')}")
+            print(f"  SSL: {app.config.get('MAIL_USE_SSL')}")
+            print(f"  Username: {app.config.get('MAIL_USERNAME')}")
+            print(f"  Sender: {app.config.get('MAIL_DEFAULT_SENDER')}")
             print()
 
             # Send test email

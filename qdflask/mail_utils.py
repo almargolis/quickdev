@@ -27,12 +27,12 @@ def init_mail(app, config_path=None):
         2. .env - SMTP_PW (password/API key)
 
     Example conf/email.yaml:
-        server: smtp-relay.brevo.com
-        port: 587
-        use_tls: true
-        use_ssl: false
-        username: your-email@example.com
-        default_sender: noreply@yourdomain.com
+        MAIL_SERVER: smtp-relay.brevo.com
+        MAIL_PORT: 587
+        MAIL_USE_TLS: true
+        MAIL_USE_SSL: false
+        MAIL_USERNAME: your-email@example.com
+        MAIL_DEFAULT_SENDER: noreply@yourdomain.com
 
     Example .env:
         SMTP_PW=your-smtp-password-or-api-key
@@ -56,11 +56,11 @@ def init_mail(app, config_path=None):
     smtp_password = os.environ.get('SMTP_PW')
 
     # Apply configuration (email.yaml takes precedence over defaults)
-    app.config.setdefault('MAIL_SERVER', email_config.get('server', 'localhost'))
-    app.config.setdefault('MAIL_PORT', email_config.get('port', 587))
-    app.config.setdefault('MAIL_USE_TLS', email_config.get('use_tls', True))
-    app.config.setdefault('MAIL_USE_SSL', email_config.get('use_ssl', False))
-    app.config.setdefault('MAIL_USERNAME', email_config.get('username', ''))
+    app.config.setdefault('MAIL_SERVER', email_config.get('MAIL_SERVER', 'localhost'))
+    app.config.setdefault('MAIL_PORT', email_config.get('MAIL_PORT', 587))
+    app.config.setdefault('MAIL_USE_TLS', email_config.get('MAIL_USE_TLS', True))
+    app.config.setdefault('MAIL_USE_SSL', email_config.get('MAIL_USE_SSL', False))
+    app.config.setdefault('MAIL_USERNAME', email_config.get('MAIL_USERNAME', ''))
     app.config.setdefault('MAIL_DEFAULT_SENDER', email_config.get('default_sender', 'noreply@example.com'))
 
     # Set password from environment
