@@ -69,6 +69,14 @@ def test_email_config(recipient):
             print(f"  SSL: {app.config.get('MAIL_USE_SSL')}")
             print(f"  Username: {app.config.get('MAIL_USERNAME')}")
             print(f"  Sender: {app.config.get('MAIL_DEFAULT_SENDER')}")
+
+            # Validate configuration
+            if app.config.get('MAIL_SERVER') == 'localhost':
+                print("\n⚠ WARNING: MAIL_SERVER is 'localhost' (default)")
+                print("  This suggests email.yaml wasn't loaded properly")
+                print("  Check that conf/email.yaml uses uppercase keys:")
+                print("  MAIL_SERVER, MAIL_PORT, MAIL_USE_TLS, etc.")
+
             print()
 
             # Send test email

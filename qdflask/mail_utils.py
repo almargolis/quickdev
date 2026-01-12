@@ -48,9 +48,17 @@ def init_mail(app, config_path=None):
         try:
             with open(config_path, 'r') as f:
                 email_config = yaml.safe_load(f) or {}
-            logging.info(f"Loaded email configuration from {config_path}")
+            if email_config:
+                logging.info(f"Loaded email configuration from {config_path}: {list(email_config.keys())}")
+            else:
+                logging.warning(f"Email config file is empty: {config_path}")
+        except yaml.YAMLError as e:
+            logging.error(f"YAML syntax error in {config_path}: {e}")
+            print(f"\n*** ERROR: Invalid YAML syntax in {config_path} ***")
+            print(f"    {e}\n")
         except Exception as e:
-            logging.warning(f"Failed to load email config from {config_path}: {e}")
+            logging.error(f"Failed to load email config from {config_path}: {e}")
+            print(f"\n*** ERROR: Could not read {config_path}: {e} ***\n")
 
     # Load SMTP password from environment
     smtp_password = os.environ.get('SMTP_PW')

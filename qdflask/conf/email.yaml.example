@@ -2,17 +2,17 @@
 # Copy this to conf/email.yaml and customize for your SMTP provider
 # NEVER commit the actual email.yaml - add it to .gitignore
 
-# SMTP Server Configuration
-server: smtp-relay.brevo.com  # Your SMTP server hostname
-port: 587                      # SMTP port (587 for TLS, 465 for SSL)
-use_tls: true                  # Use TLS encryption (recommended)
-use_ssl: false                 # Use SSL encryption (alternative to TLS)
+# SMTP Server Configuration (use uppercase Flask config keys)
+MAIL_SERVER: smtp-relay.brevo.com  # Your SMTP server hostname
+MAIL_PORT: 587                      # SMTP port (587 for TLS, 465 for SSL)
+MAIL_USE_TLS: true                  # Use TLS encryption (recommended)
+MAIL_USE_SSL: false                 # Use SSL encryption (alternative to TLS)
 
 # SMTP Authentication
-username: your-email@example.com  # SMTP username (often your email)
+MAIL_USERNAME: your-email@example.com  # SMTP username (often your email)
 
 # Default sender for outgoing emails
-default_sender: noreply@yourdomain.com
+MAIL_DEFAULT_SENDER: noreply@yourdomain.com
 
 # NOTE: SMTP password goes in .env as SMTP_PW, not here!
 # This keeps secrets separate from configuration.
@@ -22,34 +22,34 @@ default_sender: noreply@yourdomain.com
 # ---
 
 # Brevo (formerly SendinBlue) - Free tier: 300 emails/day
-# server: smtp-relay.brevo.com
-# port: 587
-# use_tls: true
-# username: your-brevo-email@example.com
+# MAIL_SERVER: smtp-relay.brevo.com
+# MAIL_PORT: 587
+# MAIL_USE_TLS: true
+# MAIL_USERNAME: your-brevo-email@example.com
 # Get SMTP key from: Settings → SMTP & API
 
 # SendGrid - Free tier: 100 emails/day
-# server: smtp.sendgrid.net
-# port: 587
-# use_tls: true
-# username: apikey
+# MAIL_SERVER: smtp.sendgrid.net
+# MAIL_PORT: 587
+# MAIL_USE_TLS: true
+# MAIL_USERNAME: apikey
 # Get API key from: Settings → API Keys
 
 # Gmail - Limit: ~500 emails/day (not recommended for production)
-# server: smtp.gmail.com
-# port: 587
-# use_tls: true
-# username: your-email@gmail.com
+# MAIL_SERVER: smtp.gmail.com
+# MAIL_PORT: 587
+# MAIL_USE_TLS: true
+# MAIL_USERNAME: your-email@gmail.com
 # Requires app password (not your regular password)
 
 # Mailgun
-# server: smtp.mailgun.org
-# port: 587
-# use_tls: true
-# username: postmaster@your-domain.mailgun.org
+# MAIL_SERVER: smtp.mailgun.org
+# MAIL_PORT: 587
+# MAIL_USE_TLS: true
+# MAIL_USERNAME: postmaster@your-domain.mailgun.org
 
 # Amazon SES
-# server: email-smtp.us-east-1.amazonaws.com
-# port: 587
-# use_tls: true
-# username: your-ses-smtp-username
+# MAIL_SERVER: email-smtp.us-east-1.amazonaws.com
+# MAIL_PORT: 587
+# MAIL_USE_TLS: true
+# MAIL_USERNAME: your-ses-smtp-username
