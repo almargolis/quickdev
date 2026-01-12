@@ -8,9 +8,7 @@ Supports any SMTP provider (Brevo, SendGrid, Gmail, Mailgun, etc.) via configura
 from flask_mail import Mail, Message
 from flask import current_app
 import logging
-import os
-import yaml
-from pathlib import Path
+from qdbase.qdconf import QdConf
 
 mail = Mail()
 
@@ -20,7 +18,7 @@ def init_mail(app, config_path=None):
 
     Args:
         app: Flask application instance
-        config_path: Optional path to email.yaml (default: conf/email.yaml)
+        config_path: Optional explicit conf directory path (default: auto-detect)
 
     Configuration is loaded from:
         1. conf/email.yaml - SMTP server settings
@@ -38,55 +36,37 @@ def init_mail(app, config_path=None):
         SMTP_PW=your-smtp-password-or-api-key
 
     """
-    # Determine config file path
-    if config_path is None:
-        # Try current working directory first (production sites)
-        config_path = Path.cwd() / 'conf' / 'email.yaml'
-        if not config_path.exists():
-            # Fall back to relative to app root (development)
-            config_path = Path(app.root_path).parent / 'conf' / 'email.yaml'
+    # Initialize QdConf with optional explicit path
+    conf = QdConf(conf_dir=config_path)
 
-    # Convert to string for consistent handling
-    config_path = str(config_path)
+    print(f"Loading email config from: {conf.get_conf_dir()}/email.yaml")
 
-    print(f"Loading email config from: {config_path}")
-
-    email_config = {}
+    # Try to load a sample key to check if email.yaml exists and is valid
     try:
-        with open(config_path, 'r') as f:
-            email_config = yaml.safe_load(f) or {}
-        if email_config:
-            logging.info(f"✓ Loaded email configuration: {list(email_config.keys())}")
-            print(f"✓ Loaded {len(email_config)} settings from email.yaml")
-        else:
-            logging.warning(f"Email config file is empty: {config_path}")
-            print(f"⚠ Warning: {config_path} is empty")
-    except FileNotFoundError:
-        logging.warning(f"Email config not found: {config_path}")
-        print(f"⚠ Email config not found: {config_path}")
-        print(f"  Using defaults. To configure email:")
-        print(f"  1. Copy qdflask/conf/email.yaml.example to {Path.cwd()}/conf/email.yaml")
-        print(f"  2. Add SMTP_PW to .env")
-    except yaml.YAMLError as e:
-        logging.error(f"YAML syntax error in {config_path}: {e}")
-        print(f"\n*** ERROR: Invalid YAML syntax in {config_path} ***")
-        print(f"    {e}\n")
+        test_key = conf.get('email.MAIL_SERVER')
+        if test_key:
+            logging.info(f"✓ Loaded email configuration from {conf.get_conf_dir()}/email.yaml")
+            print(f"✓ Email configuration loaded successfully")
     except Exception as e:
-        logging.error(f"Failed to load email config from {config_path}: {e}")
-        print(f"\n*** ERROR: Could not read {config_path}: {e} ***\n")
+        # File not found or other error - will use defaults
+        logging.warning(f"Email config issue: {e}")
+        print(f"⚠ Email config not found or invalid")
+        print(f"  Using defaults. To configure email:")
+        print(f"  1. Copy qdflask/conf/email.yaml.example to {conf.get_conf_dir()}/email.yaml")
+        print(f"  2. Add SMTP_PW to {conf.get_conf_dir()}/.env")
 
-    # Load SMTP password from environment
-    smtp_password = os.environ.get('SMTP_PW')
+    # Load SMTP password from .env
+    smtp_password = conf.get('denv.SMTP_PW')
 
-    # Apply configuration (email.yaml takes precedence over defaults)
-    app.config.setdefault('MAIL_SERVER', email_config.get('MAIL_SERVER', 'localhost'))
-    app.config.setdefault('MAIL_PORT', email_config.get('MAIL_PORT', 587))
-    app.config.setdefault('MAIL_USE_TLS', email_config.get('MAIL_USE_TLS', True))
-    app.config.setdefault('MAIL_USE_SSL', email_config.get('MAIL_USE_SSL', False))
-    app.config.setdefault('MAIL_USERNAME', email_config.get('MAIL_USERNAME', ''))
-    app.config.setdefault('MAIL_DEFAULT_SENDER', email_config.get('MAIL_DEFAULT_SENDER', 'noreply@example.com'))
+    # Apply configuration using QdConf with defaults
+    app.config.setdefault('MAIL_SERVER', conf.get('email.MAIL_SERVER', 'localhost'))
+    app.config.setdefault('MAIL_PORT', conf.get('email.MAIL_PORT', 587))
+    app.config.setdefault('MAIL_USE_TLS', conf.get('email.MAIL_USE_TLS', True))
+    app.config.setdefault('MAIL_USE_SSL', conf.get('email.MAIL_USE_SSL', False))
+    app.config.setdefault('MAIL_USERNAME', conf.get('email.MAIL_USERNAME', ''))
+    app.config.setdefault('MAIL_DEFAULT_SENDER', conf.get('email.MAIL_DEFAULT_SENDER', 'noreply@example.com'))
 
-    # Set password from environment
+    # Set password from .env
     if smtp_password:
         app.config['MAIL_PASSWORD'] = smtp_password
 

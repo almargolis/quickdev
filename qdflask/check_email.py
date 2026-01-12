@@ -3,7 +3,7 @@
 Quick email configuration test script for qdflask.
 
 Usage:
-    python qdflask/test_email.py recipient@example.com
+    python qdflask/check_email.py recipient@example.com
 """
 
 import sys
@@ -116,10 +116,10 @@ Sent by qdflask test_email.py
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("Usage: python qdflask/test_email.py recipient@example.com")
+        print("Usage: python qdflask/check_email.py recipient@example.com")
         print()
         print("Example:")
-        print("  python qdflask/test_email.py youremail@gmail.com")
+        print("  python qdflask/check_email.py youremail@gmail.com")
         sys.exit(1)
 
     recipient = sys.argv[1]
