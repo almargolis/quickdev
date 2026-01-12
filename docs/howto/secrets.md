@@ -162,7 +162,7 @@ Create a `.env.example` file (safe to commit):
 # .env.example - Template for required environment variables
 SECRET_KEY=your-secret-key-here
 DATABASE_PASSWORD=your-db-password-here
-SENDGRID_API_KEY=your-sendgrid-api-key
+SMTP_PW=your-smtp-password-or-api-key
 
 # Optional variables
 DEBUG=False
@@ -220,23 +220,38 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{user}:{password}@{host}/{db}"
 ```
 
-### Email (SendGrid)
+### Email (SMTP)
 
+qdflask uses a two-file approach for email configuration:
+
+**SMTP settings** (conf/email.yaml - safe to commit):
+```yaml
+# conf/email.yaml
+server: smtp-relay.brevo.com
+port: 587
+use_tls: true
+username: your-email@example.com
+default_sender: noreply@yourdomain.com
+```
+
+**SMTP password** (.env - NEVER commit):
 ```bash
 # conf/.env
-SENDGRID_API_KEY=SG.your-api-key-here
-MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+SMTP_PW=your-smtp-password-or-api-key
 ```
 
+**Application code:**
 ```python
 # app.py
-app.config['MAIL_SERVER'] = 'smtp.sendgrid.net'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'apikey'
-app.config['MAIL_PASSWORD'] = os.environ['SENDGRID_API_KEY']
-app.config['MAIL_DEFAULT_SENDER'] = os.environ['MAIL_DEFAULT_SENDER']
+from qdflask.mail_utils import init_mail
+
+init_mail(app)  # Automatically loads conf/email.yaml + SMTP_PW
 ```
+
+**Providers:**
+- **Brevo** (recommended): 300 emails/day free forever
+- **SendGrid**: 100 emails/day free
+- **Gmail**: Development only (not production)
 
 ### AWS Credentials
 

@@ -73,9 +73,11 @@ if __name__ == '__main__':
 - Email field with verification support
 
 ### Email Notifications
-- Flask-Mail integration
+- Flask-Mail integration with SMTP
+- Configuration via `conf/email.yaml`
+- Password via `.env` (SMTP_PW)
 - Send to verified admins
-- SendGrid, Gmail, Mailgun support
+- Supports Brevo, SendGrid, Gmail, Mailgun, Amazon SES
 
 ## Routes Provided
 

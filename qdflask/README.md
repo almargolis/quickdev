@@ -172,59 +172,132 @@ init_auth(app, roles=['admin', 'user'])
 
 qdflask includes email notification support via Flask-Mail, allowing you to send transactional emails to users or admins.
 
-### SMTP Configuration
+### Configuration
 
-Configure email in your `.env` file or application config:
+Email configuration uses two files:
 
-#### SendGrid (Recommended)
+1. **conf/email.yaml** - SMTP server settings (safe to commit)
+2. **.env** - SMTP password (NEVER commit)
+
+#### Step 1: Create conf/email.yaml
+
+Copy the example and customize for your SMTP provider:
+
 ```bash
-MAIL_SERVER=smtp.sendgrid.net
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=apikey
-MAIL_PASSWORD=your-sendgrid-api-key
-MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+cp qdflask/conf/email.yaml.example conf/email.yaml
+```
+
+Example `conf/email.yaml`:
+
+```yaml
+# SMTP Server Configuration
+server: smtp-relay.brevo.com
+port: 587
+use_tls: true
+use_ssl: false
+
+# SMTP Authentication
+username: your-email@example.com
+
+# Default sender for outgoing emails
+default_sender: noreply@yourdomain.com
+```
+
+#### Step 2: Add Password to .env
+
+```bash
+# conf/.env
+SMTP_PW=your-smtp-password-or-api-key
+```
+
+**Important:** Add `conf/email.yaml` to `.gitignore` if it contains any sensitive info (though password should only be in `.env`).
+
+### SMTP Provider Examples
+
+#### Brevo (Recommended - Free Tier: 300 emails/day)
+
+```yaml
+# conf/email.yaml
+server: smtp-relay.brevo.com
+port: 587
+use_tls: true
+username: your-brevo-email@example.com
+default_sender: noreply@yourdomain.com
+```
+
+```bash
+# .env
+SMTP_PW=your-brevo-smtp-key
+```
+
+**Brevo Setup:**
+1. Sign up at https://brevo.com (free tier: 300 emails/day forever)
+2. Go to Settings → SMTP & API
+3. Create an SMTP key
+4. Use your Brevo login email as `username`
+5. Use the SMTP key as `SMTP_PW`
+
+#### SendGrid (Free Tier: 100 emails/day)
+
+```yaml
+# conf/email.yaml
+server: smtp.sendgrid.net
+port: 587
+use_tls: true
+username: apikey  # Literal string "apikey"
+default_sender: noreply@yourdomain.com
+```
+
+```bash
+# .env
+SMTP_PW=your-sendgrid-api-key
 ```
 
 **SendGrid Setup:**
-1. Sign up at https://sendgrid.com (free tier: 100 emails/day)
-2. Go to Settings → API Keys → Create API Key
+1. Sign up at https://sendgrid.com
+2. Settings → API Keys → Create API Key
 3. Select "Full Access" and create
-4. Copy the API key and use it as `MAIL_PASSWORD`
+4. Copy the API key and use as `SMTP_PW`
 
-#### Gmail
+#### Gmail (Not Recommended for Production)
+
+```yaml
+# conf/email.yaml
+server: smtp.gmail.com
+port: 587
+use_tls: true
+username: your-email@gmail.com
+default_sender: your-email@gmail.com
+```
+
 ```bash
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
+# .env
+SMTP_PW=your-app-password  # Not your regular password!
 ```
 
 **Gmail Setup:**
-1. Enable 2-factor authentication on your Google account
-2. Go to Google Account → Security → App Passwords
-3. Generate an app password for "Mail"
-4. Use that app password (not your regular password)
+1. Enable 2-factor authentication
+2. Google Account → Security → App Passwords
+3. Generate app password for "Mail"
 
-**Note:** Gmail has a daily limit of ~500 emails and may not be suitable for production.
+**Note:** Gmail limit: ~500 emails/day. Not suitable for production.
 
-#### Mailgun
-```bash
-MAIL_SERVER=smtp.mailgun.org
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=postmaster@your-domain.mailgun.org
-MAIL_PASSWORD=your-mailgun-password
+#### Other Providers
+
+**Mailgun:**
+```yaml
+server: smtp.mailgun.org
+port: 587
+use_tls: true
+username: postmaster@your-domain.mailgun.org
 ```
 
-#### Amazon SES
-```bash
-MAIL_SERVER=email-smtp.us-east-1.amazonaws.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your-ses-username
-MAIL_PASSWORD=your-ses-password
+**Amazon SES:**
+```yaml
+server: email-smtp.us-east-1.amazonaws.com
+port: 587
+use_tls: true
+username: your-ses-smtp-username
 ```
 
 ### Using Email in Your Application
@@ -236,17 +309,9 @@ from qdflask.mail_utils import init_mail, send_to_admins, send_email
 
 app = Flask(__name__)
 
-# Configure email
-app.config['MAIL_SERVER'] = 'smtp.sendgrid.net'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'apikey'
-app.config['MAIL_PASSWORD'] = os.environ.get('SENDGRID_API_KEY')
-app.config['MAIL_DEFAULT_SENDER'] = 'noreply@example.com'
-
 # Initialize auth and email
 init_auth(app)
-init_mail(app)
+init_mail(app)  # Automatically loads conf/email.yaml + SMTP_PW from .env
 
 # Send email to verified admins
 send_to_admins(
@@ -273,13 +338,21 @@ Users have an `email_verified` field ('Y' or 'N') that controls whether they rec
 
 ### Best Practices
 
-1. **Use environment variables** for sensitive credentials (API keys, passwords)
-2. **Start with SendGrid** for its free tier and reliability
+1. **Separate secrets from configuration**
+   - SMTP settings → `conf/email.yaml` (safe to commit)
+   - Password only → `.env` as `SMTP_PW` (NEVER commit)
+2. **Choose the right provider**
+   - **Brevo**: Best free tier (300/day forever)
+   - **SendGrid**: Good for growth (100/day free)
+   - **Gmail**: Development only (not production)
 3. **Only send to verified emails** for routine notifications
-4. **Add unsubscribe links** for user-facing emails (account confirmations, password resets)
-5. **Rate limit registration emails** to prevent spam
-6. **Test email configuration** before deploying to production
-7. **Monitor your email quota** to avoid hitting provider limits
+   - Use `User.get_verified_admins()` for admin emails
+   - Check `email_verified='Y'` before sending
+4. **Add unsubscribe links** for user-facing emails
+5. **Rate limit** registration/notification emails to prevent spam
+6. **Test thoroughly** before deploying to production
+7. **Monitor your quota** to avoid hitting provider limits
+8. **Use SMTP, not API** - Flask-Mail uses SMTP (simpler, just as reliable)
 
 ## Security Notes
 

@@ -1,0 +1,55 @@
+# Email Configuration for qdflask
+# Copy this to conf/email.yaml and customize for your SMTP provider
+# NEVER commit the actual email.yaml - add it to .gitignore
+
+# SMTP Server Configuration
+server: smtp-relay.brevo.com  # Your SMTP server hostname
+port: 587                      # SMTP port (587 for TLS, 465 for SSL)
+use_tls: true                  # Use TLS encryption (recommended)
+use_ssl: false                 # Use SSL encryption (alternative to TLS)
+
+# SMTP Authentication
+username: your-email@example.com  # SMTP username (often your email)
+
+# Default sender for outgoing emails
+default_sender: noreply@yourdomain.com
+
+# NOTE: SMTP password goes in .env as SMTP_PW, not here!
+# This keeps secrets separate from configuration.
+
+# ---
+# Common SMTP Providers:
+# ---
+
+# Brevo (formerly SendinBlue) - Free tier: 300 emails/day
+# server: smtp-relay.brevo.com
+# port: 587
+# use_tls: true
+# username: your-brevo-email@example.com
+# Get SMTP key from: Settings → SMTP & API
+
+# SendGrid - Free tier: 100 emails/day
+# server: smtp.sendgrid.net
+# port: 587
+# use_tls: true
+# username: apikey
+# Get API key from: Settings → API Keys
+
+# Gmail - Limit: ~500 emails/day (not recommended for production)
+# server: smtp.gmail.com
+# port: 587
+# use_tls: true
+# username: your-email@gmail.com
+# Requires app password (not your regular password)
+
+# Mailgun
+# server: smtp.mailgun.org
+# port: 587
+# use_tls: true
+# username: postmaster@your-domain.mailgun.org
+
+# Amazon SES
+# server: email-smtp.us-east-1.amazonaws.com
+# port: 587
+# use_tls: true
+# username: your-ses-smtp-username
