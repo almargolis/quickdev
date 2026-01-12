@@ -38,27 +38,42 @@ def init_mail(app, config_path=None):
         SMTP_PW=your-smtp-password-or-api-key
 
     """
-    # Try to load from email.yaml
+    # Determine config file path
     if config_path is None:
-        # Look for conf/email.yaml relative to app root
-        config_path = Path(app.root_path).parent / 'conf' / 'email.yaml'
+        # Try current working directory first (production sites)
+        config_path = Path.cwd() / 'conf' / 'email.yaml'
+        if not config_path.exists():
+            # Fall back to relative to app root (development)
+            config_path = Path(app.root_path).parent / 'conf' / 'email.yaml'
+
+    # Convert to string for consistent handling
+    config_path = str(config_path)
+
+    print(f"Loading email config from: {config_path}")
 
     email_config = {}
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r') as f:
-                email_config = yaml.safe_load(f) or {}
-            if email_config:
-                logging.info(f"Loaded email configuration from {config_path}: {list(email_config.keys())}")
-            else:
-                logging.warning(f"Email config file is empty: {config_path}")
-        except yaml.YAMLError as e:
-            logging.error(f"YAML syntax error in {config_path}: {e}")
-            print(f"\n*** ERROR: Invalid YAML syntax in {config_path} ***")
-            print(f"    {e}\n")
-        except Exception as e:
-            logging.error(f"Failed to load email config from {config_path}: {e}")
-            print(f"\n*** ERROR: Could not read {config_path}: {e} ***\n")
+    try:
+        with open(config_path, 'r') as f:
+            email_config = yaml.safe_load(f) or {}
+        if email_config:
+            logging.info(f"✓ Loaded email configuration: {list(email_config.keys())}")
+            print(f"✓ Loaded {len(email_config)} settings from email.yaml")
+        else:
+            logging.warning(f"Email config file is empty: {config_path}")
+            print(f"⚠ Warning: {config_path} is empty")
+    except FileNotFoundError:
+        logging.warning(f"Email config not found: {config_path}")
+        print(f"⚠ Email config not found: {config_path}")
+        print(f"  Using defaults. To configure email:")
+        print(f"  1. Copy qdflask/conf/email.yaml.example to {Path.cwd()}/conf/email.yaml")
+        print(f"  2. Add SMTP_PW to .env")
+    except yaml.YAMLError as e:
+        logging.error(f"YAML syntax error in {config_path}: {e}")
+        print(f"\n*** ERROR: Invalid YAML syntax in {config_path} ***")
+        print(f"    {e}\n")
+    except Exception as e:
+        logging.error(f"Failed to load email config from {config_path}: {e}")
+        print(f"\n*** ERROR: Could not read {config_path}: {e} ***\n")
 
     # Load SMTP password from environment
     smtp_password = os.environ.get('SMTP_PW')
