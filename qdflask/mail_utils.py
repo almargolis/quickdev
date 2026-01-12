@@ -37,8 +37,6 @@ def init_mail(app, config_path=None):
     Example .env:
         SMTP_PW=your-smtp-password-or-api-key
 
-    Backwards compatibility:
-        Still supports MAIL_* environment variables if email.yaml not found.
     """
     # Try to load from email.yaml
     if config_path is None:
@@ -56,10 +54,6 @@ def init_mail(app, config_path=None):
 
     # Load SMTP password from environment
     smtp_password = os.environ.get('SMTP_PW')
-
-    # Backwards compatibility: try old variable names
-    if not smtp_password:
-        smtp_password = os.environ.get('MAIL_PASSWORD') or os.environ.get('SENDGRID_API_KEY')
 
     # Apply configuration (email.yaml takes precedence over defaults)
     app.config.setdefault('MAIL_SERVER', email_config.get('server', 'localhost'))

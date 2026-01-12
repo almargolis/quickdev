@@ -33,6 +33,7 @@ After running `qdstart`, you'll have:
 /var/www/mysite/          # Site root
 ├── conf/                  # Configuration directory
 │   ├── .env              # Secrets (never commit!)
+|   |__ email.yaml        # email configuration, except PW
 │   ├── site.yaml         # Site configuration
 │   ├── site.conf         # Legacy INI format
 │   └── db/               # SQLite databases
@@ -131,7 +132,7 @@ Environment variables for sensitive data:
 # conf/.env
 SECRET_KEY=your-secret-key-here
 DATABASE_PASSWORD=secure-password
-SENDGRID_API_KEY=SG.xyz...
+SMTP_PW=SG.xyz...
 ADMIN_PASSWORD=admin-password
 
 # NEVER commit this file to version control!

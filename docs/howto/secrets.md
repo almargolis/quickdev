@@ -33,7 +33,7 @@ QuickDev uses the **12-Factor App** approach: **secrets in environment variables
 # conf/.env
 SECRET_KEY=your-long-random-secret-key-here
 DATABASE_PASSWORD=secure-database-password
-SENDGRID_API_KEY=SG.your-api-key-here
+SMTP_PW=your-smtp-password-here
 ADMIN_PASSWORD=initial-admin-password
 
 # Optional: Development vs Production
@@ -317,7 +317,7 @@ cd /var/www/myapp
 SECRET_KEY=prod-key-very-long-random...
 DATABASE_URL=postgresql://...prod-db
 DEBUG=False
-SENDGRID_API_KEY=SG.real-production-key
+SMTP_PW=SG.real-production-key
 ```
 
 ## Security Checklist

@@ -23,6 +23,18 @@ def test_email_config(recipient):
     print("qdflask Email Configuration Test")
     print("=" * 60)
 
+    # Load .env file first
+    env_path = Path('conf/.env')
+    if env_path.exists():
+        print(f"✓ Loading .env from: {env_path}")
+        from dotenv import load_dotenv
+        # Override=True ensures we load from file, not pre-existing environment
+        load_dotenv(env_path, override=True)
+    else:
+        print(f"✗ Missing: {env_path}")
+        print("  Create conf/.env with SMTP_PW=your-password")
+        return False
+
     # Check for email.yaml
     email_yaml_path = Path('conf/email.yaml')
     if email_yaml_path.exists():
@@ -32,20 +44,16 @@ def test_email_config(recipient):
         print("  Copy qdflask/conf/email.yaml.example to conf/email.yaml")
         return False
 
-    # Check for SMTP_PW
+    # Check for SMTP_PW (should be loaded from .env now)
     smtp_pw = os.environ.get('SMTP_PW')
     if smtp_pw:
-        print(f"✓ SMTP_PW environment variable set ({len(smtp_pw)} chars)")
+        print(f"✓ SMTP_PW loaded from .env ({len(smtp_pw)} chars)")
     else:
-        # Try backwards compatibility
-        smtp_pw = os.environ.get('MAIL_PASSWORD') or os.environ.get('SENDGRID_API_KEY')
-        if smtp_pw:
-            print(f"⚠ Using legacy env var ({len(smtp_pw)} chars)")
-            print("  Consider updating to SMTP_PW in .env")
-        else:
-            print("✗ SMTP_PW not set in environment")
-            print("  Add SMTP_PW=your-password to .env")
-            return False
+        print("✗ SMTP_PW not found in .env")
+        print("  Add SMTP_PW=your-password to conf/.env")
+        return False
+
+    print()
 
     print()
     print("Initializing Flask-Mail...")
@@ -55,11 +63,12 @@ def test_email_config(recipient):
             init_mail(app)
 
             # Display loaded configuration
-            print(f"  Server: {app.config.get('MAIL_SERVER')}")
-            print(f"  Port: {app.config.get('MAIL_PORT')}")
-            print(f"  TLS: {app.config.get('MAIL_USE_TLS')}")
-            print(f"  Username: {app.config.get('MAIL_USERNAME')}")
-            print(f"  Sender: {app.config.get('MAIL_DEFAULT_SENDER')}")
+            print(f"  Server: {app.config.get('server')}")
+            print(f"  Port: {app.config.get('port')}")
+            print(f"  TLS: {app.config.get('use_tls')}")
+            print(f"  SSL: {app.config.get('use_ssl')}")
+            print(f"  Username: {app.config.get('username')}")
+            print(f"  Sender: {app.config.get('default_sender')}")
             print()
 
             # Send test email
@@ -107,13 +116,6 @@ if __name__ == '__main__':
 
     recipient = sys.argv[1]
 
-    # Load .env if it exists
-    env_path = Path('conf/.env')
-    if env_path.exists():
-        print(f"Loading environment from {env_path}")
-        from dotenv import load_dotenv
-        load_dotenv(env_path)
-        print()
-
+    # test_email_config() will load conf/.env directly
     success = test_email_config(recipient)
     sys.exit(0 if success else 1)

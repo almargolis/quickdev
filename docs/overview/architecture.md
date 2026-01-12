@@ -261,7 +261,7 @@ roles:
 ```bash
 SECRET_KEY=your-secret-key-here
 DATABASE_PASSWORD=secret
-SENDGRID_API_KEY=SG.xyz...
+SMTP_PW=SG.xyz...
 ```
 
 **Critical:** `.env` files should **never be committed** to version control. Add to `.gitignore`.

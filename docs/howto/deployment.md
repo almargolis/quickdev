@@ -94,7 +94,7 @@ pip install -r requirements.txt
 cat > conf/.env << EOF
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 ADMIN_PASSWORD=your-secure-admin-password
-SENDGRID_API_KEY=your-sendgrid-api-key
+SMTP_PW=your-sendgrid-api-key
 DATABASE_URL=postgresql://user:pass@localhost/mysite
 EOF
 
