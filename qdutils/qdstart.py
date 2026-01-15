@@ -68,6 +68,8 @@ except ModuleNotFoundError:
     sys.path.append(QDDEV_PATH)
     from qdcore import qdsite
 
+from qdbase.qdcheck import CheckMode, CHECK_REGISTRY, get_checker_class
+
 # pylint: enable=wrong-import-position
 
 
@@ -236,6 +238,87 @@ def make_launch_files(cmd_name, qdsite_dpath=None):
         f.write(f"screen -d -m -S {cmd_name} {shell_fpath} {run_script_fpath}\n")
 
 
+def check_services(qdsite_dpath=None, fix=False, test=False):
+    """
+    Run configuration checks for all enabled QuickDev services.
+
+    This discovers and runs check modules for each QuickDev service
+    package (qdflask, qdimages, qdcomments, etc.) that is installed
+    and enabled.
+
+    Args:
+        qdsite_dpath: Path to site directory (uses cwd if None)
+        fix: If True, attempt to auto-fix issues
+        test: If True, run functional tests
+
+    Returns:
+        True if all checks passed, False otherwise
+    """
+    # Determine check mode
+    if fix:
+        mode = CheckMode.CORRECT
+    elif test:
+        mode = CheckMode.TEST
+    else:
+        mode = CheckMode.VALIDATE
+
+    # Get conf directory
+    if qdsite_dpath:
+        conf_dir = os.path.join(os.path.abspath(qdsite_dpath), 'conf')
+    else:
+        conf_dir = os.path.join(os.getcwd(), 'conf')
+
+    print("=" * 60)
+    print("QuickDev Service Configuration Check")
+    print("=" * 60)
+    print(f"Mode: {mode.name}")
+    print(f"Conf: {conf_dir}")
+    print()
+
+    total_errors = 0
+    total_warnings = 0
+    services_checked = 0
+
+    for service_name in CHECK_REGISTRY:
+        try:
+            checker_class = get_checker_class(service_name)
+            if checker_class is None:
+                print(f"\u25cb {service_name}: Not installed (skipped)")
+                continue
+
+            # Run checks
+            checker = checker_class(conf_dir=conf_dir, mode=mode)
+            checker.run_all()
+
+            if checker.results:
+                checker.print_results()
+                total_errors += checker.error_count
+                total_warnings += checker.warning_count
+                services_checked += 1
+                print()
+
+        except ModuleNotFoundError:
+            print(f"\u25cb {service_name}: Not installed (skipped)")
+        except Exception as e:
+            print(f"\u2717 {service_name}: Check failed - {e}")
+            total_errors += 1
+
+    # Final summary
+    print("=" * 60)
+    print("Summary")
+    print("=" * 60)
+    print(f"Services checked: {services_checked}")
+    print(f"Errors: {total_errors}")
+    print(f"Warnings: {total_warnings}")
+
+    if total_errors == 0:
+        print("\n\u2713 All service checks passed")
+        return True
+    else:
+        print(f"\n\u2717 {total_errors} issue(s) found")
+        return False
+
+
 if __name__ == "__main__":
     menu = cliargs.CliCommandLine()
     exenv.command_line_site(menu)
@@ -247,6 +330,14 @@ if __name__ == "__main__":
         "p", help_description="Command to run.", value_type=cliargs.PARAMETER_STRING
     )
     menu.add_item(item)
+
+    # Add parameters for check_services command
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "fix", help_description="Fix issues if possible.", value_type=cliargs.PARAMETER_BOOLEAN
+    ))
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "test", help_description="Run functional tests.", value_type=cliargs.PARAMETER_BOOLEAN
+    ))
 
     m = menu.add_item(
         cliargs.CliCommandLineActionItem(
@@ -289,6 +380,33 @@ if __name__ == "__main__":
     m.add_parameter(
         cliargs.CliCommandLineParameterItem(
             "p", parameter_name="cmd", is_positional=True
+        )
+    )
+
+    # Check services command
+    m = menu.add_item(
+        cliargs.CliCommandLineActionItem(
+            "c", check_services, help_description="Check all service configurations."
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            exenv.ARG_S_SITE,
+            parameter_name="qdsite_dpath",
+            default_none=True,
+            is_positional=False,
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "fix",
+            parameter_name="fix",
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "test",
+            parameter_name="test",
         )
     )
 

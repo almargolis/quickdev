@@ -200,3 +200,115 @@ The framework uses SQLite for various purposes:
 - Site-specific databases in `conf/db/`
 
 Use `qdbase.qdsqlite` module for SQLite operations within the framework.
+
+## Site Configuration Management and Testing
+
+QuickDev includes support for site-specific configuration management and testing through a standardized check/validation framework.
+
+### Configuration Files
+
+Each service package has a configuration file in `conf/<service>.yaml`:
+
+- `conf/qdflask.yaml` - Flask authentication settings
+- `conf/qdimages.yaml` - Image management settings
+- `conf/qdcomments.yaml` - Comments system settings
+
+Each configuration file includes a `service_enabled` flag that controls whether checks run for that service:
+
+```yaml
+# conf/qdflask.yaml
+service_enabled: true
+
+users:
+  default_role: reader
+  valid_roles: [admin, editor, reader]
+```
+
+Example templates are provided in each package's `conf/` directory (e.g., `qdflask/qdflask/conf/qdflask.yaml.example`).
+
+### Check/Validation Framework
+
+The check framework (`qdbase/qdcheck.py`) provides three operation modes:
+
+1. **VALIDATE** - Check configuration and report issues (default)
+2. **TEST** - Validate + run functional tests
+3. **CORRECT** - Validate + auto-fix issues where possible
+
+### Running Checks
+
+**Check all services:**
+```bash
+python qdutils/qdstart.py -c           # Validate all
+python qdutils/qdstart.py -c --fix     # Validate + auto-fix
+python qdutils/qdstart.py -c --test    # Validate + test
+```
+
+**Check specific service:**
+```bash
+python -m qdflask.check_users          # Validate qdflask
+python -m qdflask.check_users --fix    # Validate + fix
+python -m qdflask.check_users --test   # Validate + test
+python -m qdflask.check_users --conf /path/to/conf  # Specify conf directory
+```
+
+### Check Output
+
+Checks produce visual output with status indicators:
+
+```
+============================================================
+Flask Authentication Configuration Check
+============================================================
+✓ SECRET_KEY: Configured (64 chars)
+✓ Database Access: Connected
+✗ User Schema: Missing columns: ['email_verified']
+  → Run database migrations or use --fix
+⚠ Admin User: No admin user exists
+  → Run: python -m qdflask.cli init-db
+
+Results: 2/4 checks passed
+```
+
+### Creating Custom Check Modules
+
+To create a check module for a new service:
+
+1. Create a checker class extending `CheckRunner`:
+
+```python
+from qdbase.qdcheck import CheckRunner, CheckResult, CheckStatus, CheckMode
+
+class MyServiceChecker(CheckRunner):
+    service_name = "myservice"
+    service_display_name = "My Service"
+    config_filename = "myservice.yaml"
+
+    def _run_checks(self):
+        self._check_config()
+        self._check_database()
+
+    def _check_config(self):
+        # Perform check and add result
+        self.add_result(CheckResult(
+            name="Config File",
+            status=CheckStatus.PASS,
+            message="Configuration loaded"
+        ))
+```
+
+2. Register the checker in `qdbase/qdcheck.py`:
+
+```python
+register_checker('myservice', 'mypackage.check_myservice.MyServiceChecker')
+```
+
+3. Create a configuration template `mypackage/conf/myservice.yaml.example`
+
+### Service Discovery
+
+Services are discovered automatically when:
+- They are registered in `CHECK_REGISTRY` in `qdbase/qdcheck.py`
+- Their check module is importable
+- `service_enabled` is not explicitly set to `false` in the config
+
+Disabled services are skipped during check-all operations.
