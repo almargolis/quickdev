@@ -1,7 +1,0 @@
-README.md
-setup.py
-qdimages.egg-info/PKG-INFO
-qdimages.egg-info/SOURCES.txt
-qdimages.egg-info/dependency_links.txt
-qdimages.egg-info/requires.txt
-qdimages.egg-info/top_level.txt
