@@ -69,12 +69,34 @@ def safe_join(*args):
     malicious input. This is an extension of werkzeug.utils.safe_join()
     that neatly handles a chroot type setup without detracting
     from safety.
+
+    Falls back to a basic implementation when werkzeug is not installed.
     """
     args = list(args)
     if len(args) > 1:
         if args[1][0] == "/":
             args[1] = args[1][1:]
-    return werkzeug.utils.safe_join(*args)  # pylint: disable=no-value-for-parameter
+    if werkzeug is not None:
+        return werkzeug.utils.safe_join(*args)  # pylint: disable=no-value-for-parameter
+    # Fallback when werkzeug is not installed
+    if len(args) == 0:
+        return None
+    base = args[0]
+    for path in args[1:]:
+        if os.path.isabs(path):
+            return None
+        joined = os.path.join(base, path)
+        real_base = os.path.realpath(base)
+        real_joined = os.path.realpath(joined)
+        # Check that joined path is within base directory
+        # Handle root directory "/" as a special case
+        if real_base == "/":
+            if not real_joined.startswith("/"):
+                return None
+        elif not real_joined.startswith(real_base + os.sep) and real_joined != real_base:
+            return None
+        base = joined
+    return base
 
 
 def check_venv(venv_dpath):  # pylint: disable=too-many-return-statements
