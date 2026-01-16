@@ -23,7 +23,6 @@ setup(
     },
     license="MIT",
     packages=['qdflask'],
-    package_dir={'qdflask': '.'},
     include_package_data=True,
     package_data={
         'qdflask': [

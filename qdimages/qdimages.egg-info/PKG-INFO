@@ -1,0 +1,174 @@
+Metadata-Version: 2.1
+Name: qdimages
+Version: 0.1.0
+Summary: Reusable Flask image management package with hierarchical storage and web-based editor
+Home-page: https://github.com/almargolis/quickdev
+Author: Albert Margolis
+Author-email: almargolis@gmail.com
+License: MIT
+Project-URL: Bug Tracker, https://github.com/almargolis/quickdev/issues
+Project-URL: Documentation, https://github.com/almargolis/quickdev/blob/master/qdimages/README.md
+Project-URL: Source Code, https://github.com/almargolis/quickdev/tree/master/qdimages
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Framework :: Flask
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+
+# qdimages - QuickDev Image Management Package
+
+A reusable Flask package for image management with hierarchical storage, editing capabilities, and metadata tracking.
+
+## Features
+
+- **Hierarchical xxHash-based Storage**: Content-addressed storage with automatic deduplication
+- **Web-based Image Editor**: Crop, resize, adjust brightness/contrast, remove backgrounds
+- **Metadata Tracking**: Keywords, dimensions, format, EXIF data
+- **Browse & Search**: Navigate directory structure or search by metadata
+- **Source Tracking**: Track edited images back to their originals
+- **API Endpoints**: RESTful API for all image operations
+
+## Installation
+
+```bash
+cd QuickDev
+pip install -e ./qdimages
+```
+
+## Quick Start
+
+```python
+from flask import Flask
+from qdimages import init_image_manager
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SECRET_KEY'] = 'your-secret-key'
+
+# Initialize image manager
+init_image_manager(app, {
+    'IMAGES_BASE_PATH': './images',
+    'MAX_CONTENT_LENGTH': 10 * 1024 * 1024  # 10MB
+})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+Then visit:
+- `/image-editor` - Web-based image editor interface
+- `/api/images/browse` - Browse hierarchical storage
+- `/api/images/search` - Search images by metadata
+
+## Configuration Options
+
+```python
+config = {
+    'IMAGES_BASE_PATH': './images',        # Hierarchical storage path
+    'TEMP_IMAGES_PATH': './temp_images',   # Staging area for external processes
+    'TEMP_DIRECTORY': '/tmp/qdimages_temp', # Temporary processing
+    'UPLOAD_FOLDER': './uploads',          # Upload destination
+    'MAX_CONTENT_LENGTH': 10 * 1024 * 1024, # Max file size (10MB)
+    'ALLOWED_EXTENSIONS': {'png', 'jpg', 'jpeg', 'gif'}
+}
+
+init_image_manager(app, config)
+```
+
+## Hierarchical Storage
+
+Images are stored using xxHash-based content addressing:
+
+```
+images/
+├── a1/
+│   ├── b2/
+│   │   ├── 1.jpg
+│   │   ├── 1.yaml  # Metadata
+│   │   ├── 2.png
+│   │   └── 2.yaml
+│   └── c3/
+│       └── 1.jpg
+└── d4/
+    └── e5/
+        └── 1.jpg
+```
+
+Benefits:
+- Automatic deduplication (identical images share the same hash)
+- Balanced directory structure
+- Short filenames (sequential numbers)
+- Metadata in sidecar YAML files
+
+## API Endpoints
+
+### Upload & Storage
+- `POST /api/images/upload` - Upload image
+- `POST /api/images/save` - Save to hierarchical storage
+- `POST /api/images/temp-staging/import` - Import from staging area
+
+### Browse & Search
+- `GET /api/images/browse?dir1=a1&dir2=b2` - Browse directories
+- `POST /api/images/search` - Search by keywords, dimensions, format
+- `GET /api/images/list` - List images (legacy)
+
+### Image Processing
+- `POST /api/images/process` - Apply operations (crop, resize, brightness, etc.)
+- `POST /api/images/metadata/update` - Update keywords
+- `POST /api/images/metadata` - Load metadata
+
+### Serving
+- `GET /images/<path:filename>` - Serve image files
+
+## Image Editor
+
+The web interface at `/image-editor` provides:
+
+1. **Upload** - Upload new images directly to storage
+2. **Import** - Import from staging area
+3. **Browse** - Navigate hierarchical storage
+4. **Search** - Find images by metadata
+5. **Edit** - Interactive editor with:
+   - Crop (visual and numeric controls)
+   - Resize (maintain aspect ratio)
+   - Brightness & Contrast sliders
+   - Background removal (AI-powered)
+   - Reset & Revert options
+
+## Dependencies
+
+- Flask
+- Flask-SQLAlchemy
+- Pillow (PIL)
+- xxhash
+- PyYAML
+- rembg (for background removal)
+
+## Integration with qdflask
+
+Works seamlessly with qdflask authentication:
+
+```python
+from flask import Flask
+from qdflask import init_auth
+from qdimages import init_image_manager
+
+app = Flask(__name__)
+
+# Initialize auth first
+init_auth(app, roles=['admin', 'editor', 'viewer'])
+
+# Then image manager (routes will be protected)
+init_image_manager(app)
+```
+
+All image routes require login by default.
+
+## License
+
+Part of the QuickDev framework.
