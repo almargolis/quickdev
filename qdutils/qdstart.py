@@ -3,7 +3,7 @@
 Create, repair or update the configuration of an QuickDev qdsite.
 
 The qdstart utility is run by the site owner / user to update
-things that they can control. qdstart objecs and functions are
+things that they can control. qdstart objects and functions are
 also used by the hosting utilities as they manage global
 system resources.
 
@@ -13,7 +13,7 @@ This impacts QuickDev core developers, not application
 developers using QuickDev.
 
 Some of the functions in this module are used by other
-QuickDev utililities such as apache.py.
+QuickDev utilities such as apache.py.
 
 *XSynth has a stand-alone mode which can be used to
  translate the qdutils directory without any pre-configuration.

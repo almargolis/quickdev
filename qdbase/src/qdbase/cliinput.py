@@ -206,7 +206,7 @@ class CliForm:
         if item is None:
             return False
         if item.is_read_only:
-            print("Read only item. Caanot be deleted.")
+            print("Read only item. Cannot be deleted.")
             return False
         prompt = f"Delete [{item.ix}. {item.key}: {item.value}]"
         if cli_input_yn(prompt, debug=self.debug):
@@ -223,7 +223,7 @@ class CliForm:
         if item is None:
             return False
         if item.is_read_only:
-            print("Read only item. Caanot be edited.")
+            print("Read only item. Cannot be edited.")
             return False
         prompt = f"Edit [{item.ix}. {item.key}: {item.value}]"
         item.value = cli_input(prompt, debug=self.debug)

@@ -5,7 +5,7 @@ This is an alternative to the standard python module arg_parser.
 The main differences are that CliCommandLine calls an action function
 while arg_parser just parses the command line to be processed
 separately. CliCommandLine is also more explicit about value types
-and is intentially similar to other QuickDev dictionary components.
+and is intentionally similar to other QuickDev dictionary components.
 """
 
 import sys
@@ -38,7 +38,7 @@ class CliCommandLineItem:  # pylint: disable=too-few-public-methods
     """
     Base container for command line argument elements.
     This is essentially a virtual class that won't be
-    directly instaniated.
+    directly instantiated.
     """
 
     __slots__ = ("argument_code", "help_description", "parent", "security")
@@ -106,8 +106,8 @@ class CliCommandLineParameterItem(
     is checked only for function parameters while assembling the function parameters.
 
     default_none is used to disambiguate the difference between there being no
-    default value and there being a defaiult value of None. If default_none is
-    True, its assumed that default_value is None but that isn't verified.
+    default value and there being a default value of None. If default_none is
+    True, it's assumed that default_value is None but that isn't verified.
     """
 
     __slots__ = (
@@ -145,7 +145,7 @@ class CliCommandLineParameterItem(
 
         self.parameter_name = parameter_name
         if value_type not in PARAMETER_TYPES:
-            raise ValueError("Unknown parameter type '{value_type}'.")
+            raise ValueError(f"Unknown parameter type '{value_type}'.")
         self.value_type = value_type
 
 
@@ -157,7 +157,7 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
     The main differences are that CliCommandLine calls an action function
     while arg_parser just parses the command line to be processed
     separately. CliCommandLine is also more explicit about value types
-    and is intentially similar to other QuickDev dictionary components.
+    and is intentionally similar to other QuickDev dictionary components.
     """
 
     __slots__ = (
@@ -280,7 +280,7 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
         assert isinstance(argument_item, CliCommandLineParameterItem)
         if argument_code in self.cli_data:
             self.err_code = 404
-            self.err_msg = "Duplicate argument '{argument_code}'."
+            self.err_msg = f"Duplicate argument '{argument_code}'."
             return False
         if argument_item.value_type == PARAMETER_BOOLEAN:
             self.cli_data[argument_code] = True
@@ -360,7 +360,7 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
         if self.value_item is not None:
             self.err_code = 303
             self.err_msg = (
-                "No value specified for argument '{self.value_item.argument_code}'."
+                f"No value specified for argument '{self.value_item.argument_code}'."
             )
         if self.action_item is None:
             self.action_item = self.default_action_item

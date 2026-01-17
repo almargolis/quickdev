@@ -197,8 +197,8 @@ class Index:  # pylint: disable=too-few-public-methods
             index_def += " UNIQUE"
         index_def += " INDEX " + self.name + eol
         index_def += "ON " + self.table_dict.name + "("
-        last_column_ix = len(self.columns) - 1
-        for ix, this in enumerate(self.columns):
+        last_column_ix = len(self.column_names) - 1
+        for ix, this in enumerate(self.column_names):
             index_def += this
             if (last_column_ix > 0) and (ix < last_column_ix):
                 index_def += ", "

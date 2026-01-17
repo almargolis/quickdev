@@ -108,7 +108,7 @@ def check_venv(venv_dpath):  # pylint: disable=too-many-return-statements
     Returns the Python version in the format "python3.7" if it is a venv.
 
     """
-    if not os.path.isfile(venv_dpath):
+    if not os.path.isdir(venv_dpath):
         return None
     if not os.path.isfile(os.path.join(venv_dpath, "pyvenv.cfg")):
         return None
@@ -320,7 +320,7 @@ ALL_PLATFORMS = [PLATFORM_DARWIN, PLATFORM_LINUX]
 
 PYTHON_MIN_MAJOR = 3
 PYTHON_MIN_MINOR = 6
-PYTHON_MIN_VERSION = "{PYTHON_MIN_MAJOR}.{PYTHON_MIN_MINOR}"
+PYTHON_MIN_VERSION = f"{PYTHON_MIN_MAJOR}.{PYTHON_MIN_MINOR}"
 
 # Check python version before imports because excepton classes
 # have changed.
@@ -400,7 +400,7 @@ def make_symlink(
     else:
         if error_func is not None:
             error_func(
-                "Symlink '{target_path}' type code invalid. Symlink not created."
+                f"Symlink '{target_path}' type code invalid. Symlink not created."
             )
         return False
     #
@@ -483,7 +483,7 @@ class ExecutionUser:  # pylint: disable=too-few-public-methods
     executing the application.
     """
 
-    slots = ("effective_uid", "effective_username", "real_uid", "real_username")
+    __slots__ = ("effective_uid", "effective_username", "real_uid", "real_username")
 
     def __init__(self, uid, euid):
         # This will be very OS dependent
@@ -508,7 +508,7 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
     program file / application being executed.
     """
 
-    slots = (
+    __slots__ = (
         "debug",
         "error_ct",
         "execution_cwd",
@@ -566,7 +566,7 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
             # not the package -- since we
             # didn't mention the package. This is not a problem at this time.
             # It might not be fixable until
-            # after we create packagte symlinks, etc. Its possibly availabe in
+            # after we create package symlinks, etc. It's possibly available in
             # module[__package__] but I
             # haven't explored that. Best not to dig any more deeply
             # into Python internals unless really
@@ -618,7 +618,7 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
         """
         Check the python version being executed.
         """
-        # This is both informational, when vervose, and diagnostic
+        # This is both informational, when verbose, and diagnostic
         # Also check apache and operating system
         self.python_version = sys.version
         result = True
