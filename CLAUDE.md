@@ -72,6 +72,40 @@ The codebase is organized into several package directories:
   - `file_handler.py`: File I/O operations
   - `templates/`: Web-based image editor interface
 
+### Package Structure for PyPI
+
+All installable packages use the `src/` layout to prevent import shadowing issues during testing:
+
+```
+package_name/
+├── setup.py
+├── README.md
+└── src/
+    └── package_name/
+        ├── __init__.py
+        └── ... other modules
+```
+
+This structure ensures that when pytest runs from the repository root, Python imports the *installed* package rather than the local directory. Without this layout, a directory like `qdimages/` would shadow the installed `qdimages` package because Python adds the current directory to `sys.path`.
+
+**setup.py configuration:**
+```python
+from setuptools import setup
+
+setup(
+    name="package_name",
+    package_dir={'': 'src'},
+    packages=['package_name'],
+    # ... other options
+)
+```
+
+**Current packages using this structure:**
+- `qdbase/src/qdbase/`
+- `xsynth/src/xsynth/`
+- `qdflask/src/qdflask/`
+- `qdimages/src/qdimages/`
+
 ### Flask Integration Packages
 
 QuickDev includes reusable Flask packages for common web application features:
@@ -107,7 +141,7 @@ QuickDev has a carefully designed bootstrapping sequence because the framework u
 Key files involved in bootstrapping:
 - `qdutils/qdstart.py`: Creates/repairs QuickDev sites
 - `qdutils/xsynth.py`: Preprocesses `.xpy` files to `.py` files
-- `qdbase/exenv.py`: Provides execution environment utilities used during bootstrap
+- `qdbase/src/qdbase/exenv.py`: Provides execution environment utilities used during bootstrap
 
 ### Site Configuration
 
@@ -147,6 +181,24 @@ pytest qdbase_tests/test_exenv.py::test_safe_join
 ```
 
 Test directories follow the pattern `{package}_tests/` (e.g., `qdbase_tests/`, `qdcore_tests/`).
+
+### Testing with Docker/act
+
+Use `act` to run GitHub Actions workflows locally before pushing. This catches CI failures early and mimics the exact GitHub environment:
+
+```bash
+# Install (requires Docker)
+brew install act
+
+# Run all test jobs
+act -j test
+
+# Clean up cached state if tests behave unexpectedly
+docker rm -f $(docker ps -a --filter "name=act-" -q)
+docker volume rm $(docker volume ls -q --filter "name=act-")
+```
+
+This is especially useful for catching import/packaging issues that only appear in clean environments.
 
 ### XSynth Processing
 
@@ -224,11 +276,11 @@ users:
   valid_roles: [admin, editor, reader]
 ```
 
-Example templates are provided in each package's `conf/` directory (e.g., `qdflask/qdflask/conf/qdflask.yaml.example`).
+Example templates are provided in each package's `conf/` directory (e.g., `qdflask/src/qdflask/conf/qdflask.yaml.example`).
 
 ### Check/Validation Framework
 
-The check framework (`qdbase/qdcheck.py`) provides three operation modes:
+The check framework (`qdbase/src/qdbase/qdcheck.py`) provides three operation modes:
 
 1. **VALIDATE** - Check configuration and report issues (default)
 2. **TEST** - Validate + run functional tests
@@ -271,6 +323,14 @@ Results: 2/4 checks passed
 
 ### Creating Custom Check Modules
 
+Check modules follow the naming convention `check_<feature>.py` where `<feature>` describes what is being validated:
+
+- `check_users.py` - User authentication and database schema
+- `check_images.py` - Image storage configuration and integrity
+- `check_email.py` - Email/SMTP configuration
+
+Each check module should be runnable as a standalone script and also importable by the central check runner.
+
 To create a check module for a new service:
 
 1. Create a checker class extending `CheckRunner`:
@@ -296,7 +356,7 @@ class MyServiceChecker(CheckRunner):
         ))
 ```
 
-2. Register the checker in `qdbase/qdcheck.py`:
+2. Register the checker in `qdbase/src/qdbase/qdcheck.py`:
 
 ```python
 register_checker('myservice', 'mypackage.check_myservice.MyServiceChecker')
@@ -307,7 +367,7 @@ register_checker('myservice', 'mypackage.check_myservice.MyServiceChecker')
 ### Service Discovery
 
 Services are discovered automatically when:
-- They are registered in `CHECK_REGISTRY` in `qdbase/qdcheck.py`
+- They are registered in `CHECK_REGISTRY` in `qdbase/src/qdbase/qdcheck.py`
 - Their check module is importable
 - `service_enabled` is not explicitly set to `false` in the config
 
