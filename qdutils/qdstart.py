@@ -110,6 +110,8 @@ class QdStart:
         self.qdsite_info.write_site_ini()
         if not self.configure_venv():
             return
+        if not self.configure_applications():
+            return
         if not self.check_venv_shortcut():
             return
         self.qdsite_info.write_site_ini()
@@ -171,29 +173,74 @@ class QdStart:
         return False
 
     def configure_venv(self):
-        """Configure the virtual environment with QuickDev packages and utilities."""
+        """Install QuickDev packages in editable mode."""
+        venv_dpath = self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH]
+        pip_path = os.path.join(venv_dpath, "bin", "pip")
 
-        def check_site_package(site_packages_path, package_name, source_path):
-            """Configure one QuickDev package."""
-            site_link = os.path.join(site_packages_path, package_name)
-            print(f"Check link {site_link} to {source_path}")
-            if not os.path.islink(site_link):
-                os.symlink(source_path, site_link, target_is_directory=True)
+        # Verify pip exists
+        if not os.path.isfile(pip_path):
+            self.error(f"pip not found at {pip_path}")
+            return False
+
+        # Install all quickdev packages that have setup.py
+        packages = ['qdbase', 'qdcore', 'xsynth', 'qdflask', 'qdimages', 'qdcomments']
+        for pkg in packages:
+            pkg_path = os.path.join(QDDEV_PATH, pkg)
+            if os.path.exists(os.path.join(pkg_path, 'setup.py')):
+                if not self._pip_install_editable(pip_path, pkg_path):
+                    return False
+
+        return True
+
+    def configure_applications(self):
+        """Discover and install applications from repos/ directory."""
+        repos_path = os.path.join(self.qdsite_info.qdsite_dpath, "repos")
+        if not os.path.isdir(repos_path):
+            if self.debug > 0:
+                print(f"No repos/ directory at {repos_path}")
+            return True
 
         venv_dpath = self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH]
-        lib_path = os.path.join(venv_dpath, "lib")
-        libs = os.listdir(lib_path)
-        python_lib = None
-        for this_lib in libs:
-            if this_lib.startswith("python"):
-                python_lib = this_lib
-                break
-        if python_lib is None:
-            self.error(f"{venv_dpath} is not a valid venv.")
+        pip_path = os.path.join(venv_dpath, "bin", "pip")
+
+        for repo_name in os.listdir(repos_path):
+            repo_path = os.path.join(repos_path, repo_name)
+            if repo_name == "quickdev":
+                continue  # Already handled by configure_venv
+            if not os.path.isdir(repo_path):
+                continue
+
+            # Check for setup.py or requirements.txt
+            setup_py = os.path.join(repo_path, "setup.py")
+            requirements_txt = os.path.join(repo_path, "requirements.txt")
+
+            if os.path.exists(setup_py):
+                self._pip_install_editable(pip_path, repo_path)
+
+            if os.path.exists(requirements_txt):
+                self._pip_install_requirements(pip_path, requirements_txt)
+
+        return True
+
+    def _pip_install_editable(self, pip_path, package_path):
+        """Install a package in editable mode."""
+        pkg_name = os.path.basename(package_path)
+        print(f"Installing: {pkg_name}")
+        cmd = [pip_path, "install", "-e", package_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            self.error(f"Failed to install {pkg_name}: {result.stderr}")
             return False
-        packages_path = os.path.join(lib_path, python_lib, "site-packages")
-        check_site_package(packages_path, QDBASE_DIR_NAME, QDBASE_PATH)
-        check_site_package(packages_path, QDCORE_DIR_NAME, QDCORE_PATH)
+        return True
+
+    def _pip_install_requirements(self, pip_path, requirements_path):
+        """Install from requirements.txt."""
+        print(f"Installing requirements: {os.path.basename(requirements_path)}")
+        cmd = [pip_path, "install", "-r", requirements_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            self.error(f"Failed to install requirements: {result.stderr}")
+            return False
         return True
 
     def error(self, msg):
