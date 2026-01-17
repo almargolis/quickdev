@@ -5,6 +5,7 @@ venv
 __pycache__
 *.pyc
 *.bak
+*.egg-info
 *.venv
 *.code-workspace
 examples/temp/*
