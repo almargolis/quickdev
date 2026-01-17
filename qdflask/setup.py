@@ -22,6 +22,7 @@ setup(
         "Source Code": "https://github.com/almargolis/quickdev/tree/master/qdflask",
     },
     license="MIT",
+    package_dir={'': 'src'},
     packages=['qdflask'],
     include_package_data=True,
     package_data={

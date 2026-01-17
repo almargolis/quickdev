@@ -1,4 +1,0 @@
-qdbase>=0.2.0
-
-[quickdev]
-qdcore

@@ -51,7 +51,8 @@ setup(
         "Documentation": "https://github.com/almargolis/quickdev/blob/master/xsynth/README.md",
         "Source Code": "https://github.com/almargolis/quickdev/tree/master/xsynth",
     },
-    py_modules=["xsynth"],
+    package_dir={'': 'src'},
+    packages=['xsynth'],
     install_requires=[
         "qdbase>=0.2.0",  # Requires qdbase foundation
     ],

@@ -7,7 +7,7 @@ CLI utilities, and lexical analysis. It has zero external dependencies
 beyond the Python standard library.
 """
 
-from setuptools import setup, find_packages
+from setuptools import setup
 import os
 
 # Read the README if it exists
@@ -48,7 +48,8 @@ setup(
         "Documentation": "https://github.com/almargolis/quickdev/blob/master/qdbase/README.md",
         "Source Code": "https://github.com/almargolis/quickdev/tree/master/qdbase",
     },
-    packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+    package_dir={'': 'src'},
+    packages=['qdbase'],
     include_package_data=True,
     install_requires=[
         # Zero external dependencies - stdlib only

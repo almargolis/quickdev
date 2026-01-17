@@ -2,7 +2,7 @@
 Setup script for qdimages package.
 """
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -22,7 +22,8 @@ setup(
         "Source Code": "https://github.com/almargolis/quickdev/tree/master/qdimages",
     },
     license="MIT",
-    packages=find_packages(),
+    package_dir={'': 'src'},
+    packages=['qdimages'],
     include_package_data=True,
     package_data={
         'qdimages': [
