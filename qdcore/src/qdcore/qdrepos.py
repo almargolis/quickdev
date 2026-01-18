@@ -135,45 +135,18 @@ class RepoScanner:
         counts = {'packages': 0, 'qdo_functions': 0}
         repo_name = repo_path.name
 
-        # Look for packages - directories with __init__.py
-        # Handles multiple layouts:
-        # 1. repo/package/__init__.py (flat layout)
-        # 2. repo/src/package/__init__.py (src layout at repo level)
-        # 3. repo/pkgdir/src/package/__init__.py (src layout per package)
+        # Walk directory tree and find any directory with __init__.py
+        for dirpath, dirnames, filenames in os.walk(repo_path):
+            # Skip hidden directories and common non-package directories
+            dirnames[:] = [d for d in dirnames
+                          if not d.startswith('.')
+                          and not d.startswith('_')
+                          and d not in ('build', 'dist', 'node_modules', '.git')]
 
-        for item in repo_path.iterdir():
-            if not item.is_dir():
-                continue
-            if item.name.startswith('.') or item.name.startswith('_'):
-                continue
-            if item.name in ['tests', 'test', 'docs', 'build', 'dist']:
-                continue
-            if item.name.endswith('_tests'):
-                continue
-
-            # Check for flat layout: repo/package/__init__.py
-            init_file = item / '__init__.py'
-            if init_file.exists():
-                self._add_package(cursor, repo_name, item.name, item, counts)
-                continue
-
-            # Check for src layout: repo/pkgdir/src/package/__init__.py
-            src_pkg_path = item / 'src' / item.name
-            if src_pkg_path.exists() and (src_pkg_path / '__init__.py').exists():
-                self._add_package(cursor, repo_name, item.name, src_pkg_path, counts)
-                continue
-
-        # Also check repo/src/ for packages (less common)
-        src_path = repo_path / 'src'
-        if src_path.exists():
-            for item in src_path.iterdir():
-                if not item.is_dir():
-                    continue
-                if item.name.startswith('.') or item.name.startswith('_'):
-                    continue
-                init_file = item / '__init__.py'
-                if init_file.exists():
-                    self._add_package(cursor, repo_name, item.name, item, counts)
+            if '__init__.py' in filenames:
+                package_path = Path(dirpath)
+                package_name = package_path.name
+                self._add_package(cursor, repo_name, package_name, package_path, counts)
 
         return counts
 
