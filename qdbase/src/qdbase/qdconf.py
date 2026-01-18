@@ -45,6 +45,7 @@ class QdConf:
                      If None, auto-detects using cwd then fallbacks.
         """
         self._cache = {}  # Cache for loaded files
+        self._dirty = set()  # Set of filenames that have been modified
         self._conf_dir = self._locate_conf_dir(conf_dir)
 
     def _locate_conf_dir(self, explicit_path=None):
@@ -187,6 +188,26 @@ class QdConf:
                 raise KeyError(f"Cannot index non-dict with key '{key}'")
         return current
 
+    def _set_nested(self, data, keys, value):
+        """
+        Set value in nested dictionary using list of keys.
+
+        Creates intermediate dictionaries as needed.
+
+        Args:
+            data: Dictionary to modify
+            keys: List of keys for nested access
+            value: Value to set
+        """
+        current = data
+        for key in keys[:-1]:
+            if key not in current:
+                current[key] = {}
+            elif not isinstance(current[key], dict):
+                raise ValueError(f"Cannot set nested key '{key}': not a dict")
+            current = current[key]
+        current[keys[-1]] = value
+
     def get(self, key, default=None):
         """
         Get configuration value with optional default.
@@ -243,6 +264,63 @@ class QdConf:
         except KeyError:
             raise KeyError(f"Configuration key not found: {key}")
 
+    def __setitem__(self, key, value):
+        """
+        Set configuration value and mark file as dirty.
+
+        Args:
+            key: Dot-notation key (e.g., 'email.MAIL_SERVER')
+            value: Value to set
+
+        Example:
+            conf['email.MAIL_SERVER'] = 'smtp.example.com'
+            conf['style.colors.header_color'] = '#FF0000'
+        """
+        if not key or not isinstance(key, str):
+            raise ValueError("Key must be a non-empty string")
+
+        parts = key.split('.')
+        if len(parts) < 2:
+            raise ValueError(f"Key must have at least two parts (file.key): {key}")
+
+        filename = parts[0]
+        remaining_keys = parts[1:]
+
+        # Load file if not already cached (creates empty dict if file doesn't exist)
+        if filename not in self._cache:
+            self._load_file(filename)
+            if filename not in self._cache:
+                self._cache[filename] = {}
+
+        # Set the nested value
+        self._set_nested(self._cache[filename], remaining_keys, value)
+
+        # Mark file as dirty
+        self._dirty.add(filename)
+
+    def is_dirty(self, filename=None):
+        """
+        Check if configuration has been modified.
+
+        Args:
+            filename: Specific file to check, or None to check any
+
+        Returns:
+            True if file(s) have been modified
+        """
+        if filename:
+            return filename in self._dirty
+        return len(self._dirty) > 0
+
+    def get_dirty_files(self):
+        """
+        Get list of modified configuration files.
+
+        Returns:
+            Set of filenames that have been modified
+        """
+        return self._dirty.copy()
+
     def reload(self, filename=None):
         """
         Reload configuration from disk, clearing cache.
@@ -252,8 +330,117 @@ class QdConf:
         """
         if filename:
             self._cache.pop(filename, None)
+            self._dirty.discard(filename)
         else:
             self._cache.clear()
+            self._dirty.clear()
+
+    def _get_file_extension(self, filename):
+        """
+        Determine the file extension for a configuration file.
+
+        Checks existing files first, defaults to .yaml for new files.
+
+        Args:
+            filename: Configuration filename (without extension)
+
+        Returns:
+            Extension including dot (e.g., '.yaml', '.ini', '.env')
+        """
+        if filename == 'denv':
+            return '.env'
+
+        # Check for existing files
+        for ext in ['.yaml', '.yml', '.ini']:
+            filepath = self._conf_dir / f"{filename}{ext}"
+            if filepath.exists():
+                return ext
+
+        # Default to .yaml for new files
+        return '.yaml'
+
+    def _write_yaml(self, filepath, data):
+        """Write data to a YAML file."""
+        with open(filepath, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
+
+    def _write_ini(self, filepath, data):
+        """Write data to an INI file."""
+        config = ConfigParser()
+        for section, values in data.items():
+            if isinstance(values, dict):
+                config[section] = {k: str(v) for k, v in values.items()}
+            else:
+                # Handle flat values by putting them in DEFAULT section
+                if not config.has_section('DEFAULT'):
+                    pass  # DEFAULT section always exists
+                config['DEFAULT'][section] = str(values)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            config.write(f)
+
+    def _write_env(self, filepath, data):
+        """Write data to a .env file."""
+        with open(filepath, 'w', encoding='utf-8') as f:
+            for key, value in data.items():
+                # Quote values that contain spaces or special characters
+                if isinstance(value, str) and (' ' in value or '"' in value or "'" in value):
+                    value = f'"{value}"'
+                f.write(f"{key}={value}\n")
+
+    def write_conf_file(self, filename):
+        """
+        Write a configuration file to disk.
+
+        Args:
+            filename: Configuration filename to write
+
+        Returns:
+            True if file was written, False if file not in cache
+
+        Raises:
+            ValueError: If file format is not supported
+        """
+        if filename not in self._cache:
+            logging.warning(f"Cannot write {filename}: not in cache")
+            return False
+
+        data = self._cache[filename]
+        ext = self._get_file_extension(filename)
+
+        if filename == 'denv':
+            filepath = self._conf_dir / '.env'
+        else:
+            filepath = self._conf_dir / f"{filename}{ext}"
+
+        # Ensure conf directory exists
+        self._conf_dir.mkdir(parents=True, exist_ok=True)
+
+        if ext == '.env':
+            self._write_env(filepath, data)
+        elif ext in ['.yaml', '.yml']:
+            self._write_yaml(filepath, data)
+        elif ext == '.ini':
+            self._write_ini(filepath, data)
+        else:
+            raise ValueError(f"Unsupported file extension: {ext}")
+
+        # Clear dirty flag for this file
+        self._dirty.discard(filename)
+        logging.info(f"Wrote configuration to {filepath}")
+        return True
+
+    def write_all_dirty_conf_files(self):
+        """
+        Write all modified configuration files to disk.
+
+        Returns:
+            List of filenames that were written
+        """
+        written = []
+        for filename in list(self._dirty):  # Copy to avoid modification during iteration
+            if self.write_conf_file(filename):
+                written.append(filename)
+        return written
 
     def get_conf_dir(self):
         """Get the path to the conf directory."""
