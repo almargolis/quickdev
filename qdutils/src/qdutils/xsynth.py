@@ -14,10 +14,13 @@ QuickDev modules but XSynth can use XSynth features.
 import os
 import sys
 
-# Bootstrap path setup for running before packages are installed
+# Navigate from qdutils/src/qdutils/xsynth.py to quickdev root
 THIS_MODULE_PATH = os.path.abspath(__file__)
-QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
-QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+QDUTILS_PKG_PATH = os.path.dirname(THIS_MODULE_PATH)  # qdutils/src/qdutils
+QDUTILS_SRC_PATH = os.path.dirname(QDUTILS_PKG_PATH)  # qdutils/src
+QDUTILS_PATH = os.path.dirname(QDUTILS_SRC_PATH)       # qdutils
+QDDEV_PATH = os.path.dirname(QDUTILS_PATH)             # quickdev root
+# src/ layout paths for bootstrapping imports
 QDBASE_SRC_PATH = os.path.join(QDDEV_PATH, "qdbase", "src")
 QDCORE_SRC_PATH = os.path.join(QDDEV_PATH, "qdcore", "src")
 

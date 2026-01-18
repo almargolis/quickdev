@@ -36,8 +36,11 @@ if sys.version_info[0] < 3:
 
 
 THIS_MODULE_PATH = os.path.abspath(__file__)
-QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
-QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+# Navigate from qdutils/src/qdutils/qdstart.py to quickdev root
+QDUTILS_PKG_PATH = os.path.dirname(THIS_MODULE_PATH)  # qdutils/src/qdutils
+QDUTILS_SRC_PATH = os.path.dirname(QDUTILS_PKG_PATH)  # qdutils/src
+QDUTILS_PATH = os.path.dirname(QDUTILS_SRC_PATH)       # qdutils
+QDDEV_PATH = os.path.dirname(QDUTILS_PATH)             # quickdev root
 QDDEV_NAME = os.path.basename(QDDEV_PATH)
 QDBASE_DIR_NAME = "qdbase"
 QDCORE_DIR_NAME = "qdcore"
@@ -187,7 +190,7 @@ class QdStart:
             return False
 
         # Install all quickdev packages that have setup.py
-        packages = ['qdbase', 'qdcore', 'xsynth', 'qdflask', 'qdimages', 'qdcomments']
+        packages = ['qdbase', 'qdcore', 'xsynth', 'qdflask', 'qdimages', 'qdcomments', 'qdutils']
         for pkg in packages:
             pkg_path = os.path.join(QDDEV_PATH, pkg)
             if os.path.exists(os.path.join(pkg_path, 'setup.py')):
@@ -370,7 +373,8 @@ def check_services(qdsite_dpath=None, fix=False, test=False):
         return False
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for qdstart CLI."""
     menu = cliargs.CliCommandLine()
     exenv.command_line_site(menu)
     exenv.command_line_loc(menu)
@@ -462,3 +466,7 @@ if __name__ == "__main__":
     )
 
     menu.cli_run()
+
+
+if __name__ == "__main__":
+    main()
