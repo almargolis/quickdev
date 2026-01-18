@@ -28,11 +28,16 @@ from pathlib import Path
 THIS_MODULE_PATH = os.path.abspath(__file__)
 QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
 QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+# src/ layout paths for bootstrapping imports
+QDBASE_SRC_PATH = os.path.join(QDDEV_PATH, "qdbase", "src")
+QDCORE_SRC_PATH = os.path.join(QDDEV_PATH, "qdcore", "src")
 
 try:
     from qdcore import qdrepos
 except ModuleNotFoundError:
-    sys.path.insert(0, QDDEV_PATH)
+    # Bootstrap mode: packages use src/ layout
+    sys.path.insert(0, QDBASE_SRC_PATH)
+    sys.path.insert(0, QDCORE_SRC_PATH)
     from qdcore import qdrepos
 
 

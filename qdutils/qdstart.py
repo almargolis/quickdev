@@ -43,6 +43,9 @@ QDBASE_DIR_NAME = "qdbase"
 QDCORE_DIR_NAME = "qdcore"
 QDBASE_PATH = os.path.join(QDDEV_PATH, QDBASE_DIR_NAME)
 QDCORE_PATH = os.path.join(QDDEV_PATH, QDCORE_DIR_NAME)
+# src/ layout paths for bootstrapping imports
+QDBASE_SRC_PATH = os.path.join(QDBASE_PATH, "src")
+QDCORE_SRC_PATH = os.path.join(QDCORE_PATH, "src")
 
 # pylint: disable=wrong-import-position
 # These imports are out of position because we want to
@@ -52,9 +55,9 @@ QDCORE_PATH = os.path.join(QDDEV_PATH, QDCORE_DIR_NAME)
 try:
     from qdbase import cliargs
 except ModuleNotFoundError:
-    # We should only get here if we are developing QuickDev and we don't
-    # have the environment setup.
-    sys.path.append(QDDEV_PATH)
+    # Bootstrap mode: packages use src/ layout, add src paths
+    sys.path.insert(0, QDBASE_SRC_PATH)
+    sys.path.insert(0, QDCORE_SRC_PATH)
     from qdbase import cliargs
 from qdbase import cliinput
 from qdbase import exenv
@@ -63,9 +66,10 @@ from qdbase import pdict
 try:
     from qdcore import qdsite
 except ModuleNotFoundError:
-    # We should only get here if we are developing QuickDev and we don't
-    # have the environment setup.
-    sys.path.append(QDDEV_PATH)
+    # Bootstrap mode: add src paths if not already added
+    if QDBASE_SRC_PATH not in sys.path:
+        sys.path.insert(0, QDBASE_SRC_PATH)
+        sys.path.insert(0, QDCORE_SRC_PATH)
     from qdcore import qdsite
 
 from qdbase.qdcheck import CheckMode, CHECK_REGISTRY, get_checker_class

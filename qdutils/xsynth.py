@@ -12,8 +12,23 @@ QuickDev modules but XSynth can use XSynth features.
 """
 
 import os
+import sys
 
-from qdbase import qdsqlite
+# Bootstrap path setup for running before packages are installed
+THIS_MODULE_PATH = os.path.abspath(__file__)
+QDUTILS_PATH = os.path.dirname(THIS_MODULE_PATH)
+QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+QDBASE_SRC_PATH = os.path.join(QDDEV_PATH, "qdbase", "src")
+QDCORE_SRC_PATH = os.path.join(QDDEV_PATH, "qdcore", "src")
+
+try:
+    from qdbase import qdsqlite
+except ModuleNotFoundError:
+    # Bootstrap mode: packages use src/ layout
+    sys.path.insert(0, QDBASE_SRC_PATH)
+    sys.path.insert(0, QDCORE_SRC_PATH)
+    from qdbase import qdsqlite
+
 from qdbase import cliargs
 from qdbase import exenv
 from qdbase import xsource
