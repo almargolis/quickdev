@@ -47,8 +47,17 @@ def get_site_root():
     """
     Determine the site root directory.
 
-    Returns current working directory, assuming it's the site root.
+    Walks up from cwd looking for a directory containing repos/.
+    Falls back to cwd if not found.
     """
+    current = Path(os.getcwd())
+
+    # Walk up looking for repos/ directory
+    for parent in [current] + list(current.parents):
+        if (parent / 'repos').is_dir():
+            return str(parent)
+
+    # Fallback to cwd
     return os.getcwd()
 
 
