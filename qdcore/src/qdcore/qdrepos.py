@@ -136,43 +136,72 @@ class RepoScanner:
         repo_name = repo_path.name
 
         # Look for packages - directories with __init__.py
-        # Check both root level and src/ layout
-        search_paths = [repo_path]
+        # Handles multiple layouts:
+        # 1. repo/package/__init__.py (flat layout)
+        # 2. repo/src/package/__init__.py (src layout at repo level)
+        # 3. repo/pkgdir/src/package/__init__.py (src layout per package)
+
+        for item in repo_path.iterdir():
+            if not item.is_dir():
+                continue
+            if item.name.startswith('.') or item.name.startswith('_'):
+                continue
+            if item.name in ['tests', 'test', 'docs', 'build', 'dist']:
+                continue
+            if item.name.endswith('_tests'):
+                continue
+
+            # Check for flat layout: repo/package/__init__.py
+            init_file = item / '__init__.py'
+            if init_file.exists():
+                self._add_package(cursor, repo_name, item.name, item, counts)
+                continue
+
+            # Check for src layout: repo/pkgdir/src/package/__init__.py
+            src_pkg_path = item / 'src' / item.name
+            if src_pkg_path.exists() and (src_pkg_path / '__init__.py').exists():
+                self._add_package(cursor, repo_name, item.name, src_pkg_path, counts)
+                continue
+
+        # Also check repo/src/ for packages (less common)
         src_path = repo_path / 'src'
         if src_path.exists():
-            search_paths.append(src_path)
-
-        for search_path in search_paths:
-            for item in search_path.iterdir():
+            for item in src_path.iterdir():
                 if not item.is_dir():
                     continue
                 if item.name.startswith('.') or item.name.startswith('_'):
                     continue
-                if item.name in ['tests', 'test', 'docs', 'build', 'dist']:
-                    continue
-
                 init_file = item / '__init__.py'
-                if not init_file.exists():
-                    continue
-
-                # This is a package
-                package_name = item.name
-                isflask, isflaskbp = self._detect_flask_package(item)
-
-                cursor.execute(
-                    '''INSERT OR REPLACE INTO packages
-                       (repo, package, path, dirname, isflask, isflaskbp)
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (repo_name, package_name, str(item), item.name,
-                     1 if isflask else 0, 1 if isflaskbp else 0)
-                )
-                counts['packages'] += 1
-
-                # Scan for qdo_* functions
-                qdo_count = self._scan_package_for_qdo(cursor, package_name, item)
-                counts['qdo_functions'] += qdo_count
+                if init_file.exists():
+                    self._add_package(cursor, repo_name, item.name, item, counts)
 
         return counts
+
+    def _add_package(self, cursor, repo_name, package_name, package_path, counts):
+        """
+        Add a package to the database.
+
+        Args:
+            cursor: Database cursor
+            repo_name: Name of the repository
+            package_name: Name of the package
+            package_path: Path to the package directory
+            counts: Dict to update with counts
+        """
+        isflask, isflaskbp = self._detect_flask_package(package_path)
+
+        cursor.execute(
+            '''INSERT OR REPLACE INTO packages
+               (repo, package, path, dirname, isflask, isflaskbp)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (repo_name, package_name, str(package_path), package_path.name,
+             1 if isflask else 0, 1 if isflaskbp else 0)
+        )
+        counts['packages'] += 1
+
+        # Scan for qdo_* functions
+        qdo_count = self._scan_package_for_qdo(cursor, package_name, package_path)
+        counts['qdo_functions'] += qdo_count
 
     def _detect_flask_package(self, package_path):
         """
