@@ -689,3 +689,4 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
 
 g = ExenvGlobals()
 execution_env = ExecutionEnvironment()
+qdsite_dpath = execution_env.execution_site.qdsite_dpath

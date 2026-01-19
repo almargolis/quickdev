@@ -422,7 +422,7 @@ if __name__ == "__main__":
         '"leading quote',
         'internal"quote',
         'double,""Escape',
-        "Escape,\Escape",
+        "Escape,\\Escape",
     ]
     wsCma = ListToCommaStr(wsList1)
     wsList2 = CommaStrToList(wsCma)

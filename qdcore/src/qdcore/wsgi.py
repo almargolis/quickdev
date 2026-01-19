@@ -6,9 +6,10 @@ Flask applications with Apache mod_wsgi or other WSGI servers.
 """
 
 import os
+from qdbase import exenv
 
 
-def compose_wsgi_file(site_root, filename="flask.wsgi"):
+def compose_wsgi_file(filename="flask.wsgi", wsgi_path=None):
     """
     Create a WSGI file for Flask application deployment.
 
@@ -46,7 +47,8 @@ from app import create_app
 application = create_app()
 '''
 
-    wsgi_path = os.path.join(site_root, filename)
+    if wsgi_path is None:
+        wsgi_path = os.path.join(exenv.qdsite_dpath, filename)
     with open(wsgi_path, 'w', encoding='utf-8') as f:
         f.write(wsgi_content)
 
@@ -54,3 +56,7 @@ application = create_app()
     os.chmod(wsgi_path, 0o755)
 
     return wsgi_path
+
+def qdo_compose_wsgi_file():
+    wsgi_path = compose_wsgi_file()
+    print(f"File '{wsgi_path}' created.")
