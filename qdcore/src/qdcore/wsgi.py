@@ -29,28 +29,26 @@ def compose_wsgi_file(filename="flask.wsgi", wsgi_path=None):
     """
     # TODO: Replace hardcoded values with qdconf variables
     # TODO: Add conditional logic for different configurations
-    wsgi_content = '''#!/usr/bin/python3
-import sys
-import os
-
-# Add your project directory
-project_home = '/var/www/tmih_flask'
-if project_home not in sys.path:
-    sys.path.insert(0, project_home)
-
-# Load environment variables
-from dotenv import load_dotenv
-load_dotenv(os.path.join(project_home, '.env'))
-
-# Import Flask app
-from app import create_app
-application = create_app()
-'''
-
     if wsgi_path is None:
         wsgi_path = os.path.join(exenv.qdsite_dpath, filename)
+
     with open(wsgi_path, 'w', encoding='utf-8') as f:
-        f.write(wsgi_content)
+        f.write("#!/usr/bin/python3\n")
+        f.write("import sys\n")
+        f.write("import os\n")
+        f.write("\n")
+        f.write("# Add your project directory\n")
+        f.write("project_home = '/var/www/tmih_flask'\n")
+        f.write("if project_home not in sys.path:\n")
+        f.write("    sys.path.insert(0, project_home)\n")
+        f.write("\n")
+        f.write("# Load environment variables\n")
+        f.write("from dotenv import load_dotenv\n")
+        f.write("load_dotenv(os.path.join(project_home, '.env'))\n")
+        f.write("\n")
+        f.write("# Import Flask app\n")
+        f.write("from app import create_app\n")
+        f.write("application = create_app()\n")
 
     # Make executable
     os.chmod(wsgi_path, 0o755)
