@@ -9,6 +9,7 @@ import os
 import ast
 import sqlite3
 import inspect
+import yaml
 from pathlib import Path
 
 
@@ -42,7 +43,26 @@ CREATE TABLE IF NOT EXISTS qdo (
     FOREIGN KEY (package) REFERENCES packages(package)
 );
 
+CREATE TABLE IF NOT EXISTS conf_answers (
+    id INTEGER PRIMARY KEY,
+    yaml_path TEXT NOT NULL,
+    conf_key TEXT NOT NULL,
+    conf_value TEXT,
+    UNIQUE(yaml_path, conf_key)
+);
+
+CREATE TABLE IF NOT EXISTS conf_questions (
+    id INTEGER PRIMARY KEY,
+    yaml_path TEXT NOT NULL,
+    conf_key TEXT NOT NULL,
+    help TEXT,
+    type TEXT,
+    UNIQUE(yaml_path, conf_key)
+);
+
 CREATE INDEX IF NOT EXISTS idx_qdo_function ON qdo(function_name);
+CREATE INDEX IF NOT EXISTS idx_conf_answers_key ON conf_answers(conf_key);
+CREATE INDEX IF NOT EXISTS idx_conf_questions_key ON conf_questions(conf_key);
 '''
 
 
@@ -89,8 +109,16 @@ class RepoScanner:
         cursor.execute('DELETE FROM qdo')
         cursor.execute('DELETE FROM packages')
         cursor.execute('DELETE FROM repositories')
+        cursor.execute('DELETE FROM conf_answers')
+        cursor.execute('DELETE FROM conf_questions')
 
-        counts = {'repositories': 0, 'packages': 0, 'qdo_functions': 0}
+        counts = {
+            'repositories': 0,
+            'packages': 0,
+            'qdo_functions': 0,
+            'conf_answers': 0,
+            'conf_questions': 0
+        }
 
         if not self.repos_path.exists():
             conn.commit()
@@ -115,6 +143,8 @@ class RepoScanner:
             pkg_counts = self._scan_repository(cursor, repo_dir)
             counts['packages'] += pkg_counts['packages']
             counts['qdo_functions'] += pkg_counts['qdo_functions']
+            counts['conf_answers'] += pkg_counts['conf_answers']
+            counts['conf_questions'] += pkg_counts['conf_questions']
 
         conn.commit()
         conn.close()
@@ -130,9 +160,9 @@ class RepoScanner:
             repo_path: Path to the repository
 
         Returns:
-            dict with counts: packages, qdo_functions
+            dict with counts: packages, qdo_functions, conf_answers, conf_questions
         """
-        counts = {'packages': 0, 'qdo_functions': 0}
+        counts = {'packages': 0, 'qdo_functions': 0, 'conf_answers': 0, 'conf_questions': 0}
         repo_name = repo_path.name
 
         # Walk directory tree and find any directory with __init__.py
@@ -143,10 +173,20 @@ class RepoScanner:
                           and not d.startswith('_')
                           and d not in ('build', 'dist', 'node_modules', '.git')]
 
+            dir_path = Path(dirpath)
+
             if '__init__.py' in filenames:
-                package_path = Path(dirpath)
-                package_name = package_path.name
-                self._add_package(cursor, repo_name, package_name, package_path, counts)
+                package_name = dir_path.name
+                self._add_package(cursor, repo_name, package_name, dir_path, counts)
+
+            # Check for conf yaml files
+            if 'qd_conf_answers.yaml' in filenames:
+                yaml_path = dir_path / 'qd_conf_answers.yaml'
+                counts['conf_answers'] += self._scan_conf_answers(cursor, yaml_path)
+
+            if 'qd_conf_questions.yaml' in filenames:
+                yaml_path = dir_path / 'qd_conf_questions.yaml'
+                counts['conf_questions'] += self._scan_conf_questions(cursor, yaml_path)
 
         return counts
 
@@ -307,6 +347,99 @@ class RepoScanner:
             params.append(f"**{args.kwarg.arg}")
 
         return ', '.join(params)
+
+    def _scan_conf_answers(self, cursor, yaml_path):
+        """
+        Scan a qd_conf_answers.yaml file and insert into conf_answers table.
+
+        Args:
+            cursor: Database cursor
+            yaml_path: Path to the YAML file
+
+        Returns:
+            Count of entries added
+        """
+        try:
+            with open(yaml_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            return 0
+
+        if not data or not isinstance(data, dict):
+            return 0
+
+        count = 0
+        yaml_path_str = str(yaml_path)
+
+        def traverse(obj, key_parts):
+            nonlocal count
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    traverse(v, key_parts + [k])
+            else:
+                # Leaf value - insert into database
+                conf_key = '.'.join(key_parts)
+                conf_value = str(obj) if obj is not None else ''
+                cursor.execute(
+                    '''INSERT OR REPLACE INTO conf_answers
+                       (yaml_path, conf_key, conf_value)
+                       VALUES (?, ?, ?)''',
+                    (yaml_path_str, conf_key, conf_value)
+                )
+                count += 1
+
+        traverse(data, [])
+        return count
+
+    def _scan_conf_questions(self, cursor, yaml_path):
+        """
+        Scan a qd_conf_questions.yaml file and insert into conf_questions table.
+
+        Args:
+            cursor: Database cursor
+            yaml_path: Path to the YAML file
+
+        Returns:
+            Count of entries added
+        """
+        try:
+            with open(yaml_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            return 0
+
+        if not data or not isinstance(data, dict):
+            return 0
+
+        count = 0
+        yaml_path_str = str(yaml_path)
+
+        def is_question_leaf(obj):
+            """Check if this dict is a question definition (has help or type)."""
+            if not isinstance(obj, dict):
+                return False
+            return 'help' in obj or 'type' in obj
+
+        def traverse(obj, key_parts):
+            nonlocal count
+            if is_question_leaf(obj):
+                # This is a question definition
+                conf_key = '.'.join(key_parts)
+                help_text = obj.get('help', '')
+                type_text = obj.get('type', '')
+                cursor.execute(
+                    '''INSERT OR REPLACE INTO conf_questions
+                       (yaml_path, conf_key, help, type)
+                       VALUES (?, ?, ?, ?)''',
+                    (yaml_path_str, conf_key, help_text, type_text)
+                )
+                count += 1
+            elif isinstance(obj, dict):
+                for k, v in obj.items():
+                    traverse(v, key_parts + [k])
+
+        traverse(data, [])
+        return count
 
 
 def scan_repos(site_root):
