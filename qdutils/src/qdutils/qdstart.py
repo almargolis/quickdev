@@ -26,8 +26,10 @@ QuickDev utilities such as apache.py.
 """
 
 import os
+import sqlite3
 import subprocess
 import sys
+from pathlib import Path
 
 if sys.version_info[0] < 3:
     # stop here because Python v2 import exceptions are different.
@@ -76,14 +78,59 @@ except ModuleNotFoundError:
     from qdcore import qdsite
 
 from qdbase.qdcheck import CheckMode, CHECK_REGISTRY, get_checker_class
+from qdbase.qdconf import QdConf
 
 # pylint: enable=wrong-import-position
 
 
 class QdStart:
-    """Create or repair an QuickDev site."""
+    """
+    Create or repair an QuickDev "standard" site.
 
-    __slots__ = ("conf_path", "debug", "err_ct", "force", "quiet", "qdsite_info")
+    QuickDev has many useful functions that are useful for any application
+    structure. QdStart, QdSite and related services support a standardized
+    and easily extensible application structure that enables composing
+    applications from plug-ins and standardizes the application installation process.
+
+    A QuickDev site is a file system dirtectory that is the root of application
+    execution. QuickDev imposes no restrictions on its location. For web application
+    running under Apache on LINUX systems, the site directory will almost always
+    be under /var/www/.
+
+    A site will always have at least two sub-directories. ../site/repos/ contains the
+    repositories that contain the code used by the application. Most commonly git clones.
+    ../site/conf/ contains information about the running application. This includes
+    secrets needed to access system services, site and application specific
+    constants that are referenced during operations and installer input used to 
+    determine that site's operation.
+
+    Installing an application involves activities like creating directories,
+    writing site specific scripts and installing software. The QdStart system
+    has capabilities to do those things. Its basic method of operation is to
+    ask the installer questions to know what needs to be done. While there are
+    a small number of hard coded questions, most come from qd_conf_questions.yaml 
+    files that are found under /repos/ making the set of questions fully
+    extensible. Optional plugins can have an "enabled" question that gets
+    asked first to avoid asking questions or installing software that is not
+    relevant to the site.
+
+    The /repos/ can also include qd_conf_answers.yaml which contains
+    answers that are used instead of asking the installer. One use of this
+    would be for an application that requires a service that is provided
+    as an optional service in a different repository. The application
+    can supply a "yes" to the plugin enabled question to make sure that
+    it gets installed. QdStart includes a parameter to specify an additional
+    answers file that can be used to automate the installation process.
+
+    All answers are documented in the /conf/ environment providing a
+    complete memory of the installation process. A tool is provided to
+    create a comprehensive answer file to support duplication of the
+    installation process.
+     
+    """
+
+    __slots__ = ("conf_path", "debug", "err_ct", "force", "quiet", "qdsite_info",
+                 "conf", "answers_cache", "db_path")
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -109,6 +156,9 @@ class QdStart:
         self.qdsite_info = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
         print(f"Site Info: {self.qdsite_info}")
         self.quiet = quiet
+        self.db_path = Path(self.qdsite_info.conf_dpath) / 'repos.db'
+        self.conf = QdConf(self.qdsite_info.conf_dpath)
+        self.answers_cache = {}
         if not self.check_conf_path():
             return
         self.qdsite_info.write_site_ini(debug=self.debug)
@@ -118,6 +168,10 @@ class QdStart:
         if not self.configure_venv():
             return
         if not self.configure_applications():
+            return
+        # Load answers and process questions after repos are scanned
+        self.answers_cache = self.load_answers_cache()
+        if not self.process_questions():
             return
         if not self.check_venv_shortcut():
             return
@@ -226,6 +280,153 @@ class QdStart:
 
             if os.path.exists(requirements_txt):
                 self._pip_install_requirements(pip_path, requirements_txt)
+
+        return True
+
+    def handle_question(self, question):
+        """
+        Handle a single configuration question.
+
+        Checks for pre-supplied answer first, then prompts user if needed.
+        Stores the answer in QdConf.
+
+        Args:
+            question: Dict with conf_key, help, type from conf_questions table
+
+        Returns:
+            The answer value, or None if skipped
+        """
+        conf_key = question['conf_key']
+        help_text = question.get('help', '')
+        value_type = question.get('type', 'string')
+
+        # Check for pre-supplied answer
+        if conf_key in self.answers_cache:
+            answer = self.answers_cache[conf_key]
+            if not self.quiet:
+                print(f"  {conf_key}: {answer} (from answers file)")
+            self.conf[conf_key] = answer
+            return answer
+
+        # Check if already answered in conf
+        try:
+            existing = self.conf[conf_key]
+            if not self.quiet:
+                print(f"  {conf_key}: {existing} (existing)")
+            return existing
+        except KeyError:
+            pass
+
+        # Prompt user
+        prompt = f"{conf_key}"
+        if help_text:
+            prompt = f"{help_text}\n{conf_key}"
+
+        if value_type == 'boolean':
+            answer = cliinput.cli_input_yn(prompt)
+        else:
+            answer = cliinput.cli_input_str(prompt)
+
+        if answer is not None:
+            self.conf[conf_key] = answer
+
+        return answer
+
+    def load_answers_cache(self):
+        """
+        Load pre-supplied answers from conf_answers table into cache.
+
+        Returns:
+            Dict mapping conf_key to conf_value
+        """
+        answers = {}
+        if not self.db_path.exists():
+            return answers
+
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('SELECT conf_key, conf_value FROM conf_answers')
+            for row in cursor.fetchall():
+                answers[row[0]] = row[1]
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet
+
+        conn.close()
+        return answers
+
+    def get_questions(self):
+        """
+        Get all configuration questions from the database.
+
+        Returns:
+            List of dicts with conf_key, help, type
+        """
+        questions = []
+        if not self.db_path.exists():
+            return questions
+
+        conn = sqlite3.connect(str(self.db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT conf_key, help, type, yaml_path
+                FROM conf_questions
+                ORDER BY conf_key
+            ''')
+            questions = [dict(row) for row in cursor.fetchall()]
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet
+
+        conn.close()
+        return questions
+
+    def process_questions(self):
+        """
+        Process all configuration questions.
+
+        Handles "enabled" questions first to skip disabled plugins.
+
+        Returns:
+            True if successful
+        """
+        questions = self.get_questions()
+        if not questions:
+            return True
+
+        print("\nProcessing configuration questions...")
+
+        # Separate enabled questions from others
+        enabled_questions = [q for q in questions if q['conf_key'].endswith('.enabled')]
+        other_questions = [q for q in questions if not q['conf_key'].endswith('.enabled')]
+
+        # Process enabled questions first
+        disabled_prefixes = set()
+        for question in enabled_questions:
+            answer = self.handle_question(question)
+            if answer in (False, 'false', 'no', 'False', 'No', '0'):
+                # Extract prefix to skip related questions
+                prefix = question['conf_key'].rsplit('.enabled', 1)[0]
+                disabled_prefixes.add(prefix)
+
+        # Process other questions, skipping disabled plugins
+        for question in other_questions:
+            conf_key = question['conf_key']
+            # Check if this question belongs to a disabled plugin
+            skip = False
+            for prefix in disabled_prefixes:
+                if conf_key.startswith(prefix + '.'):
+                    skip = True
+                    break
+            if not skip:
+                self.handle_question(question)
+
+        # Save any dirty conf files
+        if self.conf.is_dirty():
+            self.conf.write_all_dirty_conf_files()
 
         return True
 

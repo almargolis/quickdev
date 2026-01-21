@@ -65,6 +65,12 @@ CREATE INDEX IF NOT EXISTS idx_conf_answers_key ON conf_answers(conf_key);
 CREATE INDEX IF NOT EXISTS idx_conf_questions_key ON conf_questions(conf_key);
 '''
 
+class ConfQuestions:
+    def __init__(self, conf_type, conf_key, conf_help, yaml_path=None):
+        self.conf_type = conf_type
+        self.conf_key = conf_key
+        self.conf_help = conf_help
+        self.yaml_path = yaml_path
 
 class RepoScanner:
     """
