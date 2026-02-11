@@ -36,16 +36,19 @@ class QdConf:
     Supports YAML, INI, and .env files with dot-notation access.
     """
 
-    def __init__(self, conf_dir=None):
+    def __init__(self, conf_dir=None, boot_mode=False):
         """
         Initialize configuration manager.
 
         Args:
             conf_dir: Optional explicit path to conf directory.
                      If None, auto-detects using cwd then fallbacks.
+            boot_mode: If True, don't read any files (treat as empty).
+                      Used during bootstrapping when config files don't exist yet.
         """
         self._cache = {}  # Cache for loaded files
         self._dirty = set()  # Set of filenames that have been modified
+        self._boot_mode = boot_mode
         self._conf_dir = self._locate_conf_dir(conf_dir)
 
     def _locate_conf_dir(self, explicit_path=None):
@@ -138,6 +141,12 @@ class QdConf:
         Returns:
             Dict containing parsed configuration
         """
+        # In boot mode, don't read files - treat as empty
+        if self._boot_mode:
+            if filename not in self._cache:
+                self._cache[filename] = {}
+            return self._cache[filename]
+
         # Check cache first
         if filename in self._cache:
             return self._cache[filename]
@@ -426,6 +435,8 @@ class QdConf:
 
         # Clear dirty flag for this file
         self._dirty.discard(filename)
+        # Exit boot mode after first successful write
+        self._boot_mode = False
         logging.info(f"Wrote configuration to {filepath}")
         return True
 
@@ -448,6 +459,22 @@ class QdConf:
 
     def __repr__(self):
         return f"QdConf(conf_dir={self._conf_dir}, cached_files={list(self._cache.keys())})"
+
+    @property
+    def boot_mode(self):
+        """
+        Return True if in bootstrap mode (files not read).
+
+        In boot mode, QdConf doesn't read files from disk - all values
+        come from what has been explicitly set. This is used during
+        site initialization when config files don't exist yet.
+        """
+        return self._boot_mode
+
+    @boot_mode.setter
+    def boot_mode(self, value):
+        """Set bootstrap mode."""
+        self._boot_mode = bool(value)
 
 
 # Convenience singleton instance

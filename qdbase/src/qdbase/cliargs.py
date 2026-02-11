@@ -113,6 +113,7 @@ class CliCommandLineParameterItem(
     __slots__ = (
         "default_none",
         "default_value",
+        "is_multiple",
         "is_positional",
         "is_required",
         "parameter_name",
@@ -124,6 +125,7 @@ class CliCommandLineParameterItem(
         argument_code,
         default_none=False,
         default_value=None,
+        is_multiple=False,
         is_positional=False,
         is_required=False,
         parameter_name=None,
@@ -136,6 +138,7 @@ class CliCommandLineParameterItem(
         )
         self.default_none = default_none
         self.default_value = default_value
+        self.is_multiple = is_multiple
         if is_positional:
             self.is_positional = True
             self.is_required = True
@@ -279,16 +282,25 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
             return False
         assert isinstance(argument_item, CliCommandLineParameterItem)
         if argument_code in self.cli_data:
-            self.err_code = 404
-            self.err_msg = f"Duplicate argument '{argument_code}'."
-            return False
+            # we have seen this flag before
+            if not argument_item.is_multiple:
+                self.err_code = 404
+                self.err_msg = f"Duplicate argument '{argument_code}'."
+                return False
+        else:
+            # this is first occurance of this argument
+            if argument_item.is_multiple:
+                self.cli_data[argument_code] = []
         if argument_item.value_type == PARAMETER_BOOLEAN:
             self.cli_data[argument_code] = True
             return True
         if value in [None, ""]:
             self.value_item = argument_item
             return True
-        self.cli_data[argument_code] = value
+        if argument_item.is_multiple:
+            self.cli_data[argument_code].append(value)
+        else:
+            self.cli_data[argument_code] = value
         return True
 
     def scan_flags(self, flags):
@@ -313,23 +325,26 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
         self.cli_data = {}
         self.action_item = None
         self.value_item = None
-        for this_ix, this in enumerate(self.cli_argv):
-            if this_ix < 1:
+        for this_arg_ix, this_arg_value in enumerate(self.cli_argv):
+            if this_arg_ix < 1:
                 # self.cli_argv[0] is python module name as entered on command line.
                 #    That could be either a relative or absolute path.
                 continue
             if self.value_item is not None:
                 # get value for previous argument
-                self.cli_data[self.value_item.argument_code] = this
+                if self.value_item.is_multiple:
+                    self.cli_data[self.value_item.argument_code].append(this_arg_value)
+                else:
+                    self.cli_data[self.value_item.argument_code] = this_arg_value
                 self.value_item = None
                 continue
             # get the next argument(s)
-            if this[:2] == "--":
-                if not self.process_argument(this[2:], "--"):
+            if this_arg_value[:2] == "--":
+                if not self.process_argument(this_arg_value[2:], "--"):
                     break
                 continue
-            if this[0] == "-":
-                if not self.scan_flags(this[1:]):
+            if this_arg_value[0] == "-":
+                if not self.scan_flags(this_arg_value[1:]):
                     break
                 continue
             # this is an argument without a dash
@@ -337,21 +352,21 @@ class CliCommandLine:  # pylint: disable=too-many-instance-attributes
                 # This should maybe be an explicit option or have
                 # more conditions since "this" could be a file name
                 # that happens to be the same as an action argument.
-                if (this in self.items) and isinstance(
-                    self.items[this], CliCommandLineActionItem
+                if (this_arg_value in self.items) and isinstance(
+                    self.items[this_arg_value], CliCommandLineActionItem
                 ):
-                    if not self.process_argument(this, ""):
+                    if not self.process_argument(this_arg_value, ""):
                         break
                     continue
             if self.file_list_item is not None:
                 if self.file_list is None:
                     self.file_list = []
-                self.file_list.append(this)
+                self.file_list.append(this_arg_value)
                 continue
             # this could be a flag(s) without a preceeding dash.
             # this is allowed if the command does not have
             # a file list but is potentially ambiguous.
-            if not self.scan_flags(this):
+            if not self.scan_flags(this_arg_value):
                 break
         # All self.cli_argv tokens are processed, now cleanup.
         if self.file_list_item is not None:

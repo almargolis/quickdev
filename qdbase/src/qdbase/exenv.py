@@ -29,20 +29,47 @@ import shutil
 import sys
 import traceback
 
-try:
-    import werkzeug
-except ModuleNotFoundError:
-    werkzeug = None
 
-from . import cliargs
-from . import cliinput
+from qdbase import cliargs
+from qdbase import cliinput
+
+# Configuration key constants for site.yaml
+# These are used by both exenv (QdSite) and qdcore.qdrepos
+CONF_SITE_DPATH = 'site.qdsite_dpath'
+CONF_SITE_PREFIX = 'site.qdsite_prefix'
+CONF_VENV_DPATH = 'site.venv_dpath'
+
+from qdbase import qdos
 
 try:
-    from qdcore import qdsite
-except ModuleNotFoundError:
-    # exenv must always be importable because it is used
-    # by xsynth. qdsite capabiliites are not required.
-    qdsite = None  # pylint: disable=invalid-name
+    from qdbase import qdconf
+except (ModuleNotFoundError, ImportError):
+    # Bootstrap mode - qdconf may not be available yet (requires pyyaml)
+    qdconf = None
+
+# Minimal QuickDev site structure constants
+SITE_CONF_DIR_NAME = 'conf'
+SITE_CONF_FILE_NAME = 'site.yaml'
+SITE_REPOS_DIR_NAME = 'repos'
+SITE_REPOS_DB_NAME = 'repos.db'
+SITE_ENV_FILE_NAME = '.env'
+
+CONF_ETC_ORG = "etc_org"
+
+CONF_SUBDIRECTORIES = [CONF_ETC_ORG]
+
+HDB_DEVSITES = "qdsites"
+HDB_WEBSITES = "websites"
+
+CONF_PARM_ACRONYM = "acronym"
+CONF_PARM_UUID = "uuid"
+CONF_PARM_HOST_NAME = "domain_name"
+CONF_PARM_WEBSITE_SUBDIR = "website_subdir"
+CONF_PARM_SITE_DPATH = "qdsite_dpath"
+CONF_PARM_SITE_UDI = "site_udi"
+
+VENV_ACTIVATE_SUB_FPATH = "bin/activate"
+
 
 #
 # Command line flags commonly used by QuickDev utilities.
@@ -52,8 +79,9 @@ except ModuleNotFoundError:
 ARG_D_DEBUG = "d"
 ARG_L_CONF_LOC = "l"
 ARG_N_NO_SITE = "n"
+ARG_P_SITE_PREFIX = "p"
 ARG_Q_QUIET = "q"
-ARG_S_SITE = "s"
+ARG_S_SITE_DPATH = "s"
 ARG_V_VERBOSE = "v"
 ARG_W_WEBSITE = "w"
 
@@ -62,41 +90,164 @@ SYMLINK_TYPE_FILE = "f"
 
 OS_ENV_VIRTUAL_ENV = "VIRTUAL_ENV"
 
-
-def safe_join(*args):
+def identify_site(site=None):
     """
-    extension of os.path.join() that is less susceptible to
-    malicious input. This is an extension of werkzeug.utils.safe_join()
-    that neatly handles a chroot type setup without detracting
-    from safety.
-
-    Falls back to a basic implementation when werkzeug is not installed.
+    Returns QdSite() object if a site can be identified using the site
+    parameter or the current working directory.
     """
-    args = list(args)
-    if len(args) > 1:
-        if args[1][0] == "/":
-            args[1] = args[1][1:]
-    if werkzeug is not None:
-        return werkzeug.utils.safe_join(*args)  # pylint: disable=no-value-for-parameter
-    # Fallback when werkzeug is not installed
-    if len(args) == 0:
+    if execution_env.execution_site is not None:
+        if execution_env.execution_site.qdsite_valid:
+            return execution_env.execution_site
+        execution_env.execution_site.reload(qdsite_dpath=site)
+        if execution_env.execution_site.qdsite_valid:
+            return execution_env.execution_site
         return None
-    base = args[0]
-    for path in args[1:]:
-        if os.path.isabs(path):
+    return None  # we really shouldn't get here
+
+
+
+def get_site_by_acronym(acronym):
+    """
+    Get a QdSite by its acronym/prefix.
+
+    Note: This looks in the host's qdsites directory for a site configuration.
+    """
+    # Look for site configuration in host qdsites directory
+    site_conf_dir = qdos.safe_join(g.qdhost_qdsites_dpath, acronym, 'conf')
+    if site_conf_dir and os.path.isdir(site_conf_dir):
+        conf = qdconf.QdConf(conf_dir=site_conf_dir)
+        qdsite_dpath = os.path.dirname(site_conf_dir)
+        return QdSite(qdsite_dpath=qdsite_dpath)
+    return None
+
+
+class QdSite:
+    """
+    QdSite is a container for core information regarding a site.
+
+    QdSite only reflects existing information. It does not create
+    site information or directories. Use QdStart to initialize
+    or repair a site.
+
+    A global instance is created within exenv.ExecutionEnvironment()
+    which describes the site where the current program is executing,
+    which could be an development site
+    for QdDev itself or a host management site. Programs run from there
+    may create additional instances for a site being configured.
+
+    QdSite() is instanciated speculatively by exenv. We don't want to
+    raise an exception here because failures can be caused just
+    because we haven't yet pointed to the correct site directory.
+    Problems are therefore flagged instead of raised.
+    Check qdsite_valid and qdsite_errs for status.
+    """
+
+    __slots__ = (
+        "conf_dpath",
+        "host_site_data",
+        "qdconf",
+        "qdsite_errs",
+        "qdsite_dpath",
+        "qdsite_valid",
+        "qdsite_dname",
+        "qdsite_prefix",
+    )
+
+    def __init__(self, **argv):
+        for this_slot in self.__slots__:
+            setattr(self, this_slot, None)
+        self.reload(**argv)
+
+    def reload(self, **argv):
+        for this_slot in self.__slots__:
+            if this_slot == 'qdsite_dpath':
+                continue
+            setattr(self, this_slot, None)
+        self.qdsite_errs = []
+
+        if 'qdsite_dpath' in argv:
+            self.qdsite_dpath = argv['qdsite_dpath']
+        if self.qdsite_dpath is None:
+            self.qdsite_dpath = os.getcwd()
+        self.qdsite_dpath = os.path.abspath(self.qdsite_dpath)
+
+        if not os.path.isdir(self.qdsite_dpath):
+            self.qdsite_errs.append(f"Invalid qdsite path '{self.qdsite_dpath}'.")
+            self.qdsite_valid = False
+            return
+
+        self.qdsite_dname = os.path.basename(self.qdsite_dpath)
+        if self.qdsite_dname == "":
+            self.qdsite_errs.append(
+                f"Invalid qdsite directory name '{self.qdsite_dpath}'"
+            )
+            self.qdsite_valid = False
+            return
+
+        self.conf_dpath = os.path.join(self.qdsite_dpath, SITE_CONF_DIR_NAME)
+        if not os.path.isdir(self.conf_dpath):
+            self.qdsite_errs.append(f"Invalid qdsite conf path '{self.conf_dpath}'.")
+            self.qdsite_valid = False
+            return
+
+        self.qdconf = qdconf.QdConf(conf_dir=self.conf_dpath)
+        self.qdsite_prefix = self.qdconf.get(CONF_SITE_PREFIX, '')
+        if self.qdsite_prefix == '':
+            self.qdsite_errs.append(f"Invalid qdsite prefix '{self.qdsite_prefix}'.")
+            self.qdsite_valid = False
+            return
+
+    def __str__(self):
+        if self.qdsite_valid:
+            return f"SITE Valid {self.qdsite_dpath} prefix={self.qdsite_prefix}."
+        else:
+            return f"SITE Invalid {self.qdsite_errs}"
+
+    @property
+    def venv_dpath(self):
+        """
+        Return the path to the virtual environment directory.
+        Uses <qdsite_prefix>.venv as the venv directory name.
+        """
+        if not self.qdsite_valid:
             return None
-        joined = os.path.join(base, path)
-        real_base = os.path.realpath(base)
-        real_joined = os.path.realpath(joined)
-        # Check that joined path is within base directory
-        # Handle root directory "/" as a special case
-        if real_base == "/":
-            if not real_joined.startswith("/"):
-                return None
-        elif not real_joined.startswith(real_base + os.sep) and real_joined != real_base:
+        return os.path.join(self.qdsite_dpath, f"{self.qdsite_prefix}.venv")
+
+    def get_venv_activate_fpath(self):
+        """
+        This attempts to get the fpath to the VENV activate script.
+        Uses <qdsite_prefix>.venv as the venv directory name.
+        If the site hasn't been fully configured, it uses the current VENV
+        if it finds one.
+        """
+        if self.venv_dpath and os.path.isdir(self.venv_dpath):
+            return os.path.join(self.venv_dpath, VENV_ACTIVATE_SUB_FPATH)
+        # Fallback to current VENV if site not fully configured
+        venv_dpath = os.environ.get(OS_ENV_VIRTUAL_ENV, None)
+        if venv_dpath is None:
             return None
-        base = joined
-    return base
+        return os.path.join(venv_dpath, VENV_ACTIVATE_SUB_FPATH)
+
+
+    def write_site_config(self):
+        """
+        Write site configuration to site.yaml.
+        Creates conf directory if needed.
+        """
+        if qdconf is None:
+            raise RuntimeError("Cannot write site config: qdconf module not available")
+
+        if self.qdconf is None:
+            self.qdconf = qdconf.QdConf(conf_dir=self.conf_dpath)
+
+        self.qdconf[CONF_SITE_DPATH] = self.qdsite_dname
+        self.qdconf[CONF_SITE_PREFIX] = self.qdsite_prefix
+        self.qdconf.write_conf_file('site')
+
+    @property
+    def synthesis_db_path(self):
+        return None
+
 
 
 def check_venv(venv_dpath):  # pylint: disable=too-many-return-statements
@@ -252,63 +403,6 @@ def command_line_website(menu):
     return item
 
 
-def handle_error(msg, error_func, error_print, raise_ex):
-    """
-    Print error message.
-
-    Note that only one of the print nodes is executed. This makes it a little
-    terser to call the client procedure.
-    """
-    if raise_ex:
-        raise ValueError(msg)
-    if error_func is not None:
-        error_func(msg)
-    elif error_print:
-        print(msg)
-
-
-def make_directory(
-    name,  # pylint: disable=unused-argument
-    path,
-    force=False,
-    mode=511,
-    quiet=False,
-    error_func=None,
-    error_print=True,
-    raise_ex=False,
-):  # pylint: disable=too-many-arguments
-    """
-    Create a directory if it doesn't exist.
-
-    The default mode 511 is the default of os.mkdir. It is specified here
-    because os.mkdir doesn't accept None.
-
-    force was added for pytest but could be useful in other cases.
-    """
-
-    global return_code  # pylint: disable=global-statement, invalid-name
-    return_code = 0  # pylint: disable=global-statement, invalid-name
-    if os.path.exists(path):
-        if not os.path.isdir(path):
-            err_msg = f"'{path}' is not a directory."
-            handle_error(err_msg, error_func, error_print, raise_ex)
-            return_code = 101
-            return False
-    else:
-        if force or cliinput.cli_input_yn(f"Create directory '{path}'?"):
-            try:
-                os.mkdir(path, mode=mode)
-            except PermissionError:
-                err_msg = "Permission error. Use sudo."
-                handle_error(err_msg, error_func, error_print, raise_ex)
-                return_code = 102
-                return False
-        else:
-            return_code = 102
-            return False
-    if not quiet:
-        print(f"{name} directory: {path}.")
-    return True
 
 
 #
@@ -335,146 +429,6 @@ def save_org(source_path):
     if not os.path.exists(org_file_path):
         shutil.copy2(source_path, org_file_path)
 
-
-#
-# make_symlink
-#
-# Errors may result in going from having a symlink to having none.
-#
-# If calling with a full path, set name part to None or ''
-#
-def make_symlink(
-    target_type,
-    target_directory,
-    target_name=None,
-    link_directory=None,
-    link_name=None,
-    error_func=None,
-):  # pylint: disable=too-many-arguments, too-many-return-statements, too-many-branches
-    """
-    This is an extension of os.symlink() with more
-    flexibility describing paths and handling
-    exceptions.
-    """
-    if (target_name is None) or (target_name == ""):
-        target_path = os.path.join(target_directory)
-        target_name = os.path.basename(target_path)
-    else:
-        target_path = os.path.join(target_directory, target_name)
-    if (link_directory is None) or (link_directory == ""):
-        link_directory = os.getcwd()
-    if (link_name is None) or (link_name == ""):
-        link_name = target_name
-    link_path = os.path.join(link_directory, link_name)
-    #
-    # Make sure the link is valid before doing anything to any existing link
-    #
-    try:
-        target_stat = os.stat(target_path)
-    except FileNotFoundError:
-        target_stat = None
-    if target_stat is None:
-        if error_func is not None:
-            error_func(f"Symlink target '{target_path}' does not exist")
-        return False
-    if os.path.islink(target_path):
-        if error_func is not None:
-            error_func(
-                f"Symlink target '{target_path}' is a symlink. Symlink not created."
-            )
-        return False
-    if target_type == SYMLINK_TYPE_DIR:
-        if not os.path.isdir(target_path):
-            if error_func is not None:
-                error_func(
-                    f"Symlink target '{target_path}' is not a directory. Symlink not created."
-                )
-            return False
-    elif target_type == SYMLINK_TYPE_FILE:
-        if not os.path.isfile(target_path):
-            if error_func is not None:
-                error_func(
-                    f"Symlink target '{target_path}' is not a file. Symlink not created."
-                )
-            return False
-    else:
-        if error_func is not None:
-            error_func(
-                f"Symlink '{target_path}' type code invalid. Symlink not created."
-            )
-        return False
-    #
-    # Deal with any existing link or file
-    #
-    if os.path.islink(link_path):
-        try:
-            os.remove(link_path)
-        except FileNotFoundError:
-            if error_func is not None:
-                error_func(f"Unable to remove existing symlink '{link_path}'.")
-            return False
-    try:
-        link_stat = os.stat(link_path)
-    except FileNotFoundError:
-        link_stat = None
-    if link_stat is not None:
-        if error_func is not None:
-            error_func(
-                f"File exists at symlink '{link_path}'. It must be removed to continue."
-            )
-        return False
-    #
-    # Make the symlink
-    #
-    try:
-        os.symlink(target_path, link_path)
-    except FileNotFoundError:
-        if error_func is not None:
-            error_func(f"Unable to create symlink '{target_path}'.")
-        return False
-    return True
-
-
-def make_symlink_to_file(
-    target_directory,
-    target_name=None,
-    link_directory=None,
-    link_name=None,
-    error_func=None,
-):
-    """
-    This is an extension of os.symlink() specifically
-    for symlinks to files.
-    """
-    return make_symlink(
-        SYMLINK_TYPE_FILE,
-        target_directory,
-        target_name,
-        link_directory,
-        link_name,
-        error_func=error_func,
-    )
-
-
-def make_symlink_to_directory(
-    target_directory,
-    target_name=None,
-    link_directory=None,
-    link_name=None,
-    error_func=None,
-):
-    """
-    This is an extension of os.symlink() specifically
-    for symlinks to directories.
-    """
-    return make_symlink(
-        SYMLINK_TYPE_DIR,
-        target_directory,
-        target_name,
-        link_directory,
-        link_name,
-        error_func=error_func,
-    )
 
 
 class ExecutionUser:  # pylint: disable=too-few-public-methods
@@ -529,7 +483,7 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
         self.execution_cwd = os.getcwd()
         self.execution_user = ExecutionUser(os.getuid(), os.geteuid())
         try:
-            self.execution_site = qdsite.QdSite()
+            self.execution_site = QdSite()
         except:  # pylint: disable=bare-except
             # This non-specific except clause silently hides all sorts of
             # errors. This is necessary during bootstrapping because qdsite
@@ -689,4 +643,4 @@ class ExecutionEnvironment:  # pylint: disable=too-many-instance-attributes
 
 g = ExenvGlobals()
 execution_env = ExecutionEnvironment()
-qdsite_dpath = execution_env.execution_site.qdsite_dpath
+qdsite_dpath = execution_env.execution_site.qdsite_dpath if execution_env.execution_site else None

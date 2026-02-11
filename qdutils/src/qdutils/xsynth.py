@@ -36,15 +36,10 @@ from qdbase import cliargs
 from qdbase import exenv
 from qdbase import xsource
 
-try:
-    from qdcore import qdsite
-
-    BOOTSTRAP_MODE = False
-except (ModuleNotFoundError, SyntaxError):
-    # May not be found because its an xpy that might not
-    # have been gen'd.
-    BOOTSTRAP_MODE = True
-    qdsite = None  # pylint: disable=invalid-name
+# QdSite is now in exenv. BOOTSTRAP_MODE is determined by whether
+# the site configuration is valid.
+BOOTSTRAP_MODE = not exenv.execution_env.execution_site or \
+                 not exenv.execution_env.execution_site.qdsite_valid
 
 # These paths and the qdcore import exception logic below are
 # required for when xpython is run before qdstart has
@@ -130,9 +125,7 @@ class XSynth:  # pylint: disable=too-many-instance-attributes
         if BOOTSTRAP_MODE or no_site:
             self.site = None
         else:
-            self.site = qdsite.identify_site(  # pylint: disable=assignment-from-none
-                site
-            )
+            self.site = exenv.identify_site(site)
         #
         # Open synthesis database
         #

@@ -7,6 +7,7 @@ from qdbase import cliargs
 from qdbase import cliinput
 from qdbase import exenv
 from qdbase import pdict
+from qdbase import qdos
 from qdbase import qdsqlite
 
 from qdcore import filedriver
@@ -15,7 +16,7 @@ from qdcore import virtfile
 from qdcore import utils
 from qdcore import inifile
 from qdcore import qdconst
-from qdcore import qdsite
+# qdsite was merged into exenv
 
 
 #
@@ -289,7 +290,7 @@ class ApacheHosting:
 
     def __init__(self):
         # just consider this a good place to track core directories.
-        self.apache_config_dir_path = exenv.safe_join(
+        self.apache_config_dir_path = qdos.safe_join(
             exenv.g.root, APACHE_PLATFORM["apache_config_dir_path"]
         )
         self.apache_config_file_path = os.path.join(
@@ -358,10 +359,11 @@ class ApacheHosting:
 
         site_info is owned by application developers.
         """
-        site_acronym = host_devsite_ini[qdsite.CONF_PARM_ACRONYM]
-        qdsite_dpath = host_devsite_ini[qdsite.CONF_PARM_SITE_DPATH]
-        domain_name = host_website_ini[qdsite.CONF_PARM_HOST_NAME]
-        website_subdir = site_info.ini_data[qdsite.CONF_PARM_WEBSITE_SUBDIR]
+        site_acronym = host_devsite_ini[exenv.CONF_PARM_ACRONYM]
+        qdsite_dpath = host_devsite_ini[exenv.CONF_PARM_SITE_DPATH]
+        domain_name = host_website_ini[exenv.CONF_PARM_HOST_NAME]
+        # WEBSITE_SUBDIR is now stored via qdconf
+        website_subdir = site_info.qdconf.get('site.website_subdir', '') if site_info.qdconf else ''
 
         apache_conf_path = os.path.join(
             self.sites_available_dir_path, site_acronym + ".conf"
@@ -413,14 +415,14 @@ def init_hosting():
 def config_vhosts():
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
     apache_host = ApacheHosting()
-    websites = db.select(qdsite.HDB_WEBSITES)
+    websites = db.select(exenv.HDB_WEBSITES)
     for host_website_ini in websites:
         host_devsite_ini = db.lookup(
-            qdsite.qdsite.HDB_DEVSITES,
-            where={qdsite.CONF_PARM_UUID: host_website_ini[qdsite.CONF_PARM_UUID]},
+            exenv.HDB_DEVSITES,
+            where={exenv.CONF_PARM_UUID: host_website_ini[exenv.CONF_PARM_UUID]},
         )
-        qdsite_info = qdsite.QdSite(
-            qdsite_dpath=host_devsite_ini[qdsite.CONF_PARM_SITE_DPATH]
+        qdsite_info = exenv.QdSite(
+            qdsite_dpath=host_devsite_ini[exenv.CONF_PARM_SITE_DPATH]
         )
         apache_host.create_virtual_host(host_devsite_ini, host_website_ini, qdsite_info)
 
@@ -430,29 +432,34 @@ def show_hosting():
 
 
 webini_dict = pdict.TupleDict()
-webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
-webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_HOST_NAME))
-webini_dict.add_column(pdict.Text(qdsite.CONF_PARM_WEBSITE_SUBDIR))
+webini_dict.add_column(pdict.Text(exenv.CONF_PARM_UUID))
+webini_dict.add_column(pdict.Text(exenv.CONF_PARM_HOST_NAME))
+webini_dict.add_column(pdict.Text(exenv.CONF_PARM_WEBSITE_SUBDIR))
 
 
 def register_website(qdsite_dpath=None, api_data=None):
     """
     Register a website that has not previously been registered.
     """
-    site = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
+    import uuid as uuid_module
+    site = exenv.QdSite(qdsite_dpath=qdsite_dpath)
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
+
+    site_uuid = str(uuid_module.uuid4().bytes)
+    site_udi = ""  # TODO: get next UDI from database
 
     # Update hosting database
     website_row = {}
-    website_row[qdsite.CONF_PARM_UUID] = site_uuid
-    website_row[qdsite.CONF_PARM_HOST_NAME] = site.ini_data[qdsite.CONF_PARM_ACRONYM]
-    website_row[qdsite.CONF_PARM_WEBSITE_SUBDIR] = site.qdsite_dpath
-    db.insert(qdsite.HDB_WEBSITES, website_row)
+    website_row[exenv.CONF_PARM_UUID] = site_uuid
+    website_row[exenv.CONF_PARM_HOST_NAME] = site.site_prefix
+    website_row[exenv.CONF_PARM_WEBSITE_SUBDIR] = site.qdsite_dpath
+    db.insert(exenv.HDB_WEBSITES, website_row)
 
-    # Update develelopment site conf file
-    site.ini_data[qdsite.CONF_PARM_UUID] = site_uuid
-    site.ini_data[qdsite.CONF_PARM_SITE_UDI] = site_udi
-    site.write_site_ini()
+    # Update development site conf file
+    if site.qdconf is not None:
+        site.qdconf['site.uuid'] = site_uuid
+        site.qdconf['site.site_udi'] = site_udi
+        site.qdconf.write_conf_file('site')
 
 
 if __name__ == "__main__":

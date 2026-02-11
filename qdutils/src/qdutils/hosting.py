@@ -14,31 +14,31 @@ from qdbase import exenv
 from qdbase import cliargs
 from qdbase import cliinput
 from qdbase import pdict
+from qdbase import qdos
 from qdbase import qdsqlite
 
-from qdcore import qdsite
-from qdcore import qdconst
+# qdsite was merged into exenv; constants are now in exenv
 
 from . import apache
 from . import qdstart
 
 hdb_dict = pdict.DbDictDb()
 
-d = hdb_dict.add_table(pdict.DbDictTable(qdsite.HDB_DEVSITES))
-d.add_column(pdict.Text(qdsite.CONF_PARM_ACRONYM))
-d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
-d.add_column(pdict.Text(qdsite.CONF_PARM_SITE_DPATH))
-d.add_column(pdict.Text(qdsite.CONF_PARM_SITE_UDI))
-d.add_index("ix_acronym", qdsite.CONF_PARM_ACRONYM)
-d.add_index("ix_uuid", qdsite.CONF_PARM_UUID)
-d.add_index("ix_qdsite_dpath", qdsite.CONF_PARM_SITE_DPATH)
-d.add_index("ix_udi", qdsite.CONF_PARM_SITE_UDI)
+d = hdb_dict.add_table(pdict.DbDictTable(exenv.HDB_DEVSITES))
+d.add_column(pdict.Text(exenv.CONF_PARM_ACRONYM))
+d.add_column(pdict.Text(exenv.CONF_PARM_UUID))
+d.add_column(pdict.Text(exenv.CONF_PARM_SITE_DPATH))
+d.add_column(pdict.Text(exenv.CONF_PARM_SITE_UDI))
+d.add_index("ix_acronym", exenv.CONF_PARM_ACRONYM)
+d.add_index("ix_uuid", exenv.CONF_PARM_UUID)
+d.add_index("ix_qdsite_dpath", exenv.CONF_PARM_SITE_DPATH)
+d.add_index("ix_udi", exenv.CONF_PARM_SITE_UDI)
 
-d = hdb_dict.add_table(pdict.DbDictTable(qdsite.HDB_WEBSITES))
-d.add_column(pdict.Text(qdsite.CONF_PARM_UUID))
-d.add_column(pdict.Text(qdsite.CONF_PARM_HOST_NAME))
-d.add_column(pdict.Text(qdsite.CONF_PARM_WEBSITE_SUBDIR))
-d.add_index("ix_host_name", qdsite.CONF_PARM_HOST_NAME)
+d = hdb_dict.add_table(pdict.DbDictTable(exenv.HDB_WEBSITES))
+d.add_column(pdict.Text(exenv.CONF_PARM_UUID))
+d.add_column(pdict.Text(exenv.CONF_PARM_HOST_NAME))
+d.add_column(pdict.Text(exenv.CONF_PARM_WEBSITE_SUBDIR))
+d.add_index("ix_host_name", exenv.CONF_PARM_HOST_NAME)
 
 #
 # the following are host dependent globals
@@ -63,13 +63,13 @@ def init_hosting(force=False):
     if not force:
         if not cliinput.cli_input_yn("Do you want to initialize or repair this host?"):
             sys.exit(-1)
-    exenv.make_directory(
+    qdos.make_directory(
         "Host configuraration", exenv.g.qdhost_dpath, force=force, raise_ex=True
     )
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath, db_dict=hdb_dict)
     for this in exenv.g.qdhost_all_subdirs:
         this_dpath = os.path.join(exenv.g.qdhost_dpath, this)
-        exenv.make_directory(
+        qdos.make_directory(
             "Host conf subdirectory", this_dpath, force=force, raise_ex=True
         )
     print(repr(exenv.execution_env.execution_user))
@@ -94,34 +94,35 @@ def verify_site_registration(site):
     database are consistent.
     """
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
-    site_acronym = site.ini_data.get(qdsite.CONF_PARM_ACRONYM, "")
-    qdsite_dpath = site.ini_data.get(qdsite.CONF_PARM_SITE_DPATH, "")
-    site_uuid = site.ini_data.get(qdsite.CONF_PARM_UUID, "")
-    site_udi = site.ini_data.get(qdsite.CONF_PARM_SITE_UDI, "")
-    where = {qdsite.CONF_PARM_SITE_DPATH: qdsite_dpath}
-    db_rows = db.select(qdsite.HDB_DEVSITES, where=where)
+    site_acronym = site.qdsite_prefix or ""
+    qdsite_dpath = site.qdsite_dpath or ""
+    # UUID and SITE_UDI are now stored via qdconf
+    site_uuid = site.qdconf.get('site.uuid', "") if site.qdconf else ""
+    site_udi = site.qdconf.get('site.site_udi', "") if site.qdconf else ""
+    where = {exenv.CONF_PARM_SITE_DPATH: qdsite_dpath}
+    db_rows = db.select(exenv.HDB_DEVSITES, where=where)
     if len(db_rows) != 1:
         print("Ambiguous qdsite_dpath '{}'".format(qdsite_dpath))
         return False
-    if db_rows[0][qdsite.CONF_PARM_ACRONYM] != site_acronym:
+    if db_rows[0][exenv.CONF_PARM_ACRONYM] != site_acronym:
         print(
             "Inconsistant site acronym @host='{}' @site='{}'".format(
-                db_rows[0][qdsite.CONF_PARM_ACRONYM], site_acronym
+                db_rows[0][exenv.CONF_PARM_ACRONYM], site_acronym
             )
         )
         return False
-    if db_rows[0][qdsite.CONF_PARM_UUID] != site_uuid:
+    if db_rows[0][exenv.CONF_PARM_UUID] != site_uuid:
         print(
             "Inconsistant site uuid @host='{}' @site='{}'".format(
-                db_rows[0][qdsite.CONF_PARM_UUID], site_uuid
+                db_rows[0][exenv.CONF_PARM_UUID], site_uuid
             )
         )
         return False
-    host_db_udi = str(db_rows[0][qdsite.CONF_PARM_SITE_UDI])
+    host_db_udi = str(db_rows[0][exenv.CONF_PARM_SITE_UDI])
     if host_db_udi != str(site_udi):
         print(
             "Inconsistant site udi @host='{}' @site='{}'".format(
-                db_rows[0][qdsite.CONF_PARM_SITE_UDI], site_udi
+                db_rows[0][exenv.CONF_PARM_SITE_UDI], site_udi
             )
         )
         return False
@@ -129,12 +130,13 @@ def verify_site_registration(site):
 
 
 def check_if_site_registered(db, site):
-    site_uuid = site.ini_data.get(qdsite.CONF_PARM_UUID, "")
-    site_udi = site.ini_data.get(qdsite.CONF_PARM_SITE_UDI, "")
+    # UUID and SITE_UDI are now stored via qdconf
+    site_uuid = site.qdconf.get('site.uuid', "") if site.qdconf else ""
+    site_udi = site.qdconf.get('site.site_udi', "") if site.qdconf else ""
     if (site_uuid != "") or (site_udi != ""):
         return True
-    where = {qdsite.CONF_PARM_SITE_DPATH: site.qdsite_dpath}
-    db_rows = db.select(qdsite.HDB_DEVSITES, where=where)
+    where = {exenv.CONF_PARM_SITE_DPATH: site.qdsite_dpath}
+    db_rows = db.select(exenv.HDB_DEVSITES, where=where)
     if len(db_rows) > 0:
         return True
     return False
@@ -144,14 +146,14 @@ def register_qdsite(qdsite_dpath=None):
     """
     Register a qdsite that has not previously been registered.
     """
-    site = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
+    site = exenv.QdSite(qdsite_dpath=qdsite_dpath)
     db = qdsqlite.QdSqlite(exenv.g.qdhost_db_fpath)
     if check_if_site_registered(db, site):
         print("Site appears to already be registered.")
         return
     site_uuid = str(uuid.uuid4().bytes)
-    max_func = "MAX({})".format(qdsite.CONF_PARM_SITE_UDI)
-    sum_rows = db.select(qdsite.HDB_DEVSITES, max_func)
+    max_func = "MAX({})".format(exenv.CONF_PARM_SITE_UDI)
+    sum_rows = db.select(exenv.HDB_DEVSITES, max_func)
     max_udi = sum_rows[0][max_func]
     if max_udi is None:  # if table is empty
         max_udi = 0
@@ -160,16 +162,17 @@ def register_qdsite(qdsite_dpath=None):
 
     # Update hosting database
     qdsite_row = {}
-    qdsite_row[qdsite.CONF_PARM_ACRONYM] = site.ini_data[qdsite.CONF_PARM_ACRONYM]
-    qdsite_row[qdsite.CONF_PARM_SITE_DPATH] = site.qdsite_dpath
-    qdsite_row[qdsite.CONF_PARM_UUID] = site_uuid
-    qdsite_row[qdsite.CONF_PARM_SITE_UDI] = site_udi
-    db.insert(qdsite.HDB_DEVSITES, qdsite_row)
+    qdsite_row[exenv.CONF_PARM_ACRONYM] = site.qdsite_prefix
+    qdsite_row[exenv.CONF_PARM_SITE_DPATH] = site.qdsite_dpath
+    qdsite_row[exenv.CONF_PARM_UUID] = site_uuid
+    qdsite_row[exenv.CONF_PARM_SITE_UDI] = site_udi
+    db.insert(exenv.HDB_DEVSITES, qdsite_row)
 
-    # Update develelopment site conf file
-    site.ini_data[qdsite.CONF_PARM_UUID] = site_uuid
-    site.ini_data[qdsite.CONF_PARM_SITE_UDI] = site_udi
-    site.write_site_ini()
+    # Update development site conf file with host registration data
+    if site.qdconf is not None:
+        site.qdconf['site.uuid'] = site_uuid
+        site.qdconf['site.site_udi'] = site_udi
+        site.qdconf.write_conf_file('site')
 
 
 if __name__ == "__main__":

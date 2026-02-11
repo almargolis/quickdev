@@ -11,12 +11,10 @@ import os
 from qdbase import cliinput
 from qdbase import exenv
 
-from qdcore import qdsite
-
 from qdutils import hosting
 from qdutils import qdstart
 
-INI_ACRONYM = "test"
+SITE_PREFIX = "test"
 
 
 class MakeQdChroot:
@@ -74,8 +72,10 @@ class MakeQdChroot:
 def make_qdsite(tmpdir):
     """Make a test qdsite within a chroot environment."""
     qd_chroot = MakeQdChroot(tmpdir)
-    qdsite_dpath = qd_chroot.make_qdsite_dpath(INI_ACRONYM)
+    qdsite_dpath = qd_chroot.make_qdsite_dpath(SITE_PREFIX)
+    # Provide answers for interactive prompts
     cliinput.debug_input_answers["Do you want to use this VENV for this project?"] = "y"
+    cliinput.debug_input_answers["Create VENV"] = "y"
     return qdstart.QdStart(qdsite_dpath=qdsite_dpath, force=True, debug=1)
 
 
@@ -84,5 +84,6 @@ def test_basic(tmpdir):
     qdsite_start = make_qdsite(tmpdir)
     # Create a new site object to verify that all persistent data
     # collected by QdStart() was actually saved.
-    qdsite_info = qdsite.QdSite(qdsite_dpath=qdsite_start.qdsite_info.qdsite_dpath)
-    assert qdsite_info.ini_data[qdsite.CONF_PARM_ACRONYM] == INI_ACRONYM
+    qdsite_info = exenv.QdSite(qdsite_dpath=qdsite_start.qdsite_info.qdsite_dpath)
+    # site_prefix defaults to site_dname if not set
+    assert qdsite_info.qdsite_prefix == SITE_PREFIX

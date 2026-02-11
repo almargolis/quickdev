@@ -1,6 +1,6 @@
 #!python
 """
-Create, repair or update the configuration of an QuickDev qdsite.
+Create, repair or update the configuration of an QuickDev exenv.
 
 The qdstart utility is run by the site owner / user to update
 things that they can control. qdstart objects and functions are
@@ -26,10 +26,9 @@ QuickDev utilities such as apache.py.
 """
 
 import os
-import sqlite3
 import subprocess
 import sys
-from pathlib import Path
+import pathlib
 
 if sys.version_info[0] < 3:
     # stop here because Python v2 import exceptions are different.
@@ -52,6 +51,7 @@ QDCORE_PATH = os.path.join(QDDEV_PATH, QDCORE_DIR_NAME)
 QDBASE_SRC_PATH = os.path.join(QDBASE_PATH, "src")
 QDCORE_SRC_PATH = os.path.join(QDCORE_PATH, "src")
 
+
 # pylint: disable=wrong-import-position
 # These imports are out of position because we want to
 # have the above checks and definitions for the import
@@ -64,169 +64,342 @@ except ModuleNotFoundError:
     sys.path.insert(0, QDBASE_SRC_PATH)
     sys.path.insert(0, QDCORE_SRC_PATH)
     from qdbase import cliargs
+try:
+    from qdcore import qdrepos
+except ModuleNotFoundError:
+    # Bootstrap: qdcore not installed yet, add to path
+    sys.path.insert(0, QDCORE_SRC_PATH)
+    from qdcore import qdrepos
+
 from qdbase import cliinput
 from qdbase import exenv
 from qdbase import pdict
 
-try:
-    from qdcore import qdsite
-except ModuleNotFoundError:
-    # Bootstrap mode: add src paths if not already added
-    if QDBASE_SRC_PATH not in sys.path:
-        sys.path.insert(0, QDBASE_SRC_PATH)
-        sys.path.insert(0, QDCORE_SRC_PATH)
-    from qdcore import qdsite
-
-from qdbase.qdcheck import CheckMode, CHECK_REGISTRY, get_checker_class
-from qdbase.qdconf import QdConf
+from qdbase import qdcheck
+from qdbase import qdconf
+from qdbase import qdos 
 
 # pylint: enable=wrong-import-position
 
 
 class QdStart:
     """
-    Create or repair an QuickDev "standard" site.
+    Create or repair a QuickDev "standard" site.
 
     QuickDev has many useful functions that are useful for any application
-    structure. QdStart, QdSite and related services support a standardized
+    structure. QdStart and related services support a standardized
     and easily extensible application structure that enables composing
     applications from plug-ins and standardizes the application installation process.
 
-    A QuickDev site is a file system dirtectory that is the root of application
+    A QuickDev site is a file system directory that is the root of application
     execution. QuickDev imposes no restrictions on its location. For web application
     running under Apache on LINUX systems, the site directory will almost always
     be under /var/www/.
 
-    A site will always have at least two sub-directories. ../site/repos/ contains the
-    repositories that contain the code used by the application. Most commonly git clones.
+    A site will always have at least one sub-directory:
     ../site/conf/ contains information about the running application. This includes
     secrets needed to access system services, site and application specific
-    constants that are referenced during operations and installer input used to 
+    constants that are referenced during operations and installer input used to
     determine that site's operation.
+    ../site/repos/ is an optional sub-directory that contains repositories 
+    used by the application. Most commonly git clones. The sub-directory is
+    optional because repositories can also be specified on the QdStart
+    command line.
+
+    ../site/conf/qdsite.ini contains a relatively small set of values that are captured
+    by QdStart.__init__() before scanning repos. This file is only used for re-running
+    QdStart for repair or to re-install the site on a new computer.
+
+    exenv.ExecutionEnvironment captures information about the actual state
+    of the executiobn environment. The goal is to have this information in
+    one place and a consistent format that "just works" accross applications,
+    sites and operating environment. ExecutionEnvironment() is aware of 
+    the QuickDev site structure but does not demand that it be implemented.
+    If the components of a QuickDev site are detected, they are captured.
+    If the te execution root is not a QuickDev site, it just notes that fact
+    and documents other environmental details.
+    
+    qdos.py is another closely related
+    module that helps applications remain OS independent. It also wraps
+    common idioms around the OS functions.
 
     Installing an application involves activities like creating directories,
     writing site specific scripts and installing software. The QdStart system
     has capabilities to do those things. Its basic method of operation is to
     ask the installer questions to know what needs to be done. While there are
-    a small number of hard coded questions, most come from qd_conf_questions.yaml 
+    a small number of hard coded questions, most come from qd_conf.yaml
     files that are found under /repos/ making the set of questions fully
     extensible. Optional plugins can have an "enabled" question that gets
     asked first to avoid asking questions or installing software that is not
     relevant to the site.
 
-    The /repos/ can also include qd_conf_answers.yaml which contains
-    answers that are used instead of asking the installer. One use of this
-    would be for an application that requires a service that is provided
-    as an optional service in a different repository. The application
-    can supply a "yes" to the plugin enabled question to make sure that
-    it gets installed. QdStart includes a parameter to specify an additional
-    answers file that can be used to automate the installation process.
+    The qd_conf.yaml files have two optional top-level sections:
+    - "questions": Configuration questions to ask the installer
+    - "answers": Pre-supplied answers that override user prompts
+
+    One use of pre-supplied answers would be for an application that requires
+    a service that is provided as an optional service in a different repository.
+    The application can supply a "yes" to the plugin enabled question to make
+    sure that it gets installed.
+
+    QdStart includes parameters for:
+    - answer_file_list: Additional YAML files with answers (loaded first, first answer wins)
+    - repo_list: Additional directories to scan before /repos/
 
     All answers are documented in the /conf/ environment providing a
     complete memory of the installation process. A tool is provided to
     create a comprehensive answer file to support duplication of the
     installation process.
-     
     """
 
-    __slots__ = ("conf_path", "debug", "err_ct", "force", "quiet", "qdsite_info",
-                 "conf", "answers_cache", "db_path")
+    __slots__ = ("conf_dpath", "debug", "err_ct", 
+                 "quiet", "qdsite_dpath", "qdsite_prefix",
+                 "conf", "repos_db_fpath", "repo_scanner",
+                 "venv_dpath")
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
         qdsite_dpath=None,
+        qdsite_prefix=None,
+        venv_dpath=None,
+        answer_file_list=None,
+        repo_list=None,
         python_version="python3",
-        force=False,
         quiet=False,
         debug=0,
     ):
         """
-        Call self.write_site_ini() frequently so we have saved
-        any captured data before bailing after a subsequent test.
+        Initialize and configure a QuickDev site.
+
+        Args:
+            qdsite_dpath: Path to site directory (uses cwd if None)
+            answer_file_list: List of YAML files with pre-supplied answers
+            repo_list: List of directories to scan before /repos/
+            python_version: Python executable for venv creation
+            force: Force operations without prompting
+            quiet: Suppress informational output
+            debug: Debug level (0=off, higher=more verbose)
         """
         print(f"QDStart: python_version='{python_version}'")
-        self.err_ct = 0
+        self.conf = None
         self.debug = debug
-        self.force = force
-        if qdsite_dpath is not None:
-            qdsite_dpath = os.path.abspath(qdsite_dpath)
-            exenv.make_directory("site", qdsite_dpath, force=self.force, raise_ex=True)
-        else:
-            qdsite_dpath = os.getcwd()
-        self.qdsite_info = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
-        print(f"Site Info: {self.qdsite_info}")
+        self.err_ct = 0
+        self.qdsite_dpath = qdsite_dpath
+        self.qdsite_prefix = qdsite_prefix
         self.quiet = quiet
-        self.db_path = Path(self.qdsite_info.conf_dpath) / 'repos.db'
-        self.conf = QdConf(self.qdsite_info.conf_dpath)
-        self.answers_cache = {}
-        if not self.check_conf_path():
+        self.repo_scanner = None
+        self.venv_dpath=venv_dpath
+
+        # We can't do much until know the root directory,
+        # site prefix and virtual environment, so we handle those 
+        # separately from other questions and answers.
+        if (self.qdsite_dpath is None) or (self.qdsite_prefix is None) or (self.venv_dpath is None):
+            if answer_file_list:
+                repo_scanner = qdrepos.RepoScanner(
+                    self.qdsite_info.qdsite_dpath,
+                    no_db=True
+                )
+                count = repo_scanner.load_answer_files(answer_file_list)
+                if not self.quiet:
+                    print(f"Loaded {count} answers from answer files")
+                if self.qdsite_dpath is None:
+                    if exenv.CONF_SITE_DPATH in repo_scanner.answer_cache:
+                        self.qdsite_dpath = repo_scanner.answer_cache[exenv.CONF_SITE_DPATH]
+                if self.qdsite_prefix is None:
+                    if exenv.CONF_SITE_PREFIX in repo_scanner.answer_cache:
+                        self.qdsite_prefix = repo_scanner.answer_cache[exenv.CONF_SITE_PREFIX]
+                if self.venv_dpath is None:
+                    if exenv.CONF_VENV_DPATH in repo_scanner.answer_cache:
+                        self.venv_dpath = repo_scanner.answer_cache[exenv.CONF_VENV_DPATH]
+        # We have checked the command line and answer files. If we don't have
+        # answers, we will make reasonable assumptions. There would be something
+        # to be said to get answer as to whether or not that is desired or to ask
+        # for specific values. None of that would be very hard but I'll wait
+        # to get some experience before adding it. Earlier versions asked more
+        # questions but I found that I was just mindlessly saying yes, so I don't
+        # think there is a need to ask a bunch of questions.
+        if self.qdsite_dpath is None:
+            self.qdsite_dpath = os.getcwd()
+        self.qdsite_dpath = os.path.abspath(self.qdsite_dpath)
+        qdos.make_directory("site", self.qdsite_dpath, force=True, raise_ex=True)
+
+        self.conf_dpath = os.path.join(self.qdsite_dpath, 'conf')
+        qdos.make_directory("conf", self.conf_dpath, force=True, raise_ex=True)
+
+        if self.venv_dpath is None:
+            if sys.prefix != sys.base_prefix:
+                # a venv is active, use that
+                self.venv_dpath = sys.prefix
+
+        if self.qdsite_prefix is None:
+            if self.venv_dpath is None:
+                self.qdsite_prefix = pathlib.Path(self.qdsite_dpath).stem
+            else:
+                self.qdsite_prefix = pathlib.Path(self.venv_dpath).stem
+
+        # create the venv if it doesn't exist
+        if sys.prefix == sys.base_prefix:
+            # no venv active, activazte it
+            # might need to create it first
+
+        self.qdsite_info = exenv.QdSite(qdsite_dpath=qdsite_dpath)
+        print(f"Site Info: {self.qdsite_info}")
+
+        self.repos_db_fpath = pathlib.Path(self.qdsite_info.conf_dpath) / 'repos.db'
+
+        # Phase 1: Pre-venv operations (scanning, collecting questions/answers)
+        # This phase runs before venv exists, using in-memory database if bootstrapping
+        if not self._phase1_scan_and_collect(answer_file_list, repo_list):
             return
-        self.qdsite_info.write_site_ini(debug=self.debug)
+
+        # Phase 2: Create conf directory and venv
+        if not self.check_conf_dpath():
+            return
+
+        # Create QdConf after conf directory exists (with boot_mode for new sites)
+        self.conf = qdconf.QdConf(self.qdsite_info.conf_dpath, boot_mode=self.boot_mode)
+
+        # In boot mode, set initial site_prefix and site_dname from directory name
+        if self.boot_mode:
+            qdsite_dname = os.path.basename(self.qdsite_info.qdsite_dpath)
+            self.qdsite_info.qdsite_dname = qdsite_dname
+            self.qdsite_info.qdsite_prefix = qdsite_dname
+            self.qdsite_info.qdsite_valid = True
+            self.qdsite_info.qdconf = self.conf  # Share the QdConf instance
+
+        self.qdsite_info.write_site_config()
+
         if not self.check_python_venv(python_version):
             return
-        self.qdsite_info.write_site_ini()
+        self.qdsite_info.write_site_config()
+
+        # Phase 3: Process questions (may affect which packages get installed)
+        if not self.process_questions():
+            return
+
+        # Phase 4: Install packages (only enabled ones)
         if not self.configure_venv():
             return
         if not self.configure_applications():
             return
-        # Load answers and process questions after repos are scanned
-        self.answers_cache = self.load_answers_cache()
-        if not self.process_questions():
-            return
+
         if not self.check_venv_shortcut():
             return
-        self.qdsite_info.write_site_ini()
+
+        # Phase 5: Wrap-up - save database and config
+        self._phase5_wrapup()
         print("Site check completed.")
 
-    def check_conf_path(self):
+    def _phase1_scan_and_collect(self, answer_file_list, repo_list):
+        """
+        Phase 1: Scan directories and collect questions/answers before venv.
+
+        This phase runs without venv, using in-memory database if bootstrapping.
+
+        Args:
+            answer_file_list: List of YAML files with pre-supplied answers
+            repo_list: List of directories to scan before /repos/
+
+        Returns:
+            True if successful
+        """
+
+        # Create scanner with in-memory database if in boot mode
+        self.repo_scanner = qdrepos.RepoScanner(
+            self.qdsite_info.qdsite_dpath,
+            in_memory=self.boot_mode
+        )
+
+        # Load answer files first (first answer wins)
+        if answer_file_list:
+            count = self.repo_scanner.load_answer_files(answer_file_list)
+            if not self.quiet:
+                print(f"Loaded {count} answers from answer files")
+
+        # Scan directories (repo_list first, then /repos/)
+        counts = self.repo_scanner.scan_directories(repo_list)
+        if not self.quiet:
+            print(f"Scanned: {counts['repositories']} repos, "
+                  f"{counts['packages']} packages, "
+                  f"{counts['conf_answers']} answers, "
+                  f"{counts['conf_questions']} questions")
+
+
+        return True
+
+    def _phase5_wrapup(self):
+        """
+        Phase 5: Wrap-up - save database and configuration.
+
+        If in boot mode, backs up in-memory database to file.
+        Saves any dirty configuration files.
+        """
+        # Backup in-memory database to file if in boot mode
+        if self.boot_mode and self.repo_scanner:
+            db_path = self.repo_scanner.backup_to_file()
+            if db_path and not self.quiet:
+                print(f"Saved repos.db to {db_path}")
+
+        # Save site configuration
+        self.qdsite_info.write_site_config()
+
+        # Save any dirty conf files
+        if self.conf and self.conf.is_dirty():
+            written = self.conf.write_all_dirty_conf_files()
+            if written and not self.quiet:
+                print(f"Wrote config files: {', '.join(written)}")
+
+    def check_conf_dpath(self):
         """Create site conf directory if it doesn't exist."""
-        if not exenv.make_directory(
+        if not qdos.make_directory(
             "Conf", self.qdsite_info.conf_dpath, force=self.force, quiet=self.quiet
         ):
             return False
-        for this in qdsite.CONF_SUBDIRECTORIES:
+        for this in exenv.CONF_SUBDIRECTORIES:
             this_path = os.path.join(self.qdsite_info.conf_dpath, this)
-            if not exenv.make_directory(
+            if not qdos.make_directory(
                 "Conf", this_path, force=self.force, quiet=self.quiet
             ):
                 return False
         return True
 
     def check_python_venv(self, python_version):
-        """Validate Python VENV configuration."""
-        venv_dpath = os.environ.get(exenv.OS_ENV_VIRTUAL_ENV, None)
-        if venv_dpath is not None:
-            # TODO: check that this version is compatible with python_version.
-            print(f"VENV: {venv_dpath}")
-            if cliinput.cli_input_yn("Do you want to use this VENV for this project?"):
-                self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
-                return True
-        venv_name = self.qdsite_info.ini_data[qdsite.CONF_PARM_ACRONYM] + ".venv"
-        venv_dpath = os.path.join(self.qdsite_info.qdsite_dpath, venv_name)
-        if not os.path.isdir(venv_dpath):
-            if cliinput.cli_input_yn(f"Create VENV '{venv_dpath}'?"):
-                cmd = [python_version, "-m", "venv", venv_dpath]
+        """Validate Python VENV configuration.
+
+        The venv path is derived from site_prefix: <site_prefix>.venv
+        """
+        # Check if we're already in a venv and offer to use it
+        current_venv = os.environ.get(exenv.OS_ENV_VIRTUAL_ENV, None)
+        expected_venv = self.qdsite_info.venv_dpath
+
+        if current_venv is not None and current_venv == expected_venv:
+            print(f"VENV: {current_venv} (active)")
+            return True
+
+        if current_venv is not None:
+            print(f"Current VENV: {current_venv}")
+            print(f"Expected VENV: {expected_venv}")
+
+        # Create the venv if it doesn't exist
+        if not os.path.isdir(expected_venv):
+            if cliinput.cli_input_yn(f"Create VENV '{expected_venv}'?"):
+                cmd = [python_version, "-m", "venv", expected_venv]
                 print("Running", cmd)
                 res = subprocess.run(cmd, check=False)
                 if res.returncode == 0:
-                    self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
                     return True
                 self.error("Unable to create VENV.")
                 return False
             return False
-        #
-        # We get here if the virtual environment already exists.
-        # Update the configuration variable in case it doesn't
-        # have the current value.
-        #
-        self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH] = venv_dpath
+
+        # Virtual environment already exists
         return True
 
     def check_venv_shortcut(self):
         """Validate Python VENV activate symlink."""
-        venv_dpath = self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH]
-        venv_bin_path = os.path.join(venv_dpath, qdsite.VENV_ACTIVATE_SUB_FPATH)
-        if exenv.make_symlink_to_file(
+        venv_dpath = self.qdsite_info.venv_dpath
+        venv_bin_path = os.path.join(venv_dpath, exenv.VENV_ACTIVATE_SUB_FPATH)
+        if qdos.make_symlink_to_file(
             venv_bin_path, link_name="venv", error_func=self.error
         ):
             return True
@@ -235,7 +408,7 @@ class QdStart:
 
     def configure_venv(self):
         """Install QuickDev packages in editable mode."""
-        venv_dpath = self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH]
+        venv_dpath = self.qdsite_info.venv_dpath
         pip_path = os.path.join(venv_dpath, "bin", "pip")
 
         # Verify pip exists
@@ -254,30 +427,43 @@ class QdStart:
         return True
 
     def configure_applications(self):
-        """Discover and install applications from repos/ directory."""
-        repos_path = os.path.join(self.qdsite_info.qdsite_dpath, "repos")
-        if not os.path.isdir(repos_path):
-            if self.debug > 0:
-                print(f"No repos/ directory at {repos_path}")
+        """
+        Install enabled applications from repos/ directory.
+
+        Only installs packages that:
+        1. Have setup.py (installable)
+        2. Are enabled (not disabled via "enabled: no" answer)
+        """
+        if not self.repo_scanner:
             return True
 
-        venv_dpath = self.qdsite_info.ini_data[qdsite.CONF_PARM_VENV_DPATH]
+        venv_dpath = self.qdsite_info.venv_dpath
         pip_path = os.path.join(venv_dpath, "bin", "pip")
 
-        for repo_name in os.listdir(repos_path):
-            repo_path = os.path.join(repos_path, repo_name)
-            if repo_name == "quickdev":
-                continue  # Already handled by configure_venv
-            if not os.path.isdir(repo_path):
+        # Get all installable packages and check enabled status
+        packages = self.repo_scanner.get_installable_packages()
+
+        for pkg in packages:
+            pkg_name = pkg['package']
+            pkg_path = pkg['path']
+            enabled = pkg['enabled']
+
+            # Skip quickdev packages (handled by configure_venv)
+            if pkg['repo'] == 'quickdev':
                 continue
 
-            # Check for setup.py or requirements.txt
-            setup_py = os.path.join(repo_path, "setup.py")
-            requirements_txt = os.path.join(repo_path, "requirements.txt")
+            # Skip disabled packages
+            if not enabled:
+                if self.debug > 0:
+                    print(f"  Skipping disabled package: {pkg_name}")
+                continue
 
-            if os.path.exists(setup_py):
-                self._pip_install_editable(pip_path, repo_path)
+            # Install the package
+            if os.path.exists(os.path.join(pkg_path, 'setup.py')):
+                self._pip_install_editable(pip_path, pkg_path)
 
+            # Also check for requirements.txt
+            requirements_txt = os.path.join(pkg_path, 'requirements.txt')
             if os.path.exists(requirements_txt):
                 self._pip_install_requirements(pip_path, requirements_txt)
 
@@ -304,18 +490,20 @@ class QdStart:
         if conf_key in self.answers_cache:
             answer = self.answers_cache[conf_key]
             if not self.quiet:
-                print(f"  {conf_key}: {answer} (from answers file)")
-            self.conf[conf_key] = answer
+                print(f"  {conf_key}: {answer} (from answers)")
+            if self.conf:
+                self.conf[conf_key] = answer
             return answer
 
         # Check if already answered in conf
-        try:
-            existing = self.conf[conf_key]
-            if not self.quiet:
-                print(f"  {conf_key}: {existing} (existing)")
-            return existing
-        except KeyError:
-            pass
+        if self.conf:
+            try:
+                existing = self.conf[conf_key]
+                if not self.quiet:
+                    print(f"  {conf_key}: {existing} (existing)")
+                return existing
+            except KeyError:
+                pass
 
         # Prompt user
         prompt = f"{conf_key}"
@@ -327,77 +515,41 @@ class QdStart:
         else:
             answer = cliinput.cli_input_str(prompt)
 
-        if answer is not None:
+        if answer is not None and self.conf:
             self.conf[conf_key] = answer
 
         return answer
 
-    def load_answers_cache(self):
-        """
-        Load pre-supplied answers from conf_answers table into cache.
-
-        Returns:
-            Dict mapping conf_key to conf_value
-        """
-        answers = {}
-        if not self.db_path.exists():
-            return answers
-
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute('SELECT conf_key, conf_value FROM conf_answers')
-            for row in cursor.fetchall():
-                answers[row[0]] = row[1]
-        except sqlite3.OperationalError:
-            pass  # Table doesn't exist yet
-
-        conn.close()
-        return answers
-
-    def get_questions(self):
-        """
-        Get all configuration questions from the database.
-
-        Returns:
-            List of dicts with conf_key, help, type
-        """
-        questions = []
-        if not self.db_path.exists():
-            return questions
-
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute('''
-                SELECT conf_key, help, type, yaml_path
-                FROM conf_questions
-                ORDER BY conf_key
-            ''')
-            questions = [dict(row) for row in cursor.fetchall()]
-        except sqlite3.OperationalError:
-            pass  # Table doesn't exist yet
-
-        conn.close()
-        return questions
+    def _is_disabled_answer(self, answer):
+        """Check if an answer represents a disabled/no value."""
+        if answer is None:
+            return False
+        if isinstance(answer, bool):
+            return not answer
+        if isinstance(answer, str):
+            return answer.lower() in ('false', 'no', '0', 'n')
+        return False
 
     def process_questions(self):
         """
         Process all configuration questions.
 
-        Handles "enabled" questions first to skip disabled plugins.
+        Handles "enabled" questions first to:
+        1. Skip related questions for disabled plugins
+        2. Mark packages as disabled in the database
 
         Returns:
             True if successful
         """
-        questions = self.get_questions()
+        if not self.repo_scanner:
+            return True
+
+        questions = self.repo_scanner.get_questions()
         if not questions:
             return True
 
-        print("\nProcessing configuration questions...")
+        if not self.quiet:
+            print("\nProcessing configuration questions...")
 
         # Separate enabled questions from others
         enabled_questions = [q for q in questions if q['conf_key'].endswith('.enabled')]
@@ -407,10 +559,17 @@ class QdStart:
         disabled_prefixes = set()
         for question in enabled_questions:
             answer = self.handle_question(question)
-            if answer in (False, 'false', 'no', 'False', 'No', '0'):
+            if self._is_disabled_answer(answer):
                 # Extract prefix to skip related questions
                 prefix = question['conf_key'].rsplit('.enabled', 1)[0]
                 disabled_prefixes.add(prefix)
+
+                # Mark corresponding package as disabled
+                # The prefix might be like "qdflask" or "myapp.plugin"
+                package_name = prefix.split('.')[-1]
+                self.repo_scanner.set_package_enabled(package_name, False)
+                if not self.quiet:
+                    print(f"  Disabled package: {package_name}")
 
         # Process other questions, skipping disabled plugins
         for question in other_questions:
@@ -423,10 +582,6 @@ class QdStart:
                     break
             if not skip:
                 self.handle_question(question)
-
-        # Save any dirty conf files
-        if self.conf.is_dirty():
-            self.conf.write_all_dirty_conf_files()
 
         return True
 
@@ -466,17 +621,27 @@ def start_site(qdsite_dpath, quiet):
 def edit_conf(qdsite_dpath):
     """CLI command to edit the main site conf file."""
     tdict = pdict.TupleDict()
-    tdict.add_column(pdict.Text("acronym"))
-    tdict.add_column(pdict.Text("guid", is_read_only=True))
-    tdict.add_column(pdict.Text("website_subdir"))
-    qdsite_info = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
-    cliinput.CliForm(qdsite_info.ini_data, tdict=tdict)
+    tdict.add_column(pdict.Text("site_dname"))
+    tdict.add_column(pdict.Text("site_prefix"))
+    qdsite_info = exenv.QdSite(qdsite_dpath=qdsite_dpath)
+    # Create a dict for CliForm from QdSite properties
+    conf_data = {
+        'site_dname': qdsite_info.site_dname,
+        'site_prefix': qdsite_info.site_prefix,
+    }
+    cliinput.CliForm(conf_data, tdict=tdict)
+    # Update QdSite with any changes and save
+    if qdsite_info.site_dname != conf_data.get('site_dname'):
+        qdsite_info.site_dname = conf_data['site_dname']
+    if qdsite_info.site_prefix != conf_data.get('site_prefix'):
+        qdsite_info.site_prefix = conf_data['site_prefix']
+    qdsite_info.write_site_config()
 
 
 def make_launch_files(cmd_name, qdsite_dpath=None):
     """Write launch files for commands that run in background using screen."""
     shell_fpath = os.getenv("SHELL", default="/bin/sh")
-    qdsite_info = qdsite.QdSite(qdsite_dpath=qdsite_dpath)
+    qdsite_info = exenv.QdSite(qdsite_dpath=qdsite_dpath)
 
     run_script_file_name = f"run_{cmd_name}"
     with open(run_script_file_name, "w", encoding="utf-8") as f:
@@ -511,11 +676,11 @@ def check_services(qdsite_dpath=None, fix=False, test=False):
     """
     # Determine check mode
     if fix:
-        mode = CheckMode.CORRECT
+        mode = qdcheck.CheckMode.CORRECT
     elif test:
-        mode = CheckMode.TEST
+        mode = qdcheck.CheckMode.TEST
     else:
-        mode = CheckMode.VALIDATE
+        mode = qdcheck.CheckMode.VALIDATE
 
     # Get conf directory
     if qdsite_dpath:
@@ -534,9 +699,9 @@ def check_services(qdsite_dpath=None, fix=False, test=False):
     total_warnings = 0
     services_checked = 0
 
-    for service_name in CHECK_REGISTRY:
+    for service_name in qdcheck.CHECK_REGISTRY:
         try:
-            checker_class = get_checker_class(service_name)
+            checker_class = qdcheck.get_checker_class(service_name)
             if checker_class is None:
                 print(f"\u25cb {service_name}: Not installed (skipped)")
                 continue
@@ -583,7 +748,7 @@ def main():
     exenv.command_line_quiet(menu)
     exenv.command_line_verbose(menu)
     item = cliargs.CliCommandLineParameterItem(
-        "p", help_description="Command to run.", value_type=cliargs.PARAMETER_STRING
+        "z", help_description="Command to run.", value_type=cliargs.PARAMETER_STRING
     )
     menu.add_item(item)
 
@@ -599,7 +764,7 @@ def main():
         cliargs.CliCommandLineActionItem(
             cliargs.DEFAULT_ACTION_CODE,
             start_site,
-            help_description="Synthesize directory.",
+            help_description="Initialize or repair site directory.",
         )
     )
     m.add_parameter(
@@ -609,7 +774,7 @@ def main():
     )
     m.add_parameter(
         cliargs.CliCommandLineParameterItem(
-            exenv.ARG_S_SITE,
+            exenv.ARG_S_SITE_DPATH,
             parameter_name="qdsite_dpath",
             default_none=True,
             is_positional=False,
@@ -622,8 +787,8 @@ def main():
     )
     m.add_parameter(
         cliargs.CliCommandLineParameterItem(
-            exenv.ARG_S_SITE,
-            parameter_name="qdsite_dpath",
+            exenv.ARG_P_SITE_PREFIX,
+            parameter_name="qdsite_prefix",
             default_none=True,
             is_positional=False,
         )
@@ -635,7 +800,14 @@ def main():
     )
     m.add_parameter(
         cliargs.CliCommandLineParameterItem(
-            "p", parameter_name="cmd", is_positional=True
+            "a", parameter_name="answer_file_list", is_positional=False, 
+            is_muliple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "r", parameter_name="repo_list", is_positional=False, 
+            is_muliple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
         )
     )
 
@@ -643,26 +815,6 @@ def main():
     m = menu.add_item(
         cliargs.CliCommandLineActionItem(
             "c", check_services, help_description="Check all service configurations."
-        )
-    )
-    m.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            exenv.ARG_S_SITE,
-            parameter_name="qdsite_dpath",
-            default_none=True,
-            is_positional=False,
-        )
-    )
-    m.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            "fix",
-            parameter_name="fix",
-        )
-    )
-    m.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            "test",
-            parameter_name="test",
         )
     )
 

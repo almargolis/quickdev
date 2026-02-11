@@ -39,11 +39,17 @@ def cli_input(prompt, regex=None, value_hint=None, lower=False, debug=0):
             print(f"cli_input() ix={debug_input_ix} '{resp}'")
             debug_input_ix += 1
         else:
-            # The following can't be a get() because input()
-            # gets evaluated every time.
-            if prompt in debug_input_answers:  # pylint: disable=consider-using-get
+            # Check for matching answer - supports both exact and prefix match
+            resp = None
+            if prompt in debug_input_answers:
                 resp = debug_input_answers[prompt]
             else:
+                # Try prefix match for prompts with dynamic content
+                for key, value in debug_input_answers.items():
+                    if prompt.startswith(key):
+                        resp = value
+                        break
+            if resp is None:
                 resp = input(f"{prompt}{value_prompt}")
         if (regex is None) or regex.match(resp):
             break
