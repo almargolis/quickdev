@@ -243,97 +243,131 @@ sudo python -m qdutils.qdstart /var/www/mysite --acronym mysite
 
 **Status:** Specialized site type for package authors
 
-## Workflow Example
+## Scripted Site Creation
 
-Here's a complete workflow from site creation to deployment:
+For repeatable site creation, write a shell script that calls `qdstart`
+with `-r` (repository directories) and `-a` (answer files). This
+eliminates interactive prompts and documents exactly how the site is
+built.
 
-### 1. Create Development Site
+### Repo directories (`-r`)
+
+The `-r` flag tells qdstart where to find installable packages. Each
+`-r` path is scanned for Python packages (directories containing
+`__init__.py` with a `setup.py`).
+
+Use the `e::` prefix for editable installs (`pip install -e`), which is
+typical for development. Without the prefix, packages are installed
+normally, which is typical for production.
 
 ```bash
-cd ~/projects
-python -m qdutils.qdstart mysite --acronym mysite
-cd mysite
-source venv/bin/activate
+-r e::/path/to/quickdev       # editable (development)
+-r /path/to/quickdev           # normal (production)
 ```
 
-### 2. Install Dependencies
+### Answer files (`-a`)
 
-```bash
-pip install qdflask qdimages qdcomments
-pip install flask python-dotenv
-```
+QuickDev packages can declare configuration questions in `qd_conf.yaml`
+files. For example, qdflask, qdimages, and qdcomments each declare an
+`enabled` question. Packages whose enabled answer is `false` are not
+installed.
 
-### 3. Configure Site
-
-Edit `conf/site.yaml`:
+An answer file is a YAML file that supplies answers to these questions
+so qdstart can run non-interactively:
 
 ```yaml
-site_name: mysite
-features:
-  - authentication
-  - image_upload
-roles:
-  - admin
-  - editor
+# mk_mysite.yaml - answers for non-interactive setup
+qdimages:
+  enabled: false
 ```
 
-Edit `conf/.env`:
+Application repos can also supply answers. For example, an application
+that requires qdflask can include a `qd_conf.yaml` in its package
+directory:
+
+```yaml
+# myapp/qd_conf.yaml
+answers:
+  qdflask:
+    enabled: true
+```
+
+This ensures qdflask is installed whenever the application repo is
+scanned, without requiring a separate answer file.
+
+### Example: development site script
+
+This script creates a site from scratch, using quickdev and an
+application repo (trellis shown as an example):
 
 ```bash
-SECRET_KEY=dev-key-not-for-production
-ADMIN_PASSWORD=admin
+#!/bin/bash
+# mk_mysite.sh - create a development site
+rm -fr /path/to/sites/mysite
+source /path/to/quickdev/qd.venv/bin/activate
+python3 /path/to/quickdev/qdutils/src/qdutils/qdstart.py \
+    -s /path/to/sites/mysite \
+    -a /path/to/mk_mysite.yaml \
+    -r e::/path/to/quickdev \
+    -r e::/path/to/myapp
 ```
 
-### 4. Create Application
+With a companion answer file:
 
-```python
-# app.py
-import os
-from flask import Flask
-from qdflask import init_auth, create_admin_user
-from qdflask.auth import auth_bp
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///conf/db/mysite.db'
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-
-init_auth(app, roles=['admin', 'editor'])
-app.register_blueprint(auth_bp)
-
-with app.app_context():
-    from qdflask.models import db
-    db.create_all()
-    create_admin_user('admin', os.environ['ADMIN_PASSWORD'])
-
-@app.route('/')
-def index():
-    return 'MyApp Home'
-
-if __name__ == '__main__':
-    app.run(debug=True)
+```yaml
+# mk_mysite.yaml
+qdimages:
+  enabled: false
 ```
 
-### 5. Run Development Server
+**What happens when this runs:**
+
+1. Answer file loaded — `qdimages.enabled` set to `false`
+2. Repos scanned — quickdev and myapp packages discovered; any
+   `qd_conf.yaml` answers (e.g., `qdflask.enabled: true`) collected
+3. `conf/` directory created
+4. Active venv detected and used (no prompt)
+5. Enabled questions processed — qdflask and qdcomments enabled (from
+   myapp's answers), qdimages disabled (from the answer file)
+6. Enabled packages installed in editable mode (due to `e::` prefix)
+7. `repos.db` and site config saved
+
+### Example: production site
+
+For production, omit the `e::` prefix so packages install normally,
+and activate (or let qdstart create) the site's own venv:
 
 ```bash
-python app.py
+#!/bin/bash
+python3 /path/to/quickdev/qdutils/src/qdutils/qdstart.py \
+    -s /var/www/mysite \
+    -a /path/to/answers.yaml \
+    -r /path/to/quickdev \
+    -r /path/to/myapp
 ```
 
-Visit `http://localhost:5000/`
+### How `qd_conf.yaml` files work
 
-### 6. Deploy to Production
+Packages declare questions and/or answers in a `qd_conf.yaml` file
+placed in their package directory (next to `__init__.py`). The file
+has two optional top-level sections:
 
-```bash
-# On production server
-sudo python -m qdutils.qdstart /var/www/mysite --acronym mysite
-cd /var/www/mysite
-source venv/bin/activate
-pip install qdflask qdimages qdcomments
+```yaml
+# questions section — prompts the installer
+questions:
+  mypackage:
+    enabled:
+      help: "Enable mypackage?"
+      type: boolean
 
-# Copy application code
-# Configure production .env
-# Generate Apache config (see Apache Configuration guide)
+# answers section — supplies answers automatically
+answers:
+  some_dependency:
+    enabled: true
 ```
+
+Questions ending in `.enabled` are processed first. If answered `false`,
+the package is skipped and all its other questions are suppressed.
 
 ## Common Tasks
 

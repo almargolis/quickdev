@@ -284,8 +284,6 @@ class QdStart:
             return
 
         # Phase 4: Install packages (only enabled ones)
-        if not self.configure_venv():
-            return
         if not self.configure_applications():
             return
 
@@ -335,39 +333,42 @@ class QdStart:
     def check_python_venv(self, python_version):
         """Validate Python VENV configuration.
 
-        The venv path is derived from site_prefix: <site_prefix>.venv
+        QuickDev sites must run in a virtual environment.
+        If a venv is already active, use it. Otherwise create the
+        expected venv (<site_prefix>.venv) automatically.
         """
-        # Check if we're already in a venv and offer to use it
         current_venv = os.environ.get(exenv.OS_ENV_VIRTUAL_ENV, None)
         expected_venv = self.qdsite_info.venv_dpath
 
-        if current_venv is not None and current_venv == expected_venv:
-            print(f"VENV: {current_venv} (active)")
+        # Use the active venv if there is one
+        if current_venv is not None:
+            if not self.quiet:
+                label = "(active, matches site)" if current_venv == expected_venv else "(active)"
+                print(f"VENV: {current_venv} {label}")
+            self.venv_dpath = current_venv
             return True
 
-        if current_venv is not None:
-            print(f"Current VENV: {current_venv}")
-            print(f"Expected VENV: {expected_venv}")
+        # No active venv — use expected if it already exists
+        if os.path.isdir(expected_venv):
+            if not self.quiet:
+                print(f"VENV: {expected_venv} (exists)")
+            self.venv_dpath = expected_venv
+            return True
 
-        # Create the venv if it doesn't exist
-        if not os.path.isdir(expected_venv):
-            if cliinput.cli_input_yn(f"Create VENV '{expected_venv}'?"):
-                cmd = [python_version, "-m", "venv", expected_venv]
-                print("Running", cmd)
-                res = subprocess.run(cmd, check=False)
-                if res.returncode == 0:
-                    return True
-                self.error("Unable to create VENV.")
-                return False
+        # Create the expected venv
+        if not self.quiet:
+            print(f"Creating VENV: {expected_venv}")
+        cmd = [python_version, "-m", "venv", expected_venv]
+        res = subprocess.run(cmd, check=False)
+        if res.returncode != 0:
+            self.error(f"Unable to create VENV at {expected_venv}.")
             return False
-
-        # Virtual environment already exists
+        self.venv_dpath = expected_venv
         return True
 
     def check_venv_shortcut(self):
         """Validate Python VENV activate symlink."""
-        venv_dpath = self.qdsite_info.venv_dpath
-        venv_bin_path = os.path.join(venv_dpath, exenv.VENV_ACTIVATE_SUB_FPATH)
+        venv_bin_path = os.path.join(self.venv_dpath, exenv.VENV_ACTIVATE_SUB_FPATH)
         if qdos.make_symlink_to_file(
             venv_bin_path, link_name="venv", error_func=self.error
         ):
@@ -375,64 +376,49 @@ class QdStart:
         self.error("Unable to create VENV shortcut.")
         return False
 
-    def configure_venv(self):
-        """Install QuickDev packages in editable mode."""
-        venv_dpath = self.qdsite_info.venv_dpath
-        pip_path = os.path.join(venv_dpath, "bin", "pip")
+    def configure_applications(self):
+        """
+        Install enabled application packages.
+
+        Only installs packages that:
+        1. Have setup.py (installable)
+        2. Are enabled (not disabled via "enabled: no" answer)
+
+        Editable vs normal install is controlled by the e:: prefix
+        on the repo_list entry that discovered the package.
+        """
+        if not self.repo_scanner:
+            return True
+
+        pip_path = os.path.join(self.venv_dpath, "bin", "pip")
 
         # Verify pip exists
         if not os.path.isfile(pip_path):
             self.error(f"pip not found at {pip_path}")
             return False
 
-        # Install all quickdev packages that have setup.py
-        packages = ['qdbase', 'qdcore', 'xsynth', 'qdflask', 'qdimages', 'qdcomments', 'qdutils']
-        for pkg in packages:
-            pkg_path = os.path.join(QDDEV_PATH, pkg)
-            if os.path.exists(os.path.join(pkg_path, 'setup.py')):
-                if not self._pip_install_editable(pip_path, pkg_path):
-                    return False
-
-        return True
-
-    def configure_applications(self):
-        """
-        Install enabled applications from repos/ directory.
-
-        Only installs packages that:
-        1. Have setup.py (installable)
-        2. Are enabled (not disabled via "enabled: no" answer)
-        """
-        if not self.repo_scanner:
-            return True
-
-        venv_dpath = self.qdsite_info.venv_dpath
-        pip_path = os.path.join(venv_dpath, "bin", "pip")
-
         # Get all installable packages and check enabled status
         packages = self.repo_scanner.get_installable_packages()
 
         for pkg in packages:
             pkg_name = pkg['package']
-            pkg_path = pkg['path']
+            setup_path = pkg['setup_path']
             enabled = pkg['enabled']
-
-            # Skip quickdev packages (handled by configure_venv)
-            if pkg['repo'] == 'quickdev':
-                continue
 
             # Skip disabled packages
             if not enabled:
-                if self.debug > 0:
+                if not self.quiet:
                     print(f"  Skipping disabled package: {pkg_name}")
                 continue
 
             # Install the package
-            if os.path.exists(os.path.join(pkg_path, 'setup.py')):
-                self._pip_install_editable(pip_path, pkg_path)
+            if pkg.get('editable', 0):
+                self._pip_install_editable(pip_path, setup_path)
+            else:
+                self._pip_install_normal(pip_path, setup_path)
 
             # Also check for requirements.txt
-            requirements_txt = os.path.join(pkg_path, 'requirements.txt')
+            requirements_txt = os.path.join(setup_path, 'requirements.txt')
             if os.path.exists(requirements_txt):
                 self._pip_install_requirements(pip_path, requirements_txt)
 
@@ -565,6 +551,17 @@ class QdStart:
             return False
         return True
 
+    def _pip_install_normal(self, pip_path, package_path):
+        """Install a package in normal (non-editable) mode."""
+        pkg_name = os.path.basename(package_path)
+        print(f"Installing: {pkg_name}")
+        cmd = [pip_path, "install", package_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            self.error(f"Failed to install {pkg_name}: {result.stderr}")
+            return False
+        return True
+
     def _pip_install_requirements(self, pip_path, requirements_path):
         """Install from requirements.txt."""
         print(f"Installing requirements: {os.path.basename(requirements_path)}")
@@ -581,10 +578,11 @@ class QdStart:
         print(msg)
 
 
-def start_site(qdsite_dpath, quiet):
+def start_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
     """CLI command to start a site."""
     print("START")
-    QdStart(qdsite_dpath=qdsite_dpath, quiet=quiet)
+    QdStart(qdsite_dpath=qdsite_dpath, quiet=quiet,
+            repo_list=repo_list, answer_file_list=answer_file_list)
 
 
 def edit_conf(qdsite_dpath):
@@ -720,6 +718,19 @@ def main():
         "z", help_description="Command to run.", value_type=cliargs.PARAMETER_STRING
     )
     menu.add_item(item)
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "a", help_description="Answer file(s) to load.",
+        is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+    ))
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "r", help_description="Repository directories to scan.",
+        is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+    ))
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        exenv.ARG_P_SITE_PREFIX,
+        help_description="Site prefix / acronym.",
+        default_none=True, value_type=cliargs.PARAMETER_STRING
+    ))
 
     # Add parameters for check_services command
     menu.add_item(cliargs.CliCommandLineParameterItem(
@@ -749,6 +760,18 @@ def main():
             is_positional=False,
         )
     )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "a", parameter_name="answer_file_list", is_positional=False,
+            is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "r", parameter_name="repo_list", is_positional=False,
+            is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+        )
+    )
     m = menu.add_item(
         cliargs.CliCommandLineActionItem(
             "e", edit_conf, help_description="Edit site conf file."
@@ -765,18 +788,6 @@ def main():
     m = menu.add_item(
         cliargs.CliCommandLineActionItem(
             "x", make_launch_files, help_description="Make launch file."
-        )
-    )
-    m.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            "a", parameter_name="answer_file_list", is_positional=False, 
-            is_muliple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
-        )
-    )
-    m.add_parameter(
-        cliargs.CliCommandLineParameterItem(
-            "r", parameter_name="repo_list", is_positional=False, 
-            is_muliple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
         )
     )
 

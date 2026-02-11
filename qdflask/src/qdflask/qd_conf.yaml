@@ -1,0 +1,5 @@
+questions:
+  qdflask:
+    enabled:
+      help: "Enable Flask authentication? (qdflask)"
+      type: boolean

@@ -1,0 +1,5 @@
+questions:
+  qdcomments:
+    enabled:
+      help: "Enable comments system? (qdcomments)"
+      type: boolean

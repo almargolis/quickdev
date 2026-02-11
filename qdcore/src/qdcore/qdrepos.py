@@ -21,7 +21,8 @@ SCHEMA = '''
 CREATE TABLE IF NOT EXISTS repositories (
     id INTEGER PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    path TEXT NOT NULL
+    path TEXT NOT NULL,
+    editable INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS packages (
@@ -33,7 +34,9 @@ CREATE TABLE IF NOT EXISTS packages (
     isflask INTEGER DEFAULT 0,
     isflaskbp INTEGER DEFAULT 0,
     has_setup INTEGER DEFAULT 0,
+    setup_path TEXT,
     enabled INTEGER DEFAULT 1,
+    editable INTEGER DEFAULT 0,
     FOREIGN KEY (repo) REFERENCES repositories(name)
 );
 
@@ -92,6 +95,30 @@ class ConfQuestion:
         )
 
 
+EDITABLE_PREFIX = 'e::'
+
+
+class RepoSpec:
+    """Parsed repository specification with optional editable flag."""
+    __slots__ = ("path", "editable")
+
+    def __init__(self, path, editable=False):
+        self.path = path
+        self.editable = editable
+
+    @classmethod
+    def parse(cls, entry):
+        if isinstance(entry, cls):
+            return entry
+        entry = str(entry)
+        if entry.startswith(EDITABLE_PREFIX):
+            return cls(path=entry[len(EDITABLE_PREFIX):], editable=True)
+        return cls(path=entry, editable=False)
+
+    def __repr__(self):
+        prefix = EDITABLE_PREFIX if self.editable else ''
+        return f"RepoSpec('{prefix}{self.path}')"
+
 
 class RepoScanner:
     """
@@ -134,6 +161,27 @@ class RepoScanner:
             self._conn = sqlite3.connect(str(self.db_path))
         cursor = self._conn.cursor()
         cursor.executescript(SCHEMA)
+        self._conn.commit()
+
+        # Migrate older databases that lack the editable column
+        try:
+            cursor.execute(
+                'ALTER TABLE repositories ADD COLUMN editable INTEGER DEFAULT 0'
+            )
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute(
+                'ALTER TABLE packages ADD COLUMN editable INTEGER DEFAULT 0'
+            )
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute(
+                'ALTER TABLE packages ADD COLUMN setup_path TEXT'
+            )
+        except sqlite3.OperationalError:
+            pass
         self._conn.commit()
 
         # Add default site questions if they don't exist
@@ -272,11 +320,11 @@ class RepoScanner:
                     # All values are leaves
                     for k, v in obj.items():
                         conf_key = '.'.join(key_parts + [k])
-                        count += self.post_answer(conf_key, v, cursor, yaml_path)
+                        count += self.post_answer(conf_key, v, cursor, yaml_path_str)
             else:
                 # Leaf value
                 conf_key = '.'.join(key_parts)
-                count += self.post_answer(conf_key, obj, cursor, yaml_path)
+                count += self.post_answer(conf_key, obj, cursor, yaml_path_str)
 
         traverse(data, [])
         return count
@@ -306,13 +354,17 @@ class RepoScanner:
 
         # Scan directories from dir_list first
         if dir_list:
-            for dir_path in dir_list:
-                dir_path = Path(dir_path)
+            for entry in dir_list:
+                repo_spec = RepoSpec.parse(entry)
+                dir_path = Path(repo_spec.path)
                 if not dir_path.exists() or not dir_path.is_dir():
                     continue
-                self._scan_single_directory(cursor, dir_path, counts)
+                self._scan_single_directory(
+                    cursor, dir_path, counts,
+                    editable=repo_spec.editable
+                )
 
-        # Then scan /repos/ if it exists
+        # Then scan /repos/ if it exists (always non-editable)
         if self.repos_path.exists():
             for repo_dir in sorted(self.repos_path.iterdir()):
                 if not repo_dir.is_dir():
@@ -324,7 +376,7 @@ class RepoScanner:
         self._conn.commit()
         return counts
 
-    def _scan_single_directory(self, cursor, dir_path, counts):
+    def _scan_single_directory(self, cursor, dir_path, counts, editable=False):
         """
         Scan a single directory (may be a repo or a package).
 
@@ -332,20 +384,22 @@ class RepoScanner:
             cursor: Database cursor
             dir_path: Path to directory
             counts: Dict to update with counts
+            editable: If True, packages are installed in editable mode
         """
         dir_name = dir_path.name
+        editable_int = 1 if editable else 0
 
         # Check if already registered as repository
         cursor.execute('SELECT name FROM repositories WHERE name = ?', (dir_name,))
         if cursor.fetchone() is None:
             cursor.execute(
-                'INSERT INTO repositories (name, path) VALUES (?, ?)',
-                (dir_name, str(dir_path))
+                'INSERT INTO repositories (name, path, editable) VALUES (?, ?, ?)',
+                (dir_name, str(dir_path), editable_int)
             )
             counts['repositories'] += 1
 
         # Scan for packages and config files
-        pkg_counts = self._scan_repository(cursor, dir_path)
+        pkg_counts = self._scan_repository(cursor, dir_path, editable=editable)
         counts['packages'] += pkg_counts['packages']
         counts['qdo_functions'] += pkg_counts['qdo_functions']
         counts['conf_answers'] += pkg_counts['conf_answers']
@@ -366,13 +420,14 @@ class RepoScanner:
         """
         return self.scan_directories()
 
-    def _scan_repository(self, cursor, repo_path):
+    def _scan_repository(self, cursor, repo_path, editable=False):
         """
         Scan a single repository for packages.
 
         Args:
             cursor: Database cursor
             repo_path: Path to the repository
+            editable: If True, packages are installed in editable mode
 
         Returns:
             dict with counts: packages, qdo_functions, conf_answers, conf_questions
@@ -398,12 +453,16 @@ class RepoScanner:
 
             if '__init__.py' in filenames:
                 package_name = dir_path.name
-                has_setup = self._add_package(cursor, repo_name, package_name, dir_path, counts)
-                if has_setup:
+                setup_path = self._add_package(
+                    cursor, repo_name, package_name, dir_path, counts,
+                    editable=editable
+                )
+                if setup_path:
                     counts['installable_packages'].append({
                         'name': package_name,
-                        'path': str(dir_path.parent),  # setup.py is in parent
-                        'repo': repo_name
+                        'path': str(setup_path),
+                        'repo': repo_name,
+                        'editable': 1 if editable else 0
                     })
 
             # Check for qd_conf.yaml (new unified format)
@@ -529,7 +588,8 @@ class RepoScanner:
         traverse(questions_data, [])
         return count
 
-    def _add_package(self, cursor, repo_name, package_name, package_path, counts):
+    def _add_package(self, cursor, repo_name, package_name, package_path, counts,
+                     editable=False):
         """
         Add a package to the database.
 
@@ -539,27 +599,40 @@ class RepoScanner:
             package_name: Name of the package
             package_path: Path to the package directory
             counts: Dict to update with counts
+            editable: If True, package should be installed in editable mode
 
         Returns:
-            True if package has setup.py (installable), False otherwise
+            Path to setup.py directory if installable, None otherwise
         """
         isflask, isflaskbp = self._detect_flask_package(package_path)
 
-        # Check for setup.py in package or parent directory
-        # Packages may use src/ layout: parent/setup.py + parent/src/package/
+        # Check for setup.py in package, parent, or grandparent directory.
+        # Flat layout:  repo/package/__init__.py + repo/setup.py (parent)
+        # src/ layout:  repo/src/package/__init__.py + repo/setup.py (grandparent)
         has_setup = False
+        setup_path = None
         parent_path = package_path.parent
+        grandparent_path = parent_path.parent
         if (parent_path / 'setup.py').exists():
             has_setup = True
+            setup_path = parent_path
+        elif (grandparent_path / 'setup.py').exists():
+            has_setup = True
+            setup_path = grandparent_path
         elif (package_path / 'setup.py').exists():
             has_setup = True
+            setup_path = package_path
 
+        editable_int = 1 if editable else 0
+        setup_path_str = str(setup_path) if setup_path else None
         cursor.execute(
             '''INSERT OR REPLACE INTO packages
-               (repo, package, path, dirname, isflask, isflaskbp, has_setup, enabled)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+               (repo, package, path, dirname, isflask, isflaskbp, has_setup,
+                setup_path, enabled, editable)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             (repo_name, package_name, str(package_path), package_path.name,
-             1 if isflask else 0, 1 if isflaskbp else 0, 1 if has_setup else 0, 1)
+             1 if isflask else 0, 1 if isflaskbp else 0, 1 if has_setup else 0,
+             setup_path_str, 1, editable_int)
         )
         counts['packages'] += 1
 
@@ -567,7 +640,7 @@ class RepoScanner:
         qdo_count = self._scan_package_for_qdo(cursor, package_name, package_path)
         counts['qdo_functions'] += qdo_count
 
-        return has_setup
+        return setup_path
 
     def _detect_flask_package(self, package_path):
         """
@@ -833,13 +906,13 @@ class RepoScanner:
         Get all packages with has_setup=1 (installable).
 
         Returns:
-            List of dicts with package, path, repo, enabled
+            List of dicts with package, setup_path, repo, enabled, editable
         """
         self._conn.row_factory = sqlite3.Row
         cursor = self._conn.cursor()
 
         cursor.execute('''
-            SELECT package, path, repo, enabled
+            SELECT package, setup_path, repo, enabled, editable
             FROM packages
             WHERE has_setup = 1
             ORDER BY package

@@ -371,7 +371,7 @@ def command_line_site(menu):
     Define this common command line flag.
     """
     item = cliargs.CliCommandLineParameterItem(
-        ARG_S_SITE,
+        ARG_S_SITE_DPATH,
         help_description="Specify site to configure.",
         value_type=cliargs.PARAMETER_STRING,
     )
