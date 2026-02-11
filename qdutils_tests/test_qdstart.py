@@ -76,7 +76,7 @@ def make_qdsite(tmpdir):
     # Provide answers for interactive prompts
     cliinput.debug_input_answers["Do you want to use this VENV for this project?"] = "y"
     cliinput.debug_input_answers["Create VENV"] = "y"
-    return qdstart.QdStart(qdsite_dpath=qdsite_dpath, force=True, debug=1)
+    return qdstart.QdStart(qdsite_dpath=qdsite_dpath, debug=1)
 
 
 def test_basic(tmpdir):

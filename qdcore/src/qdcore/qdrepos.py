@@ -143,9 +143,9 @@ class RepoScanner:
     def _add_default_questions(self, cursor):
         """Add default site configuration questions if they don't exist."""
         default_questions = [
-            ConfQuestion(CONF_TYPE_BASENAME, exenv.KEY_SITE_PREFIX, 
+            ConfQuestion(CONF_TYPE_BASENAME, exenv.CONF_SITE_PREFIX,
                          "A very short acronym for this site."),
-            ConfQuestion(CONF_TYPE_DIRECTORY_PATH, exenv.KEY_SITE_DPATH, 
+            ConfQuestion(CONF_TYPE_DIRECTORY_PATH, exenv.CONF_SITE_DPATH,
                          "Path to site root directory.")
         ]
 

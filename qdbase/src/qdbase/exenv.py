@@ -197,6 +197,8 @@ class QdSite:
             self.qdsite_valid = False
             return
 
+        self.qdsite_valid = True
+
     def __str__(self):
         if self.qdsite_valid:
             return f"SITE Valid {self.qdsite_dpath} prefix={self.qdsite_prefix}."
