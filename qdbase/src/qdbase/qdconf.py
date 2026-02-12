@@ -174,8 +174,9 @@ class QdConf:
                 logging.info(f"Loaded configuration from {filepath}")
                 return data
 
-        # File not found
-        logging.warning(f"Configuration file not found: {self._conf_dir}/{filename}.(yaml|yml|ini)")
+        # File not found — this is normal during bootstrap when conf files
+        # are being populated for the first time via __setitem__
+        logging.debug(f"Configuration file not found: {self._conf_dir}/{filename}.(yaml|yml|ini)")
         return {}
 
     def _get_nested(self, data, keys):

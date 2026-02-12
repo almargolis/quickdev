@@ -76,7 +76,8 @@ from qdbase import pdict
 
 from qdbase import qdcheck
 from qdbase import qdconf
-from qdbase import qdos 
+from qdbase import qdos
+from qdcore import flaskapp
 
 # pylint: enable=wrong-import-position
 
@@ -287,6 +288,10 @@ class QdStart:
         if not self.configure_applications():
             return
 
+        # Phase 4b: Generate Flask app files if any Flask packages enabled
+        if not self.generate_flask_files():
+            return
+
         if not self.check_venv_shortcut():
             return
 
@@ -375,6 +380,47 @@ class QdStart:
             return True
         self.error("Unable to create VENV shortcut.")
         return False
+
+    def generate_flask_files(self):
+        """
+        Generate qd_create_app.py and .wsgi files at site root.
+
+        Called after Phase 4 (install packages) so that all packages
+        are installed and their qd_conf.yaml has been scanned.
+
+        Only generates files if at least one Flask init function is
+        declared for an enabled package.
+
+        Returns:
+            True if successful or no Flask packages, False on error
+        """
+        if not self.repo_scanner:
+            return True
+
+        init_sequence = self.repo_scanner.get_flask_init_sequence()
+        if not init_sequence:
+            return True
+
+        if not self.quiet:
+            print("\nGenerating Flask application files...")
+
+        generator = flaskapp.FlaskAppGenerator(
+            repo_scanner=self.repo_scanner,
+            qdsite_dpath=self.qdsite_dpath,
+            venv_dpath=self.venv_dpath,
+            qdsite_prefix=self.qdsite_prefix,
+            conf=self.conf
+        )
+
+        app_path = generator.generate_create_app()
+        if app_path and not self.quiet:
+            print(f"  Created: {app_path}")
+
+        wsgi_path = generator.generate_wsgi()
+        if wsgi_path and not self.quiet:
+            print(f"  Created: {wsgi_path}")
+
+        return True
 
     def configure_applications(self):
         """

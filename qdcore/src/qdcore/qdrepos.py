@@ -7,6 +7,7 @@ qdo_* functions. Stores results in /conf/repos.db for quick lookup.
 Supports both persistent and in-memory database modes for bootstrapping.
 """
 
+import json
 import os
 import ast
 import sqlite3
@@ -66,9 +67,21 @@ CREATE TABLE IF NOT EXISTS conf_questions (
     type TEXT
 );
 
+CREATE TABLE IF NOT EXISTS flask_init (
+    id INTEGER PRIMARY KEY,
+    package TEXT NOT NULL,
+    module TEXT NOT NULL,
+    function TEXT NOT NULL,
+    priority INTEGER DEFAULT 50,
+    params_json TEXT,
+    yaml_path TEXT NOT NULL,
+    FOREIGN KEY (package) REFERENCES packages(package)
+);
+
 CREATE INDEX IF NOT EXISTS idx_qdo_function ON qdo(function_name);
 CREATE INDEX IF NOT EXISTS idx_conf_answers_key ON conf_answers(conf_key);
 CREATE INDEX IF NOT EXISTS idx_conf_questions_key ON conf_questions(conf_key);
+CREATE INDEX IF NOT EXISTS idx_flask_init_priority ON flask_init(priority);
 '''
 
 CONF_TYPE_BASENAME = 'basename'
@@ -517,6 +530,94 @@ class RepoScanner:
                 cursor, data['questions'], str(yaml_path)
             )
 
+        # Process "flask" section if present
+        if 'flask' in data and isinstance(data['flask'], dict):
+            package_name = Path(yaml_path).parent.name
+            flask_counts = self._process_flask_section(
+                cursor, data['flask'], package_name, str(yaml_path)
+            )
+            counts['flask_init'] = flask_counts.get('init_functions', 0)
+
+        return counts
+
+    def _process_flask_section(self, cursor, flask_data, package_name,
+                               yaml_path_str):
+        """
+        Process the "flask" section of a qd_conf.yaml file.
+
+        Extracts init_function and post_init declarations and stores
+        them in the flask_init table. Stores config_module and
+        site_blueprints as conf_answers.
+
+        Args:
+            cursor: Database cursor
+            flask_data: Dict from "flask" section
+            package_name: Name of the owning package
+            yaml_path_str: String path to YAML file
+
+        Returns:
+            dict with counts: init_functions
+        """
+        counts = {'init_functions': 0}
+
+        # Process init_function
+        init_func = flask_data.get('init_function')
+        if init_func and isinstance(init_func, dict):
+            module = init_func.get('module', '')
+            function = init_func.get('function', '')
+            priority = init_func.get('priority', 50)
+            params = init_func.get('params')
+            params_json = json.dumps(params) if params else None
+
+            if module and function:
+                cursor.execute(
+                    '''INSERT OR REPLACE INTO flask_init
+                       (package, module, function, priority, params_json,
+                        yaml_path)
+                       VALUES (?, ?, ?, ?, ?, ?)''',
+                    (package_name, module, function, priority, params_json,
+                     yaml_path_str)
+                )
+                counts['init_functions'] += 1
+
+        # Process post_init list (additional init calls for this package)
+        post_init = flask_data.get('post_init')
+        if post_init and isinstance(post_init, list):
+            for entry in post_init:
+                if not isinstance(entry, dict):
+                    continue
+                module = entry.get('module', '')
+                function = entry.get('function', '')
+                priority = entry.get('priority', 90)
+                params = entry.get('params')
+                params_json = json.dumps(params) if params else None
+
+                if module and function:
+                    cursor.execute(
+                        '''INSERT OR REPLACE INTO flask_init
+                           (package, module, function, priority, params_json,
+                            yaml_path)
+                           VALUES (?, ?, ?, ?, ?, ?)''',
+                        (package_name, module, function, priority,
+                         params_json, yaml_path_str)
+                    )
+                    counts['init_functions'] += 1
+
+        # Store config_module as a conf_answer
+        config_module = flask_data.get('config_module')
+        if config_module:
+            self.post_answer(
+                'flask.config_module', config_module, cursor, yaml_path_str
+            )
+
+        # Store site_blueprints as a JSON conf_answer
+        site_blueprints = flask_data.get('site_blueprints')
+        if site_blueprints and isinstance(site_blueprints, list):
+            self.post_answer(
+                'flask.site_blueprints', json.dumps(site_blueprints),
+                cursor, yaml_path_str
+            )
+
         return counts
 
     def _process_answers_section(self, cursor, answers_data, yaml_path_str):
@@ -921,6 +1022,46 @@ class RepoScanner:
         packages = [dict(row) for row in cursor.fetchall()]
         self._conn.row_factory = None
         return packages
+
+    def get_flask_init_sequence(self):
+        """
+        Get the ordered sequence of Flask init calls for enabled packages.
+
+        Joins flask_init with packages to filter by enabled status,
+        ordered by priority ascending.
+
+        Returns:
+            List of dicts with module, function, priority, params (parsed
+            from JSON), package
+        """
+        if self._conn is None:
+            return []
+
+        self._conn.row_factory = sqlite3.Row
+        cursor = self._conn.cursor()
+
+        cursor.execute('''
+            SELECT fi.module, fi.function, fi.priority, fi.params_json,
+                   fi.package
+            FROM flask_init fi
+            JOIN packages p ON fi.package = p.package
+            WHERE p.enabled = 1
+            ORDER BY fi.priority ASC, fi.package ASC
+        ''')
+
+        results = []
+        for row in cursor.fetchall():
+            entry = dict(row)
+            # Parse params_json back to dict
+            if entry['params_json']:
+                entry['params'] = json.loads(entry['params_json'])
+            else:
+                entry['params'] = None
+            del entry['params_json']
+            results.append(entry)
+
+        self._conn.row_factory = None
+        return results
 
     def set_package_enabled(self, package_name, enabled):
         """
