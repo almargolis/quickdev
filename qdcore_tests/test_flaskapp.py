@@ -16,7 +16,7 @@ from qdcore.flaskapp import FlaskAppGenerator
 def _make_pkg_with_flask_conf(tmp_path, pkg_name, flask_section,
                               questions=None, answers=None):
     """
-    Create a minimal package with a qd_conf.yaml containing a flask: section.
+    Create a minimal package with a qd_conf.toml containing a flask: section.
 
     Args:
         tmp_path: pytest tmp_path
@@ -28,7 +28,7 @@ def _make_pkg_with_flask_conf(tmp_path, pkg_name, flask_section,
     Returns:
         Path to the repo directory
     """
-    import yaml
+    from qdbase import qdos
 
     repo_dir = tmp_path / 'repo'
     pkg_dir = repo_dir / 'src' / pkg_name
@@ -42,7 +42,7 @@ def _make_pkg_with_flask_conf(tmp_path, pkg_name, flask_section,
         conf['answers'] = answers
     conf['flask'] = flask_section
 
-    (pkg_dir / 'qd_conf.yaml').write_text(yaml.dump(conf))
+    qdos.write_toml(str(pkg_dir / 'qd_conf.toml'), conf)
     return repo_dir
 
 
@@ -69,7 +69,7 @@ def _scan_and_generate(tmp_path, repo_dirs, venv_dpath=None,
 
 
 class TestFlaskSectionParsing:
-    """Tests for RepoScanner parsing of flask: sections in qd_conf.yaml."""
+    """Tests for RepoScanner parsing of flask: sections in qd_conf.toml."""
 
     def test_scan_flask_section(self, tmp_path):
         """Flask init_function is stored in flask_init table."""
@@ -168,7 +168,7 @@ class TestFlaskSectionParsing:
 
     def test_flask_priority_ordering(self, tmp_path):
         """Multiple packages are returned in priority order."""
-        import yaml
+        from qdbase import qdos
 
         repo_dir = tmp_path / 'repo'
 
@@ -176,25 +176,25 @@ class TestFlaskSectionParsing:
         pkg_a = repo_dir / 'src' / 'pkga'
         pkg_a.mkdir(parents=True)
         (pkg_a / '__init__.py').write_text('')
-        (pkg_a / 'qd_conf.yaml').write_text(yaml.dump({
+        qdos.write_toml(str(pkg_a / 'qd_conf.toml'), {
             'flask': {
                 'init_function': {
                     'module': 'pkga', 'function': 'init_a', 'priority': 50
                 }
             }
-        }))
+        })
 
         # Package B: priority 10
         pkg_b = repo_dir / 'src' / 'pkgb'
         pkg_b.mkdir(parents=True)
         (pkg_b / '__init__.py').write_text('')
-        (pkg_b / 'qd_conf.yaml').write_text(yaml.dump({
+        qdos.write_toml(str(pkg_b / 'qd_conf.toml'), {
             'flask': {
                 'init_function': {
                     'module': 'pkgb', 'function': 'init_b', 'priority': 10
                 }
             }
-        }))
+        })
 
         scanner = RepoScanner(str(tmp_path), in_memory=True)
         scanner.scan_directories([str(repo_dir)])
@@ -283,14 +283,14 @@ class TestFlaskAppGeneration:
 
     def test_generate_ordering(self, tmp_path):
         """Init calls appear in priority order in generated code."""
-        import yaml
+        from qdbase import qdos
 
         repo_dir = tmp_path / 'repo'
         for name, priority in [('pkga', 50), ('pkgb', 10), ('pkgc', 90)]:
             pkg = repo_dir / 'src' / name
             pkg.mkdir(parents=True, exist_ok=True)
             (pkg / '__init__.py').write_text('')
-            (pkg / 'qd_conf.yaml').write_text(yaml.dump({
+            qdos.write_toml(str(pkg / 'qd_conf.toml'), {
                 'flask': {
                     'init_function': {
                         'module': name,
@@ -298,7 +298,7 @@ class TestFlaskAppGeneration:
                         'priority': priority,
                     }
                 }
-            }))
+            })
 
         generator, scanner = _scan_and_generate(tmp_path, [repo_dir])
         path = generator.generate_create_app()
@@ -358,13 +358,13 @@ class TestFlaskAppGeneration:
 
     def test_param_resolution_from_answer(self, tmp_path):
         """conf_answer source resolves to Python literal."""
-        import yaml
+        from qdbase import qdos
 
         repo_dir = tmp_path / 'repo'
         pkg = repo_dir / 'src' / 'authpkg'
         pkg.mkdir(parents=True)
         (pkg / '__init__.py').write_text('')
-        (pkg / 'qd_conf.yaml').write_text(yaml.dump({
+        qdos.write_toml(str(pkg / 'qd_conf.toml'), {
             'answers': {
                 'authpkg': {
                     'roles': 'admin, editor, reader',
@@ -392,7 +392,7 @@ class TestFlaskAppGeneration:
                     }
                 }
             }
-        }))
+        })
 
         generator, scanner = _scan_and_generate(tmp_path, [repo_dir])
         path = generator.generate_create_app()
@@ -511,7 +511,7 @@ class TestWsgiGeneration:
         path = generator.generate_wsgi()
 
         assert path is not None
-        assert path.endswith('test.wsgi')
+        assert path.endswith('wsgi.py')
         assert os.path.isfile(path)
 
         content = open(path).read()

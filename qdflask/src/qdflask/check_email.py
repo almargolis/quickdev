@@ -35,13 +35,13 @@ def test_email_config(recipient):
         print("  Create conf/.env with SMTP_PW=your-password")
         return False
 
-    # Check for email.yaml
-    email_yaml_path = Path('conf/email.yaml')
-    if email_yaml_path.exists():
-        print(f"✓ Found: {email_yaml_path}")
+    # Check for email.toml
+    email_toml_path = Path('conf/email.toml')
+    if email_toml_path.exists():
+        print(f"✓ Found: {email_toml_path}")
     else:
-        print(f"✗ Missing: {email_yaml_path}")
-        print("  Copy qdflask/conf/email.yaml.example to conf/email.yaml")
+        print(f"✗ Missing: {email_toml_path}")
+        print("  Copy qdflask/conf/email.toml.example to conf/email.toml")
         return False
 
     # Check for SMTP_PW (should be loaded from .env now)

@@ -26,6 +26,7 @@ QuickDev utilities such as apache.py.
 """
 
 import os
+import re
 import subprocess
 import sys
 
@@ -81,6 +82,89 @@ from qdcore import flaskapp
 
 # pylint: enable=wrong-import-position
 
+# Answer source types for resolve_question()
+SOURCE_CONSTANT = "constant"      # From qd_conf.toml answers section
+SOURCE_CONFIGURED = "configured"  # From existing conf/*.toml
+SOURCE_PROMPT = "prompt"          # Will need to prompt user
+
+
+_REF_PATTERN = re.compile(r'<([a-zA-Z_][a-zA-Z0-9_.]+)>')
+
+
+def expand_answer_refs(value, answer_cache, conf=None):
+    """
+    Expand <conf_key> references in an answer value.
+
+    Symbolic references like "<trellis.content_dpath>/users.db" are
+    expanded by looking up the referenced conf_key in answer_cache
+    first, then conf. Unresolvable references are left as-is.
+
+    Args:
+        value: The answer string potentially containing <conf_key> refs
+        answer_cache: Dict of pre-supplied answers from qd_conf.toml
+        conf: QdConf instance for checking existing config, or None
+
+    Returns:
+        String with references expanded where possible
+    """
+    if not isinstance(value, str) or '<' not in value:
+        return value
+
+    def replacer(match):
+        ref_key = match.group(1)
+        if ref_key in answer_cache:
+            return str(answer_cache[ref_key])
+        if conf:
+            try:
+                return str(conf[ref_key])
+            except (KeyError, ValueError):
+                pass
+        return match.group(0)
+
+    return _REF_PATTERN.sub(replacer, value)
+
+
+def has_unresolved_refs(value):
+    """Return True if the string still contains <conf_key> references."""
+    return isinstance(value, str) and bool(_REF_PATTERN.search(value))
+
+
+def resolve_question(question, answer_cache, conf=None):
+    """
+    Determine the answer and source for a configuration question.
+
+    Checks answer sources in priority order:
+    1. answer_cache (from qd_conf.toml answers section) -> SOURCE_CONSTANT
+    2. Existing conf files (conf/*.toml) -> SOURCE_CONFIGURED
+    3. Not found -> SOURCE_PROMPT
+
+    This is shared logic used by both handle_question() (interactive)
+    and plan_site() (reporting). Changes to answer resolution order
+    should be made here.
+
+    Args:
+        question: Dict with conf_key, help, type from conf_questions
+        answer_cache: Dict of pre-supplied answers from qd_conf.toml
+        conf: QdConf instance for checking existing config, or None
+
+    Returns:
+        Tuple of (value, source_type) where source_type is one of
+        SOURCE_CONSTANT, SOURCE_CONFIGURED, or SOURCE_PROMPT
+    """
+    conf_key = question['conf_key']
+
+    if conf_key in answer_cache:
+        return answer_cache[conf_key], SOURCE_CONSTANT
+
+    if conf:
+        try:
+            existing = conf[conf_key]
+            return existing, SOURCE_CONFIGURED
+        except KeyError:
+            pass
+
+    return None, SOURCE_PROMPT
+
 
 class QdStart:
     """
@@ -108,7 +192,7 @@ class QdStart:
 
     Site Configuration
     ------------------
-    ../site/conf/site.yaml contains a small set of core values captured by
+    ../site/conf/site.toml contains a small set of core values captured by
     QdStart before scanning repos. This file is primarily used when re-running
     QdStart for repair or to reinstall the site on a new computer.
 
@@ -129,12 +213,12 @@ class QdStart:
     Installing an application involves creating directories, writing
     site-specific scripts, and installing software. QdStart drives this
     process by asking the installer questions. While there are a small
-    number of built-in questions, most come from qd_conf.yaml files found
+    number of built-in questions, most come from qd_conf.toml files found
     in repositories, making the question set fully extensible. Optional
     plug-ins can have an "enabled" question that is asked first, allowing
     QdStart to skip irrelevant questions and software.
 
-    The qd_conf.yaml files have two optional top-level sections:
+    The qd_conf.toml files have two optional top-level sections:
       - "questions": Configuration questions to ask the installer
       - "answers": Pre-supplied answers that override user prompts
 
@@ -143,7 +227,7 @@ class QdStart:
     "yes" to that plug-in's enabled question to ensure it gets installed.
 
     QdStart accepts parameters for:
-      - answer_file_list: Additional YAML files with answers (loaded first;
+      - answer_file_list: Additional TOML files with answers (loaded first;
         first answer wins)
       - repo_list: Additional directories to scan before repos/
 
@@ -184,7 +268,7 @@ class QdStart:
             qdsite_dpath: Path to site directory (uses cwd if None)
             qdsite_prefix: Short name / acronym for the site
             venv_dpath: Path to virtual environment (auto-detected if None)
-            answer_file_list: List of YAML files with pre-supplied answers
+            answer_file_list: List of TOML files with pre-supplied answers
             repo_list: List of directories to scan before /repos/
             python_version: Python executable for venv creation
             quiet: Suppress informational output
@@ -270,9 +354,15 @@ class QdStart:
         if self.qdsite_prefix is None:
             self.qdsite_prefix = self.qdsite_info.qdsite_prefix
         if self.venv_dpath is None:
+            # Only adopt the active venv if it lives inside the site dir.
+            # A foreign venv (e.g. quickdev's qd.venv) should not be used
+            # for the site — check_python_venv will create the site's own.
             if sys.prefix != sys.base_prefix:
-                self.venv_dpath = sys.prefix
-            elif self.qdsite_info.venv_dpath:
+                site_abs = os.path.abspath(self.qdsite_dpath)
+                venv_abs = os.path.abspath(sys.prefix)
+                if venv_abs.startswith(site_abs + os.sep):
+                    self.venv_dpath = sys.prefix
+            if self.venv_dpath is None and self.qdsite_info.venv_dpath:
                 self.venv_dpath = self.qdsite_info.venv_dpath
 
         # --- (k) Remaining phases ---
@@ -345,13 +435,17 @@ class QdStart:
         current_venv = os.environ.get(exenv.OS_ENV_VIRTUAL_ENV, None)
         expected_venv = self.qdsite_info.venv_dpath
 
-        # Use the active venv if there is one
+        # Use the active venv only if it lives inside the site directory.
+        # A foreign venv (e.g. quickdev's own) should not be adopted.
         if current_venv is not None:
-            if not self.quiet:
-                label = "(active, matches site)" if current_venv == expected_venv else "(active)"
-                print(f"VENV: {current_venv} {label}")
-            self.venv_dpath = current_venv
-            return True
+            site_abs = os.path.abspath(self.qdsite_dpath)
+            venv_abs = os.path.abspath(current_venv)
+            if venv_abs.startswith(site_abs + os.sep):
+                if not self.quiet:
+                    label = "(active, matches site)" if current_venv == expected_venv else "(active)"
+                    print(f"VENV: {current_venv} {label}")
+                self.venv_dpath = current_venv
+                return True
 
         # No active venv — use expected if it already exists
         if os.path.isdir(expected_venv):
@@ -372,10 +466,12 @@ class QdStart:
         return True
 
     def check_venv_shortcut(self):
-        """Validate Python VENV activate symlink."""
+        """Validate Python VENV activate symlink in the site directory."""
         venv_bin_path = os.path.join(self.venv_dpath, exenv.VENV_ACTIVATE_SUB_FPATH)
         if qdos.make_symlink_to_file(
-            venv_bin_path, link_name="venv", error_func=self.error
+            venv_bin_path, link_name="venv",
+            link_directory=self.qdsite_dpath,
+            error_func=self.error
         ):
             return True
         self.error("Unable to create VENV shortcut.")
@@ -386,7 +482,7 @@ class QdStart:
         Generate qd_create_app.py and .wsgi files at site root.
 
         Called after Phase 4 (install packages) so that all packages
-        are installed and their qd_conf.yaml has been scanned.
+        are installed and their qd_conf.toml has been scanned.
 
         Only generates files if at least one Flask init function is
         declared for an enabled package.
@@ -474,8 +570,9 @@ class QdStart:
         """
         Handle a single configuration question.
 
-        Checks for pre-supplied answer first, then prompts user if needed.
-        Stores the answer in QdConf.
+        Uses resolve_question() to check for pre-supplied or existing
+        answers, then prompts the user if needed. Stores the answer
+        in QdConf.
 
         Args:
             question: Dict with conf_key, help, type from conf_questions table
@@ -484,42 +581,52 @@ class QdStart:
             The answer value, or None if skipped
         """
         conf_key = question['conf_key']
-        help_text = question.get('help', '')
-        value_type = question.get('type', 'string')
+        value, source = resolve_question(
+            question, self.repo_scanner.answer_cache, self.conf
+        )
 
-        # Check for pre-supplied answer
-        if conf_key in self.repo_scanner.answer_cache:
-            answer = self.repo_scanner.answer_cache[conf_key]
+        if source == SOURCE_CONSTANT:
+            value = expand_answer_refs(
+                value, self.repo_scanner.answer_cache, self.conf
+            )
             if not self.quiet:
-                print(f"  {conf_key}: {answer} (from answers)")
+                print(f"  {conf_key}: {value} (from answers)")
+            self.repo_scanner.update_answer(conf_key, value)
             if self.conf:
-                self.conf[conf_key] = answer
-            return answer
+                self.conf[conf_key] = value
+            self._ensure_directory(question, value)
+            return value
 
-        # Check if already answered in conf
-        if self.conf:
-            try:
-                existing = self.conf[conf_key]
-                if not self.quiet:
-                    print(f"  {conf_key}: {existing} (existing)")
-                return existing
-            except KeyError:
-                pass
+        if source == SOURCE_CONFIGURED:
+            if not self.quiet:
+                print(f"  {conf_key}: {value} (existing)")
+            self._ensure_directory(question, value)
+            return value
 
         # Prompt user
-        prompt = f"{conf_key}"
+        help_text = question.get('help', '')
+        value_type = question.get('type', 'string')
+        prompt = f"{conf_key}: "
         if help_text:
-            prompt = f"{help_text}\n{conf_key}"
+            prompt = f"{help_text}\n{conf_key}: "
 
         if value_type == 'boolean':
             answer = cliinput.cli_input_yn(prompt)
         else:
-            answer = cliinput.cli_input_str(prompt)
+            answer = cliinput.cli_input(prompt)
 
         if answer is not None and self.conf:
             self.conf[conf_key] = answer
+        self._ensure_directory(question, answer)
 
         return answer
+
+    def _ensure_directory(self, question, value):
+        """Create directory if question has directory=true and value is set."""
+        if not value or not question.get('directory'):
+            return
+        qdos.make_directory(
+            question['conf_key'], value, force=True, quiet=self.quiet)
 
     def _is_disabled_answer(self, answer):
         """Check if an answer represents a disabled/no value."""
@@ -584,7 +691,44 @@ class QdStart:
             if not skip:
                 self.handle_question(question)
 
+        # Second pass: expand symbolic refs that couldn't be resolved
+        # during the first pass due to ordering (e.g. qdflask.user_db_path
+        # references trellis.content_dpath which was prompted later).
+        self._expand_conf_refs(questions, disabled_prefixes)
+
         return True
+
+    def _expand_conf_refs(self, questions, disabled_prefixes):
+        """
+        Expand any remaining <conf_key> references in conf values.
+
+        Called after all questions are processed so that prompted
+        values are available for expansion.
+        """
+        if not self.conf or not self.repo_scanner:
+            return
+        for question in questions:
+            conf_key = question['conf_key']
+            # Skip disabled plugins
+            skip = False
+            for prefix in disabled_prefixes:
+                if conf_key.startswith(prefix + '.'):
+                    skip = True
+                    break
+            if skip:
+                continue
+            try:
+                current = self.conf[conf_key]
+            except KeyError:
+                continue
+            if has_unresolved_refs(current):
+                expanded = expand_answer_refs(
+                    current, self.repo_scanner.answer_cache, self.conf
+                )
+                if expanded != current:
+                    self.conf[conf_key] = expanded
+                    if not self.quiet:
+                        print(f"  {conf_key}: {expanded} (expanded)")
 
     def _pip_install_editable(self, pip_path, package_path):
         """Install a package in editable mode."""
@@ -752,6 +896,171 @@ def check_services(qdsite_dpath=None, fix=False, test=False):
         return False
 
 
+def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
+    """
+    Show a planning report for a site.
+
+    Scans repos and collects questions/answers without executing any
+    installation phases. Groups questions by answer source:
+    - Application constants (from qd_conf.toml answers section)
+    - Previously answered (from existing conf/*.toml files)
+    - Will be prompted (no pre-existing answer)
+
+    Args:
+        qdsite_dpath: Path to site directory (uses cwd if None)
+        quiet: Suppress informational output (unused, kept for CLI compat)
+        repo_list: List of directories to scan
+        answer_file_list: List of TOML files with pre-supplied answers
+    """
+    if qdsite_dpath is None:
+        qdsite_dpath = os.getcwd()
+    qdsite_dpath = os.path.abspath(qdsite_dpath)
+
+    # Lightweight setup: scan repos and collect questions/answers
+    repo_scanner = qdrepos.RepoScanner(qdsite_dpath, in_memory=True)
+
+    if answer_file_list:
+        repo_scanner.load_answer_files(answer_file_list)
+
+    counts = repo_scanner.scan_directories(repo_list)
+
+    # Load existing conf if available
+    conf_dpath = os.path.join(qdsite_dpath, 'conf')
+    conf = None
+    if os.path.isdir(conf_dpath):
+        conf = qdconf.QdConf(conf_dpath)
+
+    questions = repo_scanner.get_questions()
+    if not questions:
+        print("No configuration questions found.")
+        return
+
+    # Separate enabled questions from others (same logic as process_questions)
+    enabled_questions = [q for q in questions
+                         if q['conf_key'].endswith('.enabled')]
+    other_questions = [q for q in questions
+                       if not q['conf_key'].endswith('.enabled')]
+
+    # Resolve each question and group by source
+    constants = []
+    configured = []
+    prompts = []
+    disabled_prefixes = set()
+
+    for question in enabled_questions:
+        value, source = resolve_question(
+            question, repo_scanner.answer_cache, conf
+        )
+        entry = {
+            'conf_key': question['conf_key'],
+            'help': question.get('help', ''),
+            'value': value,
+            'source': source,
+        }
+        if source == SOURCE_CONSTANT:
+            constants.append(entry)
+        elif source == SOURCE_CONFIGURED:
+            configured.append(entry)
+        else:
+            prompts.append(entry)
+
+        # Track disabled plugins to skip their sub-questions
+        if value is not None:
+            is_disabled = False
+            if isinstance(value, bool):
+                is_disabled = not value
+            elif isinstance(value, str):
+                is_disabled = value.lower() in ('false', 'no', '0', 'n')
+            if is_disabled:
+                prefix = question['conf_key'].rsplit('.enabled', 1)[0]
+                disabled_prefixes.add(prefix)
+
+    for question in other_questions:
+        conf_key = question['conf_key']
+        skip = False
+        for prefix in disabled_prefixes:
+            if conf_key.startswith(prefix + '.'):
+                skip = True
+                break
+        if skip:
+            continue
+
+        value, source = resolve_question(
+            question, repo_scanner.answer_cache, conf
+        )
+        entry = {
+            'conf_key': conf_key,
+            'help': question.get('help', ''),
+            'value': value,
+            'source': source,
+        }
+        if source == SOURCE_CONSTANT:
+            constants.append(entry)
+        elif source == SOURCE_CONFIGURED:
+            configured.append(entry)
+        else:
+            prompts.append(entry)
+
+    # Display report
+    print("=" * 60)
+    print("QdStart Planning Report")
+    print("=" * 60)
+    print(f"Site: {qdsite_dpath}")
+    print(f"Scanned: {counts['repositories']} repos, "
+          f"{counts['packages']} packages")
+    print()
+
+    # Build a combined lookup for expanding refs in the report:
+    # all constants + configured values
+    all_known = dict(repo_scanner.answer_cache)
+    for entry in constants + configured:
+        all_known[entry['conf_key']] = entry['value']
+
+    if constants:
+        print(f"Application Constants ({len(constants)}):")
+        print("-" * 40)
+        for entry in constants:
+            raw = entry['value']
+            expanded = expand_answer_refs(raw, all_known, conf)
+            if has_unresolved_refs(str(raw)):
+                print(f"  {entry['conf_key']}: {raw}")
+                if expanded != str(raw):
+                    print(f"    -> {expanded}")
+            else:
+                print(f"  {entry['conf_key']}: {raw}")
+            if entry['help']:
+                print(f"    {entry['help']}")
+        print()
+
+    if configured:
+        print(f"Previously Answered ({len(configured)}):")
+        print("-" * 40)
+        for entry in configured:
+            print(f"  {entry['conf_key']}: {entry['value']}")
+            if entry['help']:
+                print(f"    {entry['help']}")
+        print()
+
+    if prompts:
+        print(f"Will Be Prompted ({len(prompts)}):")
+        print("-" * 40)
+        for entry in prompts:
+            print(f"  {entry['conf_key']}")
+            if entry['help']:
+                print(f"    {entry['help']}")
+        print()
+
+    if disabled_prefixes:
+        print(f"Disabled: {', '.join(sorted(disabled_prefixes))}")
+        print()
+
+    total = len(constants) + len(configured) + len(prompts)
+    print(f"Total: {total} questions "
+          f"({len(constants)} constants, "
+          f"{len(configured)} configured, "
+          f"{len(prompts)} to prompt)")
+
+
 def main():
     """Main entry point for qdstart CLI."""
     menu = cliargs.CliCommandLine()
@@ -841,6 +1150,38 @@ def main():
     m = menu.add_item(
         cliargs.CliCommandLineActionItem(
             "c", check_services, help_description="Check all service configurations."
+        )
+    )
+
+    # Planning report command
+    m = menu.add_item(
+        cliargs.CliCommandLineActionItem(
+            "plan", plan_site, help_description="Show planning report."
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            exenv.ARG_Q_QUIET, parameter_name="quiet", is_positional=False
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            exenv.ARG_S_SITE_DPATH,
+            parameter_name="qdsite_dpath",
+            default_none=True,
+            is_positional=False,
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "a", parameter_name="answer_file_list", is_positional=False,
+            is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
+        )
+    )
+    m.add_parameter(
+        cliargs.CliCommandLineParameterItem(
+            "r", parameter_name="repo_list", is_positional=False,
+            is_multiple=True, default_none=True, value_type=cliargs.PARAMETER_STRING
         )
     )
 

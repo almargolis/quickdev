@@ -3,14 +3,14 @@ qdbase.qdconf - Unified configuration management for QuickDev applications
 
 Provides centralized access to configuration files in /conf/ directory with:
 - Automatic file location (production and development paths)
-- On-demand loading and caching of YAML, INI, and .env files
+- On-demand loading and caching of TOML, INI, and .env files
 - Dictionary-like access with dot notation
 - Comprehensive error handling
 
 Example usage:
     conf = QdConf()
 
-    # Access YAML config
+    # Access TOML config
     server = conf.get('email.MAIL_SERVER', 'localhost')
     port = conf['email.MAIL_PORT']
 
@@ -22,10 +22,12 @@ Example usage:
 """
 
 import os
-import yaml
+import tomllib
 from pathlib import Path
 from configparser import ConfigParser
 import logging
+
+from qdbase import qdos
 
 
 class QdConf:
@@ -33,7 +35,7 @@ class QdConf:
     Unified configuration manager for QuickDev applications.
 
     Locates and loads configuration files from /conf/ directory with caching.
-    Supports YAML, INI, and .env files with dot-notation access.
+    Supports TOML, INI, and .env files with dot-notation access.
     """
 
     def __init__(self, conf_dir=None, boot_mode=False):
@@ -84,16 +86,16 @@ class QdConf:
         # (allows creation later)
         return cwd_conf
 
-    def _load_yaml(self, filepath):
-        """Load and parse a YAML file."""
+    def _load_toml(self, filepath):
+        """Load and parse a TOML file."""
         try:
-            with open(filepath, 'r') as f:
-                return yaml.safe_load(f) or {}
-        except yaml.YAMLError as e:
-            logging.error(f"YAML syntax error in {filepath}: {e}")
-            raise ValueError(f"Invalid YAML syntax in {filepath}: {e}")
+            with open(filepath, 'rb') as f:
+                return tomllib.load(f) or {}
+        except tomllib.TOMLDecodeError as e:
+            logging.error(f"TOML syntax error in {filepath}: {e}")
+            raise ValueError(f"Invalid TOML syntax in {filepath}: {e}")
         except Exception as e:
-            logging.error(f"Failed to load YAML {filepath}: {e}")
+            logging.error(f"Failed to load TOML {filepath}: {e}")
             raise
 
     def _load_ini(self, filepath):
@@ -162,11 +164,11 @@ class QdConf:
             return data
 
         # Try different extensions for regular config files
-        for ext in ['.yaml', '.yml', '.ini']:
+        for ext in ['.toml', '.ini']:
             filepath = self._conf_dir / f"{filename}{ext}"
             if filepath.exists():
-                if ext in ['.yaml', '.yml']:
-                    data = self._load_yaml(filepath)
+                if ext == '.toml':
+                    data = self._load_toml(filepath)
                 else:  # .ini
                     data = self._load_ini(filepath)
 
@@ -176,7 +178,7 @@ class QdConf:
 
         # File not found — this is normal during bootstrap when conf files
         # are being populated for the first time via __setitem__
-        logging.debug(f"Configuration file not found: {self._conf_dir}/{filename}.(yaml|yml|ini)")
+        logging.debug(f"Configuration file not found: {self._conf_dir}/{filename}.(toml|ini)")
         return {}
 
     def _get_nested(self, data, keys):
@@ -349,30 +351,29 @@ class QdConf:
         """
         Determine the file extension for a configuration file.
 
-        Checks existing files first, defaults to .yaml for new files.
+        Checks existing files first, defaults to .toml for new files.
 
         Args:
             filename: Configuration filename (without extension)
 
         Returns:
-            Extension including dot (e.g., '.yaml', '.ini', '.env')
+            Extension including dot (e.g., '.toml', '.ini', '.env')
         """
         if filename == 'denv':
             return '.env'
 
         # Check for existing files
-        for ext in ['.yaml', '.yml', '.ini']:
+        for ext in ['.toml', '.ini']:
             filepath = self._conf_dir / f"{filename}{ext}"
             if filepath.exists():
                 return ext
 
-        # Default to .yaml for new files
-        return '.yaml'
+        # Default to .toml for new files
+        return '.toml'
 
-    def _write_yaml(self, filepath, data):
-        """Write data to a YAML file."""
-        with open(filepath, 'w', encoding='utf-8') as f:
-            yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
+    def _write_toml(self, filepath, data):
+        """Write data to a TOML file."""
+        qdos.write_toml(filepath, data)
 
     def _write_ini(self, filepath, data):
         """Write data to an INI file."""
@@ -427,8 +428,8 @@ class QdConf:
 
         if ext == '.env':
             self._write_env(filepath, data)
-        elif ext in ['.yaml', '.yml']:
-            self._write_yaml(filepath, data)
+        elif ext == '.toml':
+            self._write_toml(filepath, data)
         elif ext == '.ini':
             self._write_ini(filepath, data)
         else:

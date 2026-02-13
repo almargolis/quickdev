@@ -29,7 +29,7 @@ setup(
         'qdflask': [
             'templates/qdflask/*.html',
             'static/*',
-            'conf/email.yaml.example',
+            'conf/email.toml.example',
         ],
     },
     install_requires=[
@@ -38,7 +38,7 @@ setup(
         "Flask-Login>=0.5.0",
         "Flask-Mail>=0.9.1",
         "Werkzeug>=2.0.0",
-        "PyYAML>=5.0",
+        "PyYAML>=5.0",  # Used by qdyaml for data files
     ],
     python_requires=">=3.7",
     classifiers=[

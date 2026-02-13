@@ -33,7 +33,7 @@ import traceback
 from qdbase import cliargs
 from qdbase import cliinput
 
-# Configuration key constants for site.yaml
+# Configuration key constants for site.toml
 # These are used by both exenv (QdSite) and qdcore.qdrepos
 CONF_SITE_DPATH = 'site.qdsite_dpath'
 CONF_SITE_PREFIX = 'site.qdsite_prefix'
@@ -44,12 +44,12 @@ from qdbase import qdos
 try:
     from qdbase import qdconf
 except (ModuleNotFoundError, ImportError):
-    # Bootstrap mode - qdconf may not be available yet (requires pyyaml)
+    # Bootstrap mode - qdconf may not be available yet
     qdconf = None
 
 # Minimal QuickDev site structure constants
 SITE_CONF_DIR_NAME = 'conf'
-SITE_CONF_FILE_NAME = 'site.yaml'
+SITE_CONF_FILE_NAME = 'site.toml'
 SITE_REPOS_DIR_NAME = 'repos'
 SITE_REPOS_DB_NAME = 'repos.db'
 SITE_ENV_FILE_NAME = '.env'
@@ -233,7 +233,7 @@ class QdSite:
 
     def write_site_config(self):
         """
-        Write site configuration to site.yaml.
+        Write site configuration to site.toml.
         Creates conf directory if needed.
         """
         if qdconf is None:

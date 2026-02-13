@@ -40,7 +40,7 @@ class UserSystemChecker(CheckRunner):
 
     service_name = "qdflask"
     service_display_name = "Flask Authentication"
-    config_filename = "qdflask.yaml"
+    config_filename = "qdflask.toml"
 
     # Expected schema columns (from models.py)
     EXPECTED_COLUMNS = {

@@ -38,7 +38,7 @@ class CommentSystemChecker(CheckRunner):
 
     service_name = "qdcomments"
     service_display_name = "Comment System"
-    config_filename = "qdcomments.yaml"
+    config_filename = "qdcomments.toml"
 
     # Expected columns in comments table
     EXPECTED_COMMENT_COLUMNS = {

@@ -41,7 +41,8 @@ def load_user(user_id):
     return User.get(user_id)
 
 
-def init_auth(app, roles=None, login_view='auth.login'):
+def init_auth(app, roles=None, login_view='auth.login',
+              db_path='passwords.db'):
     """
     Initialize authentication for a Flask application.
 
@@ -50,6 +51,8 @@ def init_auth(app, roles=None, login_view='auth.login'):
         roles: List of valid role names. Must include 'admin'.
                Defaults to ['admin', 'editor']
         login_view: The view to redirect to when login is required
+        db_path: Path to the passwords database file.
+                 Defaults to 'passwords.db'.
 
     Example:
         init_auth(app, roles=['admin', 'manager', 'staff', 'customer'])
@@ -64,6 +67,10 @@ def init_auth(app, roles=None, login_view='auth.login'):
 
     # Store valid roles in app config
     app.config['QDFLASK_ROLES'] = roles
+
+    # Set database URI from db_path
+    app.config.setdefault(
+        'SQLALCHEMY_DATABASE_URI', f'sqlite:///{db_path}')
 
     # Initialize database
     db.init_app(app)

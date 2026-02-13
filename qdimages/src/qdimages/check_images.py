@@ -38,7 +38,7 @@ class ImageSystemChecker(CheckRunner):
 
     service_name = "qdimages"
     service_display_name = "Image Management"
-    config_filename = "qdimages.yaml"
+    config_filename = "qdimages.toml"
 
     # Expected tables and their required columns
     EXPECTED_TABLES = {

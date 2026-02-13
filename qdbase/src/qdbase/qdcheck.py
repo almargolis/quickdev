@@ -15,7 +15,7 @@ Example usage:
     class MyServiceChecker(CheckRunner):
         service_name = "myservice"
         service_display_name = "My Service"
-        config_filename = "myservice.yaml"
+        config_filename = "myservice.toml"
 
         def _run_checks(self):
             self._check_config_exists()
@@ -118,7 +118,7 @@ class CheckRunner:
         class UserSystemChecker(CheckRunner):
             service_name = "qdflask"
             service_display_name = "Flask Authentication"
-            config_filename = "qdflask.yaml"
+            config_filename = "qdflask.toml"
 
             def _run_checks(self):
                 self._check_secret_key()

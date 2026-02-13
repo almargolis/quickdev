@@ -11,7 +11,7 @@ import json
 import os
 import ast
 import sqlite3
-import yaml
+import tomllib
 from pathlib import Path
 
 from qdbase import exenv 
@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS conf_questions (
     yaml_path TEXT NOT NULL,
     conf_key TEXT UNIQUE NOT NULL,
     help TEXT,
-    type TEXT
+    type TEXT,
+    directory INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS flask_init (
@@ -86,6 +87,10 @@ CREATE INDEX IF NOT EXISTS idx_flask_init_priority ON flask_init(priority);
 
 CONF_TYPE_BASENAME = 'basename'
 CONF_TYPE_DIRECTORY_PATH = 'dpath'
+CONF_TYPE_FILE_PATH = 'dpath'
+CONF_TYPE_STRING = 'dpath'
+CONF_TYPE_LIST = [CONF_TYPE_BASENAME, CONF_TYPE_DIRECTORY_PATH, CONF_TYPE_FILE_PATH,
+                  CONF_TYPE_STRING]
 
 class ConfQuestion:
     def __init__(self, conf_type, conf_key, conf_help, yaml_path=''):
@@ -250,12 +255,12 @@ class RepoScanner:
 
     def load_answer_files(self, answer_file_list):
         """
-        Load answers from YAML files before scanning directories.
+        Load answers from TOML files before scanning directories.
 
         First answer found wins - subsequent answers for same key are ignored.
 
         Args:
-            answer_file_list: List of paths to YAML files containing answers
+            answer_file_list: List of paths to TOML files containing answers
 
         Returns:
             Count of answers loaded
@@ -269,15 +274,29 @@ class RepoScanner:
             cursor = self._conn.cursor()
         count = 0
 
-        for yaml_path in answer_file_list:
-            yaml_path = Path(yaml_path)
-            if not yaml_path.exists():
-                continue
-            count += self._load_answers_from_yaml(cursor, yaml_path)
+        for toml_path in answer_file_list:
+            toml_path = Path(toml_path)
+            if not toml_path.exists():
+                raise FileNotFoundError(
+                    f"Answer file not found: {toml_path}")
+            count += self._load_answers_from_toml(cursor, toml_path)
 
         if self._conn is not None:
             self._conn.commit()
         return count
+
+    def update_answer(self, answer_key, answer_value):
+        """Update an existing answer in both cache and database."""
+        answer_value = str(answer_value) if answer_value is not None else ''
+        self.answer_cache[answer_key] = answer_value
+        if self._conn is not None:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                '''UPDATE conf_answers SET conf_value = ?
+                   WHERE conf_key = ?''',
+                (answer_value, answer_key)
+            )
+            self._conn.commit()
 
     def post_answer(self, answer_key, answer_value, cursor, yaml_path_str):
         if answer_key in self.answer_cache:
@@ -294,32 +313,28 @@ class RepoScanner:
                     )
         return 1
 
-    def _load_answers_from_yaml(self, cursor, yaml_path):
+    def _load_answers_from_toml(self, cursor, toml_path):
         """
-        Load answers from a single YAML file.
+        Load answers from a single TOML file.
 
-        Supports both flat format (key: value) and nested format.
+        Supports both flat format (key = value) and nested format.
         First answer found wins.
 
         Args:
             cursor: Database cursor
-            yaml_path: Path to YAML file
+            toml_path: Path to TOML file
 
         Returns:
             Count of answers loaded
         """
-        try:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-        except Exception:
-            return 0
+        with open(toml_path, 'rb') as f:
+            data = tomllib.load(f)
 
         if not data or not isinstance(data, dict):
             return 0
 
         count = 0
-        yaml_path_str = str(yaml_path)
-
+        toml_path_str = str(toml_path)
 
         def traverse(obj, key_parts):
             nonlocal count
@@ -333,11 +348,11 @@ class RepoScanner:
                     # All values are leaves
                     for k, v in obj.items():
                         conf_key = '.'.join(key_parts + [k])
-                        count += self.post_answer(conf_key, v, cursor, yaml_path_str)
+                        count += self.post_answer(conf_key, v, cursor, toml_path_str)
             else:
                 # Leaf value
                 conf_key = '.'.join(key_parts)
-                count += self.post_answer(conf_key, obj, cursor, yaml_path_str)
+                count += self.post_answer(conf_key, obj, cursor, toml_path_str)
 
         traverse(data, [])
         return count
@@ -457,10 +472,13 @@ class RepoScanner:
         # Walk directory tree and find any directory with __init__.py
         for dirpath, dirnames, filenames in os.walk(repo_path):
             # Skip hidden directories and common non-package directories
-            dirnames[:] = [d for d in dirnames
-                          if not d.startswith('.')
-                          and not d.startswith('_')
-                          and d not in ('build', 'dist', 'node_modules', '.git')]
+            dirnames[:] = [
+                d for d in dirnames
+                if not d.startswith('.')
+                and not d.startswith('_')
+                and d not in ('build', 'dist', 'node_modules', '.git')
+                and not (Path(dirpath) / d / 'pyvenv.cfg').exists()
+            ]
 
             dir_path = Path(dirpath)
 
@@ -478,31 +496,22 @@ class RepoScanner:
                         'editable': 1 if editable else 0
                     })
 
-            # Check for qd_conf.yaml (new unified format)
-            if 'qd_conf.yaml' in filenames:
-                yaml_path = dir_path / 'qd_conf.yaml'
-                qa_counts = self._scan_qd_conf_yaml(cursor, yaml_path)
+            # Check for qd_conf.toml
+            if 'qd_conf.toml' in filenames:
+                toml_path = dir_path / 'qd_conf.toml'
+                qa_counts = self._scan_qd_conf_toml(cursor, toml_path)
                 counts['conf_answers'] += qa_counts['answers']
                 counts['conf_questions'] += qa_counts['questions']
 
-            # Also support legacy separate files
-            if 'qd_conf_answers.yaml' in filenames:
-                yaml_path = dir_path / 'qd_conf_answers.yaml'
-                counts['conf_answers'] += self._scan_conf_answers(cursor, yaml_path)
-
-            if 'qd_conf_questions.yaml' in filenames:
-                yaml_path = dir_path / 'qd_conf_questions.yaml'
-                counts['conf_questions'] += self._scan_conf_questions(cursor, yaml_path)
-
         return counts
 
-    def _scan_qd_conf_yaml(self, cursor, yaml_path):
+    def _scan_qd_conf_toml(self, cursor, toml_path):
         """
-        Scan a qd_conf.yaml file with "questions" and "answers" sections.
+        Scan a qd_conf.toml file with "questions" and "answers" sections.
 
         Args:
             cursor: Database cursor
-            yaml_path: Path to the YAML file
+            toml_path: Path to the TOML file
 
         Returns:
             dict with counts: answers, questions
@@ -510,8 +519,8 @@ class RepoScanner:
         counts = {'answers': 0, 'questions': 0}
 
         try:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
+            with open(toml_path, 'rb') as f:
+                data = tomllib.load(f)
         except Exception:
             return counts
 
@@ -521,20 +530,20 @@ class RepoScanner:
         # Process "answers" section if present
         if 'answers' in data and isinstance(data['answers'], dict):
             counts['answers'] = self._process_answers_section(
-                cursor, data['answers'], str(yaml_path)
+                cursor, data['answers'], str(toml_path)
             )
 
         # Process "questions" section if present
         if 'questions' in data and isinstance(data['questions'], dict):
             counts['questions'] = self._process_questions_section(
-                cursor, data['questions'], str(yaml_path)
+                cursor, data['questions'], str(toml_path)
             )
 
         # Process "flask" section if present
         if 'flask' in data and isinstance(data['flask'], dict):
-            package_name = Path(yaml_path).parent.name
+            package_name = Path(toml_path).parent.name
             flask_counts = self._process_flask_section(
-                cursor, data['flask'], package_name, str(yaml_path)
+                cursor, data['flask'], package_name, str(toml_path)
             )
             counts['flask_init'] = flask_counts.get('init_functions', 0)
 
@@ -674,11 +683,13 @@ class RepoScanner:
                 conf_key = '.'.join(key_parts)
                 help_text = obj.get('help', '')
                 type_text = obj.get('type', '')
+                directory = 1 if obj.get('directory') else 0
                 cursor.execute(
                     '''INSERT OR IGNORE INTO conf_questions
-                       (yaml_path, conf_key, help, type)
-                       VALUES (?, ?, ?, ?)''',
-                    (yaml_path_str, conf_key, help_text, type_text)
+                       (yaml_path, conf_key, help, type, directory)
+                       VALUES (?, ?, ?, ?, ?)''',
+                    (yaml_path_str, conf_key, help_text, type_text,
+                     directory)
                 )
                 if cursor.rowcount > 0:
                     count += 1
@@ -707,22 +718,20 @@ class RepoScanner:
         """
         isflask, isflaskbp = self._detect_flask_package(package_path)
 
-        # Check for setup.py in package, parent, or grandparent directory.
+        # Check for setup.py or pyproject.toml in package, parent, or
+        # grandparent directory.
         # Flat layout:  repo/package/__init__.py + repo/setup.py (parent)
         # src/ layout:  repo/src/package/__init__.py + repo/setup.py (grandparent)
         has_setup = False
         setup_path = None
         parent_path = package_path.parent
         grandparent_path = parent_path.parent
-        if (parent_path / 'setup.py').exists():
-            has_setup = True
-            setup_path = parent_path
-        elif (grandparent_path / 'setup.py').exists():
-            has_setup = True
-            setup_path = grandparent_path
-        elif (package_path / 'setup.py').exists():
-            has_setup = True
-            setup_path = package_path
+        for candidate in (parent_path, grandparent_path, package_path):
+            if ((candidate / 'setup.py').exists()
+                    or (candidate / 'pyproject.toml').exists()):
+                has_setup = True
+                setup_path = candidate
+                break
 
         editable_int = 1 if editable else 0
         setup_path_str = str(setup_path) if setup_path else None
@@ -875,97 +884,6 @@ class RepoScanner:
 
         return ', '.join(params)
 
-    def _scan_conf_answers(self, cursor, yaml_path):
-        """
-        Scan a qd_conf_answers.yaml file and insert into conf_answers table.
-
-        First answer found wins - subsequent answers for same key are ignored.
-
-        Args:
-            cursor: Database cursor
-            yaml_path: Path to the YAML file
-
-        Returns:
-            Count of entries added
-        """
-        try:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-        except Exception:
-            return 0
-
-        if not data or not isinstance(data, dict):
-            return 0
-
-        count = 0
-        yaml_path_str = str(yaml_path)
-
-        def traverse(obj, key_parts):
-            nonlocal count
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    traverse(v, key_parts + [k])
-            else:
-                # Leaf value - insert into database (first answer wins)
-                conf_key = '.'.join(key_parts)
-                count += self.post_answer(conf_key, obj, cursor, '')
-
-        traverse(data, [])
-        return count
-
-    def _scan_conf_questions(self, cursor, yaml_path):
-        """
-        Scan a qd_conf_questions.yaml file and insert into conf_questions table.
-
-        First question definition wins - subsequent definitions are ignored.
-
-        Args:
-            cursor: Database cursor
-            yaml_path: Path to the YAML file
-
-        Returns:
-            Count of entries added
-        """
-        try:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-        except Exception:
-            return 0
-
-        if not data or not isinstance(data, dict):
-            return 0
-
-        count = 0
-        yaml_path_str = str(yaml_path)
-
-        def is_question_leaf(obj):
-            """Check if this dict is a question definition (has help or type)."""
-            if not isinstance(obj, dict):
-                return False
-            return 'help' in obj or 'type' in obj
-
-        def traverse(obj, key_parts):
-            nonlocal count
-            if is_question_leaf(obj):
-                # This is a question definition
-                conf_key = '.'.join(key_parts)
-                help_text = obj.get('help', '')
-                type_text = obj.get('type', '')
-                cursor.execute(
-                    '''INSERT OR IGNORE INTO conf_questions
-                       (yaml_path, conf_key, help, type)
-                       VALUES (?, ?, ?, ?)''',
-                    (yaml_path_str, conf_key, help_text, type_text)
-                )
-                if cursor.rowcount > 0:
-                    count += 1
-            elif isinstance(obj, dict):
-                for k, v in obj.items():
-                    traverse(v, key_parts + [k])
-
-        traverse(data, [])
-        return count
-
     def get_answers(self):
         """
         Get all answers from the database.
@@ -993,7 +911,7 @@ class RepoScanner:
         cursor = self._conn.cursor()
 
         cursor.execute('''
-            SELECT conf_key, help, type, yaml_path
+            SELECT conf_key, help, type, yaml_path, directory
             FROM conf_questions
             ORDER BY conf_key
         ''')

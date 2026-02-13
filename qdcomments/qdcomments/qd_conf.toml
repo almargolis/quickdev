@@ -1,0 +1,8 @@
+[questions.qdcomments.enabled]
+help = "Enable comments system? (qdcomments)"
+type = "boolean"
+
+[flask.init_function]
+module = "qdcomments"
+function = "init_comments"
+priority = 50

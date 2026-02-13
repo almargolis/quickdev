@@ -1,0 +1,43 @@
+[questions.qdflask.enabled]
+help = "Enable Flask authentication? (qdflask)"
+type = "boolean"
+
+[questions.qdflask.roles]
+help = "Comma-separated user roles (must include admin)"
+type = "string"
+
+[questions.qdflask.login_view]
+help = "Flask endpoint name for login redirect"
+type = "string"
+
+[questions.qdflask.passwordsdb_fpath]
+help = "Path to the passwords database file"
+type = "string"
+
+[flask.init_function]
+module = "qdflask"
+function = "init_auth"
+priority = 10
+
+[flask.init_function.params.roles]
+source = "answer"
+key = "qdflask.roles"
+type = "list"
+default = "['admin', 'editor']"
+
+[flask.init_function.params.login_view]
+source = "answer"
+key = "qdflask.login_view"
+type = "string"
+default = "'auth.login'"
+
+[flask.init_function.params.db_path]
+source = "answer"
+key = "qdflask.passwordsdb_fpath"
+type = "string"
+default = "'passwords.db'"
+
+[[flask.post_init]]
+module = "qdflask.mail_utils"
+function = "init_mail"
+priority = 90

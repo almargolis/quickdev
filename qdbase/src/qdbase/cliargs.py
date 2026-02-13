@@ -24,14 +24,16 @@ def argument_code_str(argument_code):
     """
     Return help string representation of an argument.
     This mainly translates special arguments to a human
-    understandable form.
+    understandable form, and adds the conventional dash prefix:
+    single-char codes get '-', multi-char codes get '--'.
     """
     if argument_code in ALL_DEFAULT_ARGUMENT_CODES:
         if argument_code == DEFAULT_FILE_LIST_CODE:
-            argument_code = "<files>"
-        else:
-            argument_code = "<default>"
-    return argument_code
+            return "<files>"
+        return "<default>"
+    if len(argument_code) > 1:
+        return f"--{argument_code}"
+    return f"-{argument_code}"
 
 
 class CliCommandLineItem:  # pylint: disable=too-few-public-methods

@@ -6,6 +6,7 @@ error handling and user interaction support.
 """
 
 import os
+import re
 
 from qdbase import cliinput
 
@@ -235,6 +236,108 @@ def make_symlink_to_file(
         link_name,
         error_func=error_func,
     )
+
+
+def write_toml(filepath, data):
+    """
+    Write a dictionary to a TOML file.
+
+    Handles strings, booleans, integers, floats, lists of scalars,
+    nested dicts (TOML tables), and lists of dicts (TOML arrays of
+    tables). None values are skipped.
+
+    Args:
+        filepath: Path to the output file
+        data: Dictionary to serialize
+    """
+    lines = []
+    _write_toml_table(lines, data, [])
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+        if lines:
+            f.write('\n')
+
+
+def _toml_key(key):
+    """Format a key for TOML, quoting if necessary."""
+    if re.match(r'^[A-Za-z0-9_-]+$', key):
+        return key
+    return '"' + key.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _toml_value(value):
+    """Format a scalar value for TOML."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value)
+    if isinstance(value, str):
+        escaped = (value
+                   .replace('\\', '\\\\')
+                   .replace('"', '\\"')
+                   .replace('\n', '\\n')
+                   .replace('\t', '\\t'))
+        return f'"{escaped}"'
+    if isinstance(value, list):
+        items = [_toml_value(item) for item in value if item is not None]
+        return '[' + ', '.join(items) + ']'
+    raise TypeError(f"Unsupported TOML value type: {type(value)}")
+
+
+def _write_toml_table(lines, data, key_path):
+    """
+    Recursively write a TOML table.
+
+    Emits scalars first, then sub-tables, then arrays of tables.
+    """
+    scalars = []
+    sub_tables = []
+    arrays_of_tables = []
+
+    for key, value in data.items():
+        if value is None:
+            continue
+        if isinstance(value, dict):
+            sub_tables.append((key, value))
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            arrays_of_tables.append((key, value))
+        else:
+            scalars.append((key, value))
+
+    # Emit table header if we have a key_path and there are scalars
+    if key_path and scalars:
+        header = '.'.join(_toml_key(k) for k in key_path)
+        if lines and lines[-1] != '':
+            lines.append('')
+        lines.append(f'[{header}]')
+
+    # Emit scalars
+    for key, value in scalars:
+        lines.append(f'{_toml_key(key)} = {_toml_value(value)}')
+
+    # Emit sub-tables
+    for key, value in sub_tables:
+        _write_toml_table(lines, value, key_path + [key])
+
+    # Emit arrays of tables
+    for key, value in arrays_of_tables:
+        for item in value:
+            full_key = key_path + [key]
+            header = '.'.join(_toml_key(k) for k in full_key)
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append(f'[[{header}]]')
+            for item_key, item_value in item.items():
+                if item_value is None:
+                    continue
+                if isinstance(item_value, dict):
+                    _write_toml_table(lines, item_value,
+                                      full_key + [item_key])
+                else:
+                    lines.append(
+                        f'{_toml_key(item_key)} = {_toml_value(item_value)}')
 
 
 def make_symlink_to_directory(

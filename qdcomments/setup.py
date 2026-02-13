@@ -19,7 +19,6 @@ setup(
     },
     license="MIT",
     packages=['qdcomments'],
-    package_dir={'qdcomments': '.'},
     include_package_data=True,
     package_data={
         'qdcomments': [

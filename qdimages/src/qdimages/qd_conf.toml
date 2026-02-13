@@ -1,0 +1,8 @@
+[questions.qdimages.enabled]
+help = "Enable image management? (qdimages)"
+type = "boolean"
+
+[flask.init_function]
+module = "qdimages"
+function = "init_image_manager"
+priority = 50
