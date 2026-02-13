@@ -7,6 +7,7 @@ system configuration files.
 """
 
 import os
+import re
 
 from qdbase import cliinput
 from qdbase import exenv
@@ -170,15 +171,15 @@ class TestExpandAnswerRefs:
 
 
 class TestResolveQuestion:
-    """Tests for the resolve_question() shared function."""
+    """Tests for ConfAnswer.resolve() classmethod."""
 
     def test_constant_from_answer_cache(self):
         """Answer in answer_cache returns SOURCE_CONSTANT."""
-        question = {'conf_key': 'qdflask.enabled', 'help': '', 'type': 'boolean'}
+        question = qdrepos.ConfQuestion('boolean', 'qdflask.enabled', '')
         cache = {'qdflask.enabled': True}
-        value, source = qdstart.resolve_question(question, cache)
-        assert value is True
-        assert source == qdstart.SOURCE_CONSTANT
+        answer = qdrepos.ConfAnswer.resolve(question, cache)
+        assert answer.conf_value is True
+        assert answer.source == qdstart.SOURCE_CONSTANT
 
     def test_configured_from_conf(self, tmp_path):
         """Answer in conf returns SOURCE_CONFIGURED."""
@@ -189,19 +190,19 @@ class TestResolveQuestion:
                         {'enabled': True, 'roles': 'admin, editor'})
 
         conf = qdconf.QdConf(str(conf_dir))
-        question = {'conf_key': 'qdflask.roles', 'help': '', 'type': 'string'}
+        question = qdrepos.ConfQuestion('string', 'qdflask.roles', '')
         cache = {}
-        value, source = qdstart.resolve_question(question, cache, conf)
-        assert value == 'admin, editor'
-        assert source == qdstart.SOURCE_CONFIGURED
+        answer = qdrepos.ConfAnswer.resolve(question, cache, conf)
+        assert answer.conf_value == 'admin, editor'
+        assert answer.source == qdstart.SOURCE_CONFIGURED
 
     def test_prompt_when_no_answer(self):
         """No answer anywhere returns SOURCE_PROMPT."""
-        question = {'conf_key': 'qdflask.roles', 'help': '', 'type': 'string'}
+        question = qdrepos.ConfQuestion('string', 'qdflask.roles', '')
         cache = {}
-        value, source = qdstart.resolve_question(question, cache)
-        assert value is None
-        assert source == qdstart.SOURCE_PROMPT
+        answer = qdrepos.ConfAnswer.resolve(question, cache)
+        assert answer.conf_value is None
+        assert answer.source == qdstart.SOURCE_PROMPT
 
     def test_cache_takes_priority_over_conf(self, tmp_path):
         """answer_cache (constant) wins over conf (configured)."""
@@ -211,11 +212,11 @@ class TestResolveQuestion:
                         {'roles': 'old_value'})
 
         conf = qdconf.QdConf(str(conf_dir))
-        question = {'conf_key': 'qdflask.roles', 'help': '', 'type': 'string'}
+        question = qdrepos.ConfQuestion('string', 'qdflask.roles', '')
         cache = {'qdflask.roles': 'new_value'}
-        value, source = qdstart.resolve_question(question, cache, conf)
-        assert value == 'new_value'
-        assert source == qdstart.SOURCE_CONSTANT
+        answer = qdrepos.ConfAnswer.resolve(question, cache, conf)
+        assert answer.conf_value == 'new_value'
+        assert answer.source == qdstart.SOURCE_CONSTANT
 
     def test_prompt_when_conf_key_missing(self, tmp_path):
         """Key not in conf and not in cache returns SOURCE_PROMPT."""
@@ -225,11 +226,11 @@ class TestResolveQuestion:
                         {'enabled': True})
 
         conf = qdconf.QdConf(str(conf_dir))
-        question = {'conf_key': 'qdflask.login_view', 'help': '', 'type': 'string'}
+        question = qdrepos.ConfQuestion('string', 'qdflask.login_view', '')
         cache = {}
-        value, source = qdstart.resolve_question(question, cache, conf)
-        assert value is None
-        assert source == qdstart.SOURCE_PROMPT
+        answer = qdrepos.ConfAnswer.resolve(question, cache, conf)
+        assert answer.conf_value is None
+        assert answer.source == qdstart.SOURCE_PROMPT
 
 
 class TestPlanSite:
@@ -264,7 +265,7 @@ class TestPlanSite:
                 'mypkg': {
                     'enabled': {
                         'help': 'Enable mypkg?',
-                        'type': 'boolean'
+                        'conf_type': 'boolean'
                     }
                 }
             },
@@ -298,7 +299,7 @@ class TestPlanSite:
                 'mypkg': {
                     'color': {
                         'help': 'Pick a color',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 }
             }
@@ -323,7 +324,7 @@ class TestPlanSite:
                 'mypkg': {
                     'secret': {
                         'help': 'Enter secret key',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 }
             }
@@ -347,11 +348,11 @@ class TestPlanSite:
                 'mypkg': {
                     'enabled': {
                         'help': 'Enable mypkg?',
-                        'type': 'boolean'
+                        'conf_type': 'boolean'
                     },
                     'color': {
                         'help': 'Pick a color',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 }
             },
@@ -387,15 +388,15 @@ class TestPlanSite:
                 'mypkg': {
                     'enabled': {
                         'help': 'Enable mypkg?',
-                        'type': 'boolean'
+                        'conf_type': 'boolean'
                     },
                     'color': {
                         'help': 'Pick a color',
-                        'type': 'string'
+                        'conf_type': 'string'
                     },
                     'size': {
                         'help': 'Pick a size',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 }
             },
@@ -427,13 +428,13 @@ class TestPlanSite:
                 'trellis': {
                     'content_dpath': {
                         'help': 'Path to site content',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 },
                 'qdflask': {
                     'user_db_path': {
                         'help': 'Path to user database',
-                        'type': 'string'
+                        'conf_type': 'string'
                     }
                 }
             },
@@ -454,3 +455,91 @@ class TestPlanSite:
         assert "<trellis.content_dpath>/users.db" in captured.out
         # Expanded value shown
         assert "/var/www/content/users.db" in captured.out
+
+
+class TestRandomFill:
+    """Tests for CONF_TYPE_RANDOM_FILL auto-generation."""
+
+    _HEX64_RE = re.compile(r'^[0-9a-f]{64}$')
+
+    def _make_qdstart_stub(self, tmp_path, answer_cache=None, conf=None):
+        """Build a minimal QdStart-like object for handle_question()."""
+        stub = object.__new__(qdstart.QdStart)
+        stub.quiet = False
+        stub.conf = conf
+        stub.repo_scanner = qdrepos.RepoScanner(
+            str(tmp_path), in_memory=True
+        )
+        if answer_cache:
+            stub.repo_scanner.answer_cache.update(answer_cache)
+        return stub
+
+    def test_random_fill_generates_when_no_answer(self, tmp_path):
+        """random_fill question with no pre-existing answer auto-generates."""
+        stub = self._make_qdstart_stub(tmp_path)
+        question = qdrepos.ConfQuestion(
+            qdrepos.CONF_TYPE_RANDOM_FILL,
+            'denv.FLASK_SECRET_KEY',
+            'Secret key for Flask session signing'
+        )
+        answer = stub.handle_question(question)
+        assert answer.conf_value is not None
+        assert self._HEX64_RE.match(answer.conf_value)
+
+    def test_random_fill_uses_existing_conf(self, tmp_path):
+        """random_fill uses SOURCE_CONFIGURED when key exists in conf."""
+        conf_dir = tmp_path / 'conf'
+        conf_dir.mkdir()
+        env_file = conf_dir / '.env'
+        env_file.write_text('FLASK_SECRET_KEY=existing_secret\n')
+        conf = qdconf.QdConf(str(conf_dir))
+
+        stub = self._make_qdstart_stub(tmp_path, conf=conf)
+        question = qdrepos.ConfQuestion(
+            qdrepos.CONF_TYPE_RANDOM_FILL,
+            'denv.FLASK_SECRET_KEY',
+            'Secret key for Flask session signing'
+        )
+        answer = stub.handle_question(question)
+        assert answer.conf_value == 'existing_secret'
+        assert answer.source == qdstart.SOURCE_CONFIGURED
+
+    def test_random_fill_uses_answer_cache(self, tmp_path):
+        """random_fill uses SOURCE_CONSTANT when key is in answer_cache."""
+        stub = self._make_qdstart_stub(
+            tmp_path,
+            answer_cache={'denv.FLASK_SECRET_KEY': 'cached_secret'}
+        )
+        question = qdrepos.ConfQuestion(
+            qdrepos.CONF_TYPE_RANDOM_FILL,
+            'denv.FLASK_SECRET_KEY',
+            'Secret key for Flask session signing'
+        )
+        answer = stub.handle_question(question)
+        assert answer.conf_value == 'cached_secret'
+        assert answer.source == qdstart.SOURCE_CONSTANT
+
+    def test_plan_site_labels_random_fill(self, tmp_path, capsys):
+        """plan_site() shows '(auto-generated)' for random_fill questions."""
+        site_dir = tmp_path / 'site'
+        site_dir.mkdir()
+        repo_dir = tmp_path / 'repo'
+        repo_dir.mkdir()
+
+        pkg_dir = repo_dir / 'mypkg'
+        pkg_dir.mkdir(parents=True)
+        qd_conf = {
+            'questions': {
+                'denv': {
+                    'MY_SECRET': {
+                        'help': 'A secret value',
+                        'conf_type': 'random_fill'
+                    }
+                }
+            }
+        }
+        qdos.write_toml(str(pkg_dir / 'qd_conf.toml'), qd_conf)
+        qdstart.plan_site(str(site_dir), quiet=False,
+                          repo_list=[str(repo_dir)])
+        captured = capsys.readouterr()
+        assert "denv.MY_SECRET (auto-generated)" in captured.out

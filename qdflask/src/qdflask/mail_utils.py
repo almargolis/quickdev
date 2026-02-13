@@ -21,39 +21,23 @@ def init_mail(app, config_path=None):
         config_path: Optional explicit conf directory path (default: auto-detect)
 
     Configuration is loaded from:
-        1. conf/email.yaml - SMTP server settings
-        2. .env - SMTP_PW (password/API key)
+        1. conf/email.toml - SMTP server settings
+        2. conf/.env - SMTP_PW (password/API key)
 
-    Example conf/email.yaml:
-        MAIL_SERVER: smtp-relay.brevo.com
-        MAIL_PORT: 587
-        MAIL_USE_TLS: true
-        MAIL_USE_SSL: false
-        MAIL_USERNAME: your-email@example.com
-        MAIL_DEFAULT_SENDER: noreply@yourdomain.com
+    Example conf/email.toml:
+        MAIL_SERVER = "smtp-relay.brevo.com"
+        MAIL_PORT = 587
+        MAIL_USE_TLS = true
+        MAIL_USE_SSL = false
+        MAIL_USERNAME = "your-email@example.com"
+        MAIL_DEFAULT_SENDER = "noreply@yourdomain.com"
 
-    Example .env:
+    Example conf/.env:
         SMTP_PW=your-smtp-password-or-api-key
 
     """
     # Initialize QdConf with optional explicit path
     conf = QdConf(conf_dir=config_path)
-
-    print(f"Loading email config from: {conf.get_conf_dir()}/email.yaml")
-
-    # Try to load a sample key to check if email.yaml exists and is valid
-    try:
-        test_key = conf.get('email.MAIL_SERVER')
-        if test_key:
-            logging.info(f"✓ Loaded email configuration from {conf.get_conf_dir()}/email.yaml")
-            print(f"✓ Email configuration loaded successfully")
-    except Exception as e:
-        # File not found or other error - will use defaults
-        logging.warning(f"Email config issue: {e}")
-        print(f"⚠ Email config not found or invalid")
-        print(f"  Using defaults. To configure email:")
-        print(f"  1. Copy qdflask/conf/email.yaml.example to {conf.get_conf_dir()}/email.yaml")
-        print(f"  2. Add SMTP_PW to {conf.get_conf_dir()}/.env")
 
     # Load SMTP password from .env
     smtp_password = conf.get('denv.SMTP_PW')

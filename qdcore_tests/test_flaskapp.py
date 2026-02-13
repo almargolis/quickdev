@@ -279,6 +279,8 @@ class TestFlaskAppGeneration:
         assert 'init_thing(app)' in content
         assert 'def qd_init_app(app):' in content
         assert 'def create_app(' in content
+        # No config_module → Flask uses __name__
+        assert 'Flask(__name__)' in content
         scanner.close()
 
     def test_generate_ordering(self, tmp_path):
@@ -354,6 +356,8 @@ class TestFlaskAppGeneration:
         ast.parse(content)
         assert 'from myapp.config import MyConfig' in content
         assert 'config_class = MyConfig' in content
+        # Flask import_name should be the config's root package, not __name__
+        assert "Flask('myapp')" in content
         scanner.close()
 
     def test_param_resolution_from_answer(self, tmp_path):

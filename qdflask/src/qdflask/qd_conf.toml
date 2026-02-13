@@ -1,18 +1,39 @@
 [questions.qdflask.enabled]
 help = "Enable Flask authentication? (qdflask)"
-type = "boolean"
+conf_type = "boolean"
 
 [questions.qdflask.roles]
 help = "Comma-separated user roles (must include admin)"
-type = "string"
 
 [questions.qdflask.login_view]
 help = "Flask endpoint name for login redirect"
-type = "string"
 
 [questions.qdflask.passwordsdb_fpath]
 help = "Path to the passwords database file"
-type = "string"
+conf_type = "fpath"
+
+[questions.email.MAIL_SERVER]
+help = "SMTP server hostname (e.g. smtp-relay.brevo.com)"
+
+[questions.email.MAIL_PORT]
+help = "SMTP port (587 for TLS, 465 for SSL)"
+
+[questions.email.MAIL_USE_TLS]
+help = "Use TLS encryption?"
+conf_type = "boolean"
+
+[questions.email.MAIL_USERNAME]
+help = "SMTP username (often your email address)"
+
+[questions.email.MAIL_DEFAULT_SENDER]
+help = "Default sender address for outgoing emails"
+
+[questions.denv.FLASK_SECRET_KEY]
+help = "Secret key for Flask session signing"
+conf_type = "random_fill"
+
+[questions.denv.SMTP_PW]
+help = "SMTP password or API key"
 
 [flask.init_function]
 module = "qdflask"

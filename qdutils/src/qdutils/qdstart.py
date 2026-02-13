@@ -26,7 +26,7 @@ QuickDev utilities such as apache.py.
 """
 
 import os
-import re
+import secrets
 import subprocess
 import sys
 
@@ -79,91 +79,11 @@ from qdbase import qdcheck
 from qdbase import qdconf
 from qdbase import qdos
 from qdcore import flaskapp
+from qdcore.qdrepos import (ConfAnswer, SOURCE_CONSTANT, SOURCE_CONFIGURED,
+                            SOURCE_PROMPT, expand_answer_refs,
+                            has_unresolved_refs)
 
 # pylint: enable=wrong-import-position
-
-# Answer source types for resolve_question()
-SOURCE_CONSTANT = "constant"      # From qd_conf.toml answers section
-SOURCE_CONFIGURED = "configured"  # From existing conf/*.toml
-SOURCE_PROMPT = "prompt"          # Will need to prompt user
-
-
-_REF_PATTERN = re.compile(r'<([a-zA-Z_][a-zA-Z0-9_.]+)>')
-
-
-def expand_answer_refs(value, answer_cache, conf=None):
-    """
-    Expand <conf_key> references in an answer value.
-
-    Symbolic references like "<trellis.content_dpath>/users.db" are
-    expanded by looking up the referenced conf_key in answer_cache
-    first, then conf. Unresolvable references are left as-is.
-
-    Args:
-        value: The answer string potentially containing <conf_key> refs
-        answer_cache: Dict of pre-supplied answers from qd_conf.toml
-        conf: QdConf instance for checking existing config, or None
-
-    Returns:
-        String with references expanded where possible
-    """
-    if not isinstance(value, str) or '<' not in value:
-        return value
-
-    def replacer(match):
-        ref_key = match.group(1)
-        if ref_key in answer_cache:
-            return str(answer_cache[ref_key])
-        if conf:
-            try:
-                return str(conf[ref_key])
-            except (KeyError, ValueError):
-                pass
-        return match.group(0)
-
-    return _REF_PATTERN.sub(replacer, value)
-
-
-def has_unresolved_refs(value):
-    """Return True if the string still contains <conf_key> references."""
-    return isinstance(value, str) and bool(_REF_PATTERN.search(value))
-
-
-def resolve_question(question, answer_cache, conf=None):
-    """
-    Determine the answer and source for a configuration question.
-
-    Checks answer sources in priority order:
-    1. answer_cache (from qd_conf.toml answers section) -> SOURCE_CONSTANT
-    2. Existing conf files (conf/*.toml) -> SOURCE_CONFIGURED
-    3. Not found -> SOURCE_PROMPT
-
-    This is shared logic used by both handle_question() (interactive)
-    and plan_site() (reporting). Changes to answer resolution order
-    should be made here.
-
-    Args:
-        question: Dict with conf_key, help, type from conf_questions
-        answer_cache: Dict of pre-supplied answers from qd_conf.toml
-        conf: QdConf instance for checking existing config, or None
-
-    Returns:
-        Tuple of (value, source_type) where source_type is one of
-        SOURCE_CONSTANT, SOURCE_CONFIGURED, or SOURCE_PROMPT
-    """
-    conf_key = question['conf_key']
-
-    if conf_key in answer_cache:
-        return answer_cache[conf_key], SOURCE_CONSTANT
-
-    if conf:
-        try:
-            existing = conf[conf_key]
-            return existing, SOURCE_CONFIGURED
-        except KeyError:
-            pass
-
-    return None, SOURCE_PROMPT
 
 
 class QdStart:
@@ -570,73 +490,61 @@ class QdStart:
         """
         Handle a single configuration question.
 
-        Uses resolve_question() to check for pre-supplied or existing
+        Uses ConfAnswer.resolve() to check for pre-supplied or existing
         answers, then prompts the user if needed. Stores the answer
         in QdConf.
 
         Args:
-            question: Dict with conf_key, help, type from conf_questions table
+            question: ConfQuestion object
 
         Returns:
-            The answer value, or None if skipped
+            ConfAnswer with the resolved answer
         """
-        conf_key = question['conf_key']
-        value, source = resolve_question(
+        conf_key = question.conf_key
+        answer = ConfAnswer.resolve(
             question, self.repo_scanner.answer_cache, self.conf
         )
 
-        if source == SOURCE_CONSTANT:
-            value = expand_answer_refs(
-                value, self.repo_scanner.answer_cache, self.conf
-            )
+        if answer.source == SOURCE_CONSTANT:
+            answer.expand_refs(self.repo_scanner.answer_cache, self.conf)
             if not self.quiet:
-                print(f"  {conf_key}: {value} (from answers)")
-            self.repo_scanner.update_answer(conf_key, value)
+                print(f"  {conf_key}: {answer.conf_value} (from answers)")
+            self.repo_scanner.update_answer(conf_key, answer.conf_value)
             if self.conf:
-                self.conf[conf_key] = value
-            self._ensure_directory(question, value)
-            return value
+                self.conf[conf_key] = answer.conf_value
+            self._ensure_directory(question, answer.conf_value)
+            return answer
 
-        if source == SOURCE_CONFIGURED:
+        if answer.source == SOURCE_CONFIGURED:
             if not self.quiet:
-                print(f"  {conf_key}: {value} (existing)")
-            self._ensure_directory(question, value)
-            return value
+                print(f"  {conf_key}: {answer.conf_value} (existing)")
+            self._ensure_directory(question, answer.conf_value)
+            return answer
 
-        # Prompt user
-        help_text = question.get('help', '')
-        value_type = question.get('type', 'string')
-        prompt = f"{conf_key}: "
-        if help_text:
-            prompt = f"{help_text}\n{conf_key}: "
-
-        if value_type == 'boolean':
-            answer = cliinput.cli_input_yn(prompt)
+        # Prompt user (or auto-generate for random_fill)
+        if question.is_random_fill:
+            answer.conf_value = secrets.token_hex(32)
+            if not self.quiet:
+                print(f"  {conf_key}: (generated)")
+        elif question.is_boolean:
+            prompt = question.build_prompt()
+            answer.conf_value = cliinput.cli_input_yn(prompt)
         else:
-            answer = cliinput.cli_input(prompt)
+            prompt = question.build_prompt()
+            answer.conf_value = cliinput.cli_input(prompt)
 
-        if answer is not None and self.conf:
-            self.conf[conf_key] = answer
-        self._ensure_directory(question, answer)
+        if answer.conf_value is not None and self.conf:
+            self.conf[conf_key] = answer.conf_value
+        self._ensure_directory(question, answer.conf_value)
 
         return answer
 
     def _ensure_directory(self, question, value):
-        """Create directory if question has directory=true and value is set."""
-        if not value or not question.get('directory'):
+        """Create directory if question type is dpath and value is set."""
+        if not value or not question.is_directory:
             return
         qdos.make_directory(
-            question['conf_key'], value, force=True, quiet=self.quiet)
-
-    def _is_disabled_answer(self, answer):
-        """Check if an answer represents a disabled/no value."""
-        if answer is None:
-            return False
-        if isinstance(answer, bool):
-            return not answer
-        if isinstance(answer, str):
-            return answer.lower() in ('false', 'no', '0', 'n')
-        return False
+            question.conf_key, value, force=True, quiet=self.quiet)
 
     def process_questions(self):
         """
@@ -660,16 +568,16 @@ class QdStart:
             print("\nProcessing configuration questions...")
 
         # Separate enabled questions from others
-        enabled_questions = [q for q in questions if q['conf_key'].endswith('.enabled')]
-        other_questions = [q for q in questions if not q['conf_key'].endswith('.enabled')]
+        enabled_questions = [q for q in questions if q.is_enabled_question]
+        other_questions = [q for q in questions if not q.is_enabled_question]
 
         # Process enabled questions first
         disabled_prefixes = set()
         for question in enabled_questions:
             answer = self.handle_question(question)
-            if self._is_disabled_answer(answer):
+            if answer.is_disabled:
                 # Extract prefix to skip related questions
-                prefix = question['conf_key'].rsplit('.enabled', 1)[0]
+                prefix = question.package_prefix
                 disabled_prefixes.add(prefix)
 
                 # Mark corresponding package as disabled
@@ -681,11 +589,10 @@ class QdStart:
 
         # Process other questions, skipping disabled plugins
         for question in other_questions:
-            conf_key = question['conf_key']
             # Check if this question belongs to a disabled plugin
             skip = False
             for prefix in disabled_prefixes:
-                if conf_key.startswith(prefix + '.'):
+                if question.conf_key.startswith(prefix + '.'):
                     skip = True
                     break
             if not skip:
@@ -708,17 +615,16 @@ class QdStart:
         if not self.conf or not self.repo_scanner:
             return
         for question in questions:
-            conf_key = question['conf_key']
             # Skip disabled plugins
             skip = False
             for prefix in disabled_prefixes:
-                if conf_key.startswith(prefix + '.'):
+                if question.conf_key.startswith(prefix + '.'):
                     skip = True
                     break
             if skip:
                 continue
             try:
-                current = self.conf[conf_key]
+                current = self.conf[question.conf_key]
             except KeyError:
                 continue
             if has_unresolved_refs(current):
@@ -726,9 +632,9 @@ class QdStart:
                     current, self.repo_scanner.answer_cache, self.conf
                 )
                 if expanded != current:
-                    self.conf[conf_key] = expanded
+                    self.conf[question.conf_key] = expanded
                     if not self.quiet:
-                        print(f"  {conf_key}: {expanded} (expanded)")
+                        print(f"  {question.conf_key}: {expanded} (expanded)")
 
     def _pip_install_editable(self, pip_path, package_path):
         """Install a package in editable mode."""
@@ -936,10 +842,8 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
         return
 
     # Separate enabled questions from others (same logic as process_questions)
-    enabled_questions = [q for q in questions
-                         if q['conf_key'].endswith('.enabled')]
-    other_questions = [q for q in questions
-                       if not q['conf_key'].endswith('.enabled')]
+    enabled_questions = [q for q in questions if q.is_enabled_question]
+    other_questions = [q for q in questions if not q.is_enabled_question]
 
     # Resolve each question and group by source
     constants = []
@@ -948,55 +852,49 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
     disabled_prefixes = set()
 
     for question in enabled_questions:
-        value, source = resolve_question(
+        answer = ConfAnswer.resolve(
             question, repo_scanner.answer_cache, conf
         )
         entry = {
-            'conf_key': question['conf_key'],
-            'help': question.get('help', ''),
-            'value': value,
-            'source': source,
+            'conf_key': question.conf_key,
+            'help': question.conf_help,
+            'value': answer.conf_value,
+            'source': answer.source,
+            'conf_type': question.conf_type,
         }
-        if source == SOURCE_CONSTANT:
+        if answer.source == SOURCE_CONSTANT:
             constants.append(entry)
-        elif source == SOURCE_CONFIGURED:
+        elif answer.source == SOURCE_CONFIGURED:
             configured.append(entry)
         else:
             prompts.append(entry)
 
         # Track disabled plugins to skip their sub-questions
-        if value is not None:
-            is_disabled = False
-            if isinstance(value, bool):
-                is_disabled = not value
-            elif isinstance(value, str):
-                is_disabled = value.lower() in ('false', 'no', '0', 'n')
-            if is_disabled:
-                prefix = question['conf_key'].rsplit('.enabled', 1)[0]
-                disabled_prefixes.add(prefix)
+        if answer.is_disabled:
+            disabled_prefixes.add(question.package_prefix)
 
     for question in other_questions:
-        conf_key = question['conf_key']
         skip = False
         for prefix in disabled_prefixes:
-            if conf_key.startswith(prefix + '.'):
+            if question.conf_key.startswith(prefix + '.'):
                 skip = True
                 break
         if skip:
             continue
 
-        value, source = resolve_question(
+        answer = ConfAnswer.resolve(
             question, repo_scanner.answer_cache, conf
         )
         entry = {
-            'conf_key': conf_key,
-            'help': question.get('help', ''),
-            'value': value,
-            'source': source,
+            'conf_key': question.conf_key,
+            'help': question.conf_help,
+            'value': answer.conf_value,
+            'source': answer.source,
+            'conf_type': question.conf_type,
         }
-        if source == SOURCE_CONSTANT:
+        if answer.source == SOURCE_CONSTANT:
             constants.append(entry)
-        elif source == SOURCE_CONFIGURED:
+        elif answer.source == SOURCE_CONFIGURED:
             configured.append(entry)
         else:
             prompts.append(entry)
@@ -1045,7 +943,10 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
         print(f"Will Be Prompted ({len(prompts)}):")
         print("-" * 40)
         for entry in prompts:
-            print(f"  {entry['conf_key']}")
+            if entry.get('conf_type') == qdrepos.CONF_TYPE_RANDOM_FILL:
+                print(f"  {entry['conf_key']} (auto-generated)")
+            else:
+                print(f"  {entry['conf_key']}")
             if entry['help']:
                 print(f"    {entry['help']}")
         print()

@@ -10,6 +10,7 @@ Supports both persistent and in-memory database modes for bootstrapping.
 import json
 import os
 import ast
+import re
 import sqlite3
 import tomllib
 from pathlib import Path
@@ -52,22 +53,6 @@ CREATE TABLE IF NOT EXISTS qdo (
     FOREIGN KEY (package) REFERENCES packages(package)
 );
 
-CREATE TABLE IF NOT EXISTS conf_answers (
-    id INTEGER PRIMARY KEY,
-    yaml_path TEXT NOT NULL,
-    conf_key TEXT UNIQUE NOT NULL,
-    conf_value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS conf_questions (
-    id INTEGER PRIMARY KEY,
-    yaml_path TEXT NOT NULL,
-    conf_key TEXT UNIQUE NOT NULL,
-    help TEXT,
-    type TEXT,
-    directory INTEGER DEFAULT 0
-);
-
 CREATE TABLE IF NOT EXISTS flask_init (
     id INTEGER PRIMARY KEY,
     package TEXT NOT NULL,
@@ -80,24 +65,79 @@ CREATE TABLE IF NOT EXISTS flask_init (
 );
 
 CREATE INDEX IF NOT EXISTS idx_qdo_function ON qdo(function_name);
-CREATE INDEX IF NOT EXISTS idx_conf_answers_key ON conf_answers(conf_key);
-CREATE INDEX IF NOT EXISTS idx_conf_questions_key ON conf_questions(conf_key);
 CREATE INDEX IF NOT EXISTS idx_flask_init_priority ON flask_init(priority);
 '''
 
 CONF_TYPE_BASENAME = 'basename'
+CONF_TYPE_BOOLEAN = 'boolean'
 CONF_TYPE_DIRECTORY_PATH = 'dpath'
-CONF_TYPE_FILE_PATH = 'dpath'
-CONF_TYPE_STRING = 'dpath'
-CONF_TYPE_LIST = [CONF_TYPE_BASENAME, CONF_TYPE_DIRECTORY_PATH, CONF_TYPE_FILE_PATH,
-                  CONF_TYPE_STRING]
+CONF_TYPE_FILE_PATH = 'fpath'
+CONF_TYPE_RANDOM_FILL = 'random_fill'
+CONF_TYPE_STRING = 'string'
+VALID_CONF_TYPES = [CONF_TYPE_BASENAME, CONF_TYPE_BOOLEAN,
+                    CONF_TYPE_DIRECTORY_PATH, CONF_TYPE_FILE_PATH,
+                    CONF_TYPE_RANDOM_FILL, CONF_TYPE_STRING]
+
 
 class ConfQuestion:
+    __slots__ = ('conf_type', 'conf_key', 'conf_help', 'yaml_path')
+
     def __init__(self, conf_type, conf_key, conf_help, yaml_path=''):
         self.conf_type = conf_type
         self.conf_key = conf_key
         self.conf_help = conf_help
         self.yaml_path = yaml_path
+
+    @classmethod
+    def from_row(cls, row):
+        """Create from sqlite3.Row."""
+        return cls(row['conf_type'], row['conf_key'],
+                   row['conf_help'], row['yaml_path'])
+
+    @classmethod
+    def from_toml(cls, conf_key, question_dict, yaml_path=''):
+        """Create from a qd_conf.toml question dict."""
+        conf_type = question_dict.get('conf_type', CONF_TYPE_STRING)
+        conf_help = question_dict.get('help', '')
+        return cls(conf_type, conf_key, conf_help, yaml_path)
+
+    @property
+    def is_boolean(self):
+        return self.conf_type == CONF_TYPE_BOOLEAN
+
+    @property
+    def is_directory(self):
+        return self.conf_type == CONF_TYPE_DIRECTORY_PATH
+
+    @property
+    def is_random_fill(self):
+        return self.conf_type == CONF_TYPE_RANDOM_FILL
+
+    @property
+    def is_enabled_question(self):
+        return self.conf_key.endswith('.enabled')
+
+    @property
+    def package_prefix(self):
+        """'qdflask' from 'qdflask.enabled' or 'qdflask.roles'."""
+        return self.conf_key.rsplit('.', 1)[0]
+
+    @staticmethod
+    def create_table(cursor):
+        """Create conf_questions table + index."""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conf_questions (
+                id INTEGER PRIMARY KEY,
+                yaml_path TEXT NOT NULL,
+                conf_key TEXT UNIQUE NOT NULL,
+                conf_help TEXT,
+                conf_type TEXT
+            )
+        ''')
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS idx_conf_questions_key '
+            'ON conf_questions(conf_key)'
+        )
 
     def select_by_key(self, cursor):
         cursor.execute(
@@ -107,10 +147,175 @@ class ConfQuestion:
 
     def insert(self, cursor):
         cursor.execute(
-            '''INSERT INTO conf_questions (yaml_path, conf_key, help, type)
-                VALUES (?, ?, ?, ?)''',
+            '''INSERT INTO conf_questions
+               (yaml_path, conf_key, conf_help, conf_type)
+               VALUES (?, ?, ?, ?)''',
             (self.yaml_path, self.conf_key, self.conf_help, self.conf_type)
         )
+
+    def build_prompt(self):
+        """Build user prompt string from conf_help and conf_key."""
+        if self.conf_help:
+            return f"{self.conf_help}\n{self.conf_key}: "
+        return f"{self.conf_key}: "
+
+
+# Answer source types for resolve()
+SOURCE_CONSTANT = "constant"      # From qd_conf.toml answers section
+SOURCE_CONFIGURED = "configured"  # From existing conf/*.toml
+SOURCE_PROMPT = "prompt"          # Will need to prompt user
+
+_REF_PATTERN = re.compile(r'<([a-zA-Z_][a-zA-Z0-9_.]+)>')
+
+
+def expand_answer_refs(value, answer_cache, conf=None):
+    """
+    Expand <conf_key> references in an answer value.
+
+    Symbolic references like "<trellis.content_dpath>/users.db" are
+    expanded by looking up the referenced conf_key in answer_cache
+    first, then conf. Unresolvable references are left as-is.
+
+    Args:
+        value: The answer string potentially containing <conf_key> refs
+        answer_cache: Dict of pre-supplied answers from qd_conf.toml
+        conf: QdConf instance for checking existing config, or None
+
+    Returns:
+        String with references expanded where possible
+    """
+    if not isinstance(value, str) or '<' not in value:
+        return value
+
+    def replacer(match):
+        ref_key = match.group(1)
+        if ref_key in answer_cache:
+            return str(answer_cache[ref_key])
+        if conf:
+            try:
+                return str(conf[ref_key])
+            except (KeyError, ValueError):
+                pass
+        return match.group(0)
+
+    return _REF_PATTERN.sub(replacer, value)
+
+
+def has_unresolved_refs(value):
+    """Return True if the string still contains <conf_key> references."""
+    return isinstance(value, str) and bool(_REF_PATTERN.search(value))
+
+
+class ConfAnswer:
+    __slots__ = ('conf_key', 'conf_value', 'yaml_path', 'source')
+
+    def __init__(self, conf_key, conf_value, yaml_path='', source=''):
+        self.conf_key = conf_key
+        self.conf_value = conf_value
+        self.yaml_path = yaml_path
+        self.source = source
+
+    @classmethod
+    def from_row(cls, row):
+        """Create from sqlite3.Row."""
+        return cls(row['conf_key'], row['conf_value'], row['yaml_path'])
+
+    @classmethod
+    def resolve(cls, question, answer_cache, conf=None):
+        """
+        Resolve a ConfQuestion to a ConfAnswer.
+
+        Checks sources in priority order:
+        1. answer_cache -> SOURCE_CONSTANT
+        2. conf -> SOURCE_CONFIGURED
+        3. Not found -> SOURCE_PROMPT (conf_value is None)
+
+        Args:
+            question: ConfQuestion object
+            answer_cache: Dict of pre-supplied answers from qd_conf.toml
+            conf: QdConf instance for checking existing config, or None
+
+        Returns:
+            ConfAnswer with conf_value and source set
+        """
+        conf_key = question.conf_key
+
+        if conf_key in answer_cache:
+            return cls(conf_key, answer_cache[conf_key],
+                       source=SOURCE_CONSTANT)
+
+        if conf:
+            try:
+                existing = conf[conf_key]
+                return cls(conf_key, existing, source=SOURCE_CONFIGURED)
+            except KeyError:
+                pass
+
+        return cls(conf_key, None, source=SOURCE_PROMPT)
+
+    @staticmethod
+    def create_table(cursor):
+        """Create conf_answers table + index."""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conf_answers (
+                id INTEGER PRIMARY KEY,
+                yaml_path TEXT NOT NULL,
+                conf_key TEXT UNIQUE NOT NULL,
+                conf_value TEXT
+            )
+        ''')
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS idx_conf_answers_key '
+            'ON conf_answers(conf_key)'
+        )
+
+    def select_by_key(self, cursor):
+        cursor.execute(
+            'SELECT conf_key FROM conf_answers WHERE conf_key = ?',
+            (self.conf_key,)
+        )
+
+    def insert(self, cursor):
+        cursor.execute(
+            '''INSERT OR IGNORE INTO conf_answers
+               (yaml_path, conf_key, conf_value)
+               VALUES (?, ?, ?)''',
+            (self.yaml_path, self.conf_key, self.db_value)
+        )
+
+    def update_value(self, cursor):
+        """Update conf_value in database."""
+        cursor.execute(
+            '''UPDATE conf_answers SET conf_value = ?
+               WHERE conf_key = ?''',
+            (self.db_value, self.conf_key)
+        )
+
+    def expand_refs(self, answer_cache, conf=None):
+        """Expand <conf_key> references in conf_value, in place."""
+        self.conf_value = expand_answer_refs(
+            self.conf_value, answer_cache, conf
+        )
+
+    @property
+    def has_unresolved_refs(self):
+        return has_unresolved_refs(self.conf_value)
+
+    @property
+    def is_disabled(self):
+        """Check if this answer represents a disabled/no value."""
+        if self.conf_value is None:
+            return False
+        if isinstance(self.conf_value, bool):
+            return not self.conf_value
+        if isinstance(self.conf_value, str):
+            return self.conf_value.lower() in ('false', 'no', '0', 'n')
+        return False
+
+    @property
+    def db_value(self):
+        """conf_value as string for database storage."""
+        return str(self.conf_value) if self.conf_value is not None else ''
 
 
 EDITABLE_PREFIX = 'e::'
@@ -179,6 +384,8 @@ class RepoScanner:
             self._conn = sqlite3.connect(str(self.db_path))
         cursor = self._conn.cursor()
         cursor.executescript(SCHEMA)
+        ConfQuestion.create_table(cursor)
+        ConfAnswer.create_table(cursor)
         self._conn.commit()
 
         # Migrate older databases that lack the editable column
@@ -287,30 +494,21 @@ class RepoScanner:
 
     def update_answer(self, answer_key, answer_value):
         """Update an existing answer in both cache and database."""
-        answer_value = str(answer_value) if answer_value is not None else ''
-        self.answer_cache[answer_key] = answer_value
+        answer = ConfAnswer(answer_key, answer_value)
+        self.answer_cache[answer_key] = answer.db_value
         if self._conn is not None:
             cursor = self._conn.cursor()
-            cursor.execute(
-                '''UPDATE conf_answers SET conf_value = ?
-                   WHERE conf_key = ?''',
-                (answer_value, answer_key)
-            )
+            answer.update_value(cursor)
             self._conn.commit()
 
     def post_answer(self, answer_key, answer_value, cursor, yaml_path_str):
         if answer_key in self.answer_cache:
             return 0
-        answer_value = str(answer_value) if answer_value is not None else ''
-        self.answer_cache[answer_key] = answer_value
+        answer = ConfAnswer(answer_key, answer_value, yaml_path=yaml_path_str)
+        self.answer_cache[answer_key] = answer.db_value
         if cursor is None:
             return 1
-        cursor.execute(
-                        '''INSERT OR IGNORE INTO conf_answers
-                                   (yaml_path, conf_key, conf_value)
-                                   VALUES (?, ?, ?)''',
-                                (yaml_path_str, answer_key, answer_value)
-                    )
+        answer.insert(cursor)
         return 1
 
     def _load_answers_from_toml(self, cursor, toml_path):
@@ -658,12 +856,12 @@ class RepoScanner:
 
     def _process_questions_section(self, cursor, questions_data, yaml_path_str):
         """
-        Process the "questions" section of a qd_conf.yaml file.
+        Process the "questions" section of a qd_conf.toml file.
 
         Args:
             cursor: Database cursor
             questions_data: Dict from "questions" section
-            yaml_path_str: String path to YAML file
+            yaml_path_str: String path to TOML file
 
         Returns:
             Count of questions added
@@ -671,27 +869,21 @@ class RepoScanner:
         count = 0
 
         def is_question_leaf(obj):
-            """Check if this dict is a question definition (has help or type)."""
+            """Check if this dict is a question definition (has help or conf_type)."""
             if not isinstance(obj, dict):
                 return False
-            return 'help' in obj or 'type' in obj
+            return 'help' in obj or 'conf_type' in obj
 
         def traverse(obj, key_parts):
             nonlocal count
             if is_question_leaf(obj):
-                # This is a question definition
                 conf_key = '.'.join(key_parts)
-                help_text = obj.get('help', '')
-                type_text = obj.get('type', '')
-                directory = 1 if obj.get('directory') else 0
-                cursor.execute(
-                    '''INSERT OR IGNORE INTO conf_questions
-                       (yaml_path, conf_key, help, type, directory)
-                       VALUES (?, ?, ?, ?, ?)''',
-                    (yaml_path_str, conf_key, help_text, type_text,
-                     directory)
+                question = ConfQuestion.from_toml(
+                    conf_key, obj, yaml_path=yaml_path_str
                 )
-                if cursor.rowcount > 0:
+                question.select_by_key(cursor)
+                if cursor.fetchone() is None:
+                    question.insert(cursor)
                     count += 1
             elif isinstance(obj, dict):
                 for k, v in obj.items():
@@ -905,18 +1097,18 @@ class RepoScanner:
         Get all questions from the database.
 
         Returns:
-            List of dicts with conf_key, help, type, yaml_path
+            List of ConfQuestion objects
         """
         self._conn.row_factory = sqlite3.Row
         cursor = self._conn.cursor()
 
         cursor.execute('''
-            SELECT conf_key, help, type, yaml_path, directory
+            SELECT conf_key, conf_help, conf_type, yaml_path
             FROM conf_questions
             ORDER BY conf_key
         ''')
 
-        questions = [dict(row) for row in cursor.fetchall()]
+        questions = [ConfQuestion.from_row(row) for row in cursor.fetchall()]
         self._conn.row_factory = None
         return questions
 

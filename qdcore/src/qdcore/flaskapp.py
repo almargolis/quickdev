@@ -157,7 +157,14 @@ class FlaskAppGenerator:
             lines.append('    # Set defaults from environment')
 
         lines.append('')
-        lines.append("    app = Flask(__name__)")
+        if config_module:
+            # Use the config's root package as import_name so Flask
+            # resolves root_path (and thus templates/) relative to
+            # that package rather than to qd_create_app.py.
+            root_pkg = mod_path.split('.')[0]
+            lines.append(f"    app = Flask('{root_pkg}')")
+        else:
+            lines.append("    app = Flask(__name__)")
         lines.append('')
 
         if config_module:

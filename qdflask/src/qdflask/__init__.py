@@ -79,9 +79,16 @@ def init_auth(app, roles=None, login_view='auth.login',
     login_manager.init_app(app)
     login_manager.login_view = login_view
 
-    # Create tables
+    # Create tables and seed admin user on first run
     with app.app_context():
         db.create_all()
+        from qdflask.models import User
+        if User.query.count() == 0:
+            create_admin_user()
+            app.logger.info(
+                "Created initial admin user (admin/admin)"
+                " - change password after first login"
+            )
 
 
 def create_admin_user(username='admin', password='admin'):
