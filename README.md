@@ -1,85 +1,118 @@
 # QuickDev
 
-**Code generation and DRY idioms for Python web applications**
+**DRY idioms and code generation for Python web applications**
 
-QuickDev is a metaprogramming toolkit that eliminates boilerplate through preprocessor-based code generation. Rather than competing with frameworks like Flask or Django, QuickDev works alongside them - generating the repetitive code you'd otherwise write by hand.
+QuickDev is a metaprogramming toolkit that eliminates boilerplate. Rather than competing with frameworks like Flask or Django, QuickDev works alongside them - generating the repetitive code you'd otherwise write by hand, and providing a plug-in architecture that lets packages configure themselves.
 
-## What Makes QuickDev Different
+## The Plug-in System
 
-**Not a framework** - QuickDev is a collection of idioms and utilities that complement your existing tools.
+QuickDev's most distinctive feature is its **self-declaring plug-in architecture**. Every QuickDev package ships a `qd_conf.toml` file that declares:
 
-**XSynth Preprocessor** - Transforms `.xpy` files into standard Python, using:
-- Data modeling with `#$ dict` declarations
-- Structured class generation with `#$ action` declarations
-- Template substitution for repetitive code patterns
-- Dictionary-based introspection to auto-generate boilerplate
+- **What questions to ask** during site setup (with types: boolean, path, string, auto-generated secrets)
+- **What answers to pre-supply** (sensible defaults the user never needs to think about)
+- **How to wire into Flask** (init functions, parameter bindings, execution priority)
 
-**DRY Taken Further** - Uses Python dictionaries and introspection to capture patterns once and generate code, not just reuse it.
+When you run `qdstart`, it scans all installed packages, discovers their `qd_conf.toml` files, and walks you through configuration - asking only the questions that matter, skipping packages you disable, and auto-generating values like secret keys.
 
-## Concrete Examples
+### How It Works
 
-### Flask Integration Packages
+1. **Discovery** - `qdstart` scans installed packages and repositories for `qd_conf.toml` files
+2. **Questions** - Each package declares its own configuration questions (the package author knows what to ask, not the framework)
+3. **Smart prompting** - Boolean "enabled" questions gate everything below them. Say "no" to `qdflask.enabled` and its other questions are skipped entirely
+4. **Auto-generation** - Secret keys, tokens, and other `random_fill` values are generated automatically
+5. **Partitioned output** - Answers are auto-partitioned by dot-notation into separate config files: `qdflask.roles` goes to `conf/qdflask.toml`, `denv.SMTP_PW` goes to `conf/.env`
+
+### Real Example: qdflask's `qd_conf.toml`
+
+This is the actual file shipped inside the qdflask package:
+
+```toml
+[questions.qdflask.enabled]
+help = "Enable Flask authentication? (qdflask)"
+conf_type = "boolean"
+
+[questions.qdflask.roles]
+help = "Comma-separated user roles (must include admin)"
+
+[questions.qdflask.login_view]
+help = "Flask endpoint name for login redirect"
+
+[questions.qdflask.passwordsdb_fpath]
+help = "Path to the passwords database file"
+conf_type = "fpath"
+
+[questions.denv.FLASK_SECRET_KEY]
+help = "Secret key for Flask session signing"
+conf_type = "random_fill"
+
+[flask.init_function]
+module = "qdflask"
+function = "init_auth"
+priority = 10
+
+[flask.init_function.params.roles]
+source = "answer"
+key = "qdflask.roles"
+type = "list"
+default = "['admin', 'editor']"
+```
+
+The package author writes this once. The framework handles discovery, prompting, config file generation, and Flask wiring - all automatically.
+
+## Answer Files: Reproducible Installs
+
+The `-a` flag lets you replay a configuration non-interactively:
+
+```bash
+# First machine: answer questions interactively, save the results
+# (answers are written to conf/*.toml files)
+
+# Second machine: replay those same answers
+python qdutils/qdstart.py -a answers.toml
+```
+
+An answer file is plain TOML with the same dot-notation:
+
+```toml
+[qdflask]
+enabled = true
+roles = "admin, editor, reader"
+login_view = "auth.login"
+
+[qdimages]
+enabled = true
+storage_path = "/var/data/images"
+```
+
+This makes site setup **fully reproducible** - deploy to staging, production, or a teammate's machine with one command and zero interactive prompts. First answer wins, so you can layer multiple answer files for environment-specific overrides:
+
+```bash
+python qdutils/qdstart.py -a base.toml -a production.toml
+```
+
+## Flask Integration Packages
+
+QuickDev includes reusable Flask packages that demonstrate the plug-in architecture:
 
 **qdflask** - User authentication idiom
 ```python
 from qdflask import init_auth
-# Generates: User model, login/logout routes, role-based access control, CLI tools
+# Provides: User model, login/logout routes, role-based access control, CLI tools
 ```
 
 **qdimages** - Image management idiom
 ```python
 from qdimages import init_image_manager
-# Generates: 16 API endpoints, content-addressed storage, web-based editor, metadata tracking
+# Provides: 16 API endpoints, content-addressed storage, web-based editor, metadata tracking
 ```
 
 **qdcomments** - Commenting system idiom
 ```python
 from qdcomments import init_comments
-# Generates: Comment model, moderation system, content filtering, email notifications
+# Provides: Comment model, moderation system, content filtering, email notifications
 ```
 
-All Flask packages are published on PyPI and work with any Flask application:
-```bash
-pip install qdflask qdimages qdcomments
-```
-
-## Why Use QuickDev?
-
-- **Reduce boilerplate** - Data models, CRUD operations, web forms - let XSynth generate them
-- **Decades of patterns** - Captures idioms refined since the 1990s
-- **Works with existing code** - Use as much or as little as you need
-- **Python throughout** - Generated code is readable, standard Python
-
-## Key Components
-
-- **qdbase/** - Foundation utilities (minimal dependencies)
-- **qdcore/** - Core idioms (databases, HTML generation, HTTP automation)
-- **qdflask/** - Flask authentication package
-- **qdimages/** - Flask image management package
-- **qdcomments/** - Flask commenting system package
-- **qdutils/** - Development tools (XSynth preprocessor, site initialization)
-
-## Getting Started
-
-```bash
-# Activate virtual environment
-source ezdev.venv/bin/activate
-
-# Process XSynth files (.xpy → .py)
-python qdutils/xsynth.py
-
-# Run tests
-pytest
-```
-
-## Development Philosophy
-
-QuickDev encapsulates common patterns as idioms - reusable code that eliminates repetition. The XSynth preprocessor uses dictionaries and introspection to generate Python code from high-level declarations, extending DRY principles beyond runtime code reuse into compile-time code generation.
-
-Perfect for developers who:
-- Are tired of writing the same CRUD code
-- Want to capture their own patterns as reusable idioms
-- Appreciate metaprogramming without magic
+Each package ships its own `qd_conf.toml`, so installing a new package automatically extends `qdstart` with that package's configuration questions - no registration step required.
 
 ## Installation
 
@@ -126,11 +159,50 @@ pip install -e ./qdcomments
 | **qdimages** | 0.1.0 | [pypi.org/project/qdimages](https://pypi.org/project/qdimages/) | Flask image management with hierarchical storage |
 | **qdcomments** | 0.1.0 | [pypi.org/project/qdcomments](https://pypi.org/project/qdcomments/) | Flask commenting system with moderation |
 
-## Documentation
+## XSynth Preprocessor
 
-- [Package Architecture](PACKAGING.md) - Multi-package structure and publishing
-- [Claude Code Guide](CLAUDE.md) - Project instructions for AI assistants
-- Individual package READMEs in each subdirectory
+QuickDev also includes XSynth, a preprocessor that transforms `.xpy` files into standard Python:
+
+- Data modeling with `#$ dict` declarations
+- Structured class generation with `#$ action` declarations
+- Template substitution for repetitive code patterns
+- Dictionary-based introspection to auto-generate boilerplate
+
+XSynth extends DRY beyond runtime code reuse into compile-time code generation - capturing patterns as declarations that produce readable, standard Python.
+
+```bash
+# Process XSynth files (.xpy -> .py)
+python qdutils/xsynth.py
+```
+
+## Key Components
+
+- **qdbase/** - Foundation utilities (minimal dependencies)
+- **qdcore/** - Core idioms (databases, HTML generation, HTTP automation)
+- **qdflask/** - Flask authentication package
+- **qdimages/** - Flask image management package
+- **qdcomments/** - Flask commenting system package
+- **qdutils/** - Development tools (XSynth preprocessor, site initialization)
+
+## Getting Started
+
+```bash
+# Install packages
+pip install qdbase qdflask qdimages qdcomments
+
+# Initialize a site (interactive)
+python qdutils/qdstart.py
+
+# Or initialize from an answer file (non-interactive)
+python qdutils/qdstart.py -a answers.toml
+
+# Run tests
+pytest
+```
+
+## History
+
+QuickDev has been in development since the 1990s, evolving from a C library to the current Python toolkit. Recently moved to open source to share patterns refined over three decades of development.
 
 ## License
 
@@ -148,6 +220,8 @@ QuickDev is now open source! Contributions are welcome.
 4. Run tests: `pytest`
 5. Submit a pull request
 
-## History
+## Documentation
 
-QuickDev has been in development since the 1990s, evolving from a C library to the current Python toolkit. Recently moved to open source to share patterns refined over three decades of development.
+- [Package Architecture](PACKAGING.md) - Multi-package structure and publishing
+- [Claude Code Guide](CLAUDE.md) - Project instructions for AI assistants
+- Individual package READMEs in each subdirectory
