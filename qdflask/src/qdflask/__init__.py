@@ -72,8 +72,9 @@ def init_auth(app, roles=None, login_view='auth.login',
     app.config.setdefault(
         'SQLALCHEMY_DATABASE_URI', f'sqlite:///{db_path}')
 
-    # Initialize database
-    db.init_app(app)
+    # Initialize database (skip if another extension already registered)
+    if 'sqlalchemy' not in app.extensions:
+        db.init_app(app)
 
     # Initialize login manager
     login_manager.init_app(app)

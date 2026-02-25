@@ -183,7 +183,7 @@ def {init_function_name}(app, db_instance=None):
 
     if db_instance:
         pass  # Use the shared db instance
-    else:
+    elif 'sqlalchemy' not in app.extensions:
         db.init_app(app)
 
     with app.app_context():
