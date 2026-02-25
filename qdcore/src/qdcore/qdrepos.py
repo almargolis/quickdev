@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS flask_init (
     priority INTEGER DEFAULT 50,
     params_json TEXT,
     yaml_path TEXT NOT NULL,
-    FOREIGN KEY (package) REFERENCES packages(package)
+    FOREIGN KEY (package) REFERENCES packages(package),
+    UNIQUE(package, module, function)
 );
 
 CREATE INDEX IF NOT EXISTS idx_qdo_function ON qdo(function_name);
