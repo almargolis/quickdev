@@ -542,4 +542,7 @@ class TestRandomFill:
         qdstart.plan_site(str(site_dir), quiet=False,
                           repo_list=[str(repo_dir)])
         captured = capsys.readouterr()
-        assert "denv.MY_SECRET (auto-generated)" in captured.out
+        assert "Auto-Generated (1):" in captured.out
+        assert "denv.MY_SECRET" in captured.out
+        assert "From Command Line (1):" in captured.out
+        assert "site.qdsite_dpath:" in captured.out

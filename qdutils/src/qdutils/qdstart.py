@@ -947,14 +947,42 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
                 print(f"    {entry['help']}")
         print()
 
-    if prompts:
-        print(f"Will Be Prompted ({len(prompts)}):")
+    # Split prompts into sub-categories
+    from_cli = []
+    auto_gen = []
+    real_prompts = []
+    for entry in prompts:
+        if entry['conf_key'] == exenv.CONF_SITE_DPATH:
+            entry['value'] = qdsite_dpath
+            from_cli.append(entry)
+        elif entry.get('conf_type') == qdrepos.CONF_TYPE_RANDOM_FILL:
+            auto_gen.append(entry)
+        else:
+            real_prompts.append(entry)
+
+    if from_cli:
+        print(f"From Command Line ({len(from_cli)}):")
         print("-" * 40)
-        for entry in prompts:
-            if entry.get('conf_type') == qdrepos.CONF_TYPE_RANDOM_FILL:
-                print(f"  {entry['conf_key']} (auto-generated)")
-            else:
-                print(f"  {entry['conf_key']}")
+        for entry in from_cli:
+            print(f"  {entry['conf_key']}: {entry['value']}")
+            if entry['help']:
+                print(f"    {entry['help']}")
+        print()
+
+    if auto_gen:
+        print(f"Auto-Generated ({len(auto_gen)}):")
+        print("-" * 40)
+        for entry in auto_gen:
+            print(f"  {entry['conf_key']}")
+            if entry['help']:
+                print(f"    {entry['help']}")
+        print()
+
+    if real_prompts:
+        print(f"Will Be Prompted ({len(real_prompts)}):")
+        print("-" * 40)
+        for entry in real_prompts:
+            print(f"  {entry['conf_key']}")
             if entry['help']:
                 print(f"    {entry['help']}")
         print()
@@ -967,7 +995,9 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
     print(f"Total: {total} questions "
           f"({len(constants)} constants, "
           f"{len(configured)} configured, "
-          f"{len(prompts)} to prompt)")
+          f"{len(from_cli)} from CLI, "
+          f"{len(auto_gen)} auto-generated, "
+          f"{len(real_prompts)} to prompt)")
 
 
 def main():
