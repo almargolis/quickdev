@@ -236,7 +236,11 @@ class QdStart:
 
         # --- (f) Load answer files if provided ---
         if answer_file_list:
-            count = self.repo_scanner.load_answer_files(answer_file_list)
+            try:
+                count = self.repo_scanner.load_answer_files(answer_file_list)
+            except (FileNotFoundError, ValueError) as e:
+                print(f"\nError loading answer files:\n  {e}")
+                sys.exit(1)
             if not self.quiet:
                 print(f"Loaded {count} answers from answer files")
 
@@ -826,7 +830,11 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
     repo_scanner = qdrepos.RepoScanner(qdsite_dpath, in_memory=True)
 
     if answer_file_list:
-        repo_scanner.load_answer_files(answer_file_list)
+        try:
+            repo_scanner.load_answer_files(answer_file_list)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"\nError loading answer files:\n  {e}")
+            return
 
     counts = repo_scanner.scan_directories(repo_list)
 

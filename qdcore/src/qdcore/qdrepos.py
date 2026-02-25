@@ -526,7 +526,25 @@ class RepoScanner:
             Count of answers loaded
         """
         with open(toml_path, 'rb') as f:
-            data = tomllib.load(f)
+            try:
+                data = tomllib.load(f)
+            except tomllib.TOMLDecodeError as e:
+                error_msg = str(e)
+                msg = f"TOML syntax error in {toml_path}"
+                # Extract line number from message like "(at line 5, column 1)"
+                match = re.search(r'at line (\d+)', error_msg)
+                if match:
+                    line_num = int(match.group(1))
+                    msg += f", line {line_num}"
+                    try:
+                        with open(toml_path, 'r') as tf:
+                            lines = tf.readlines()
+                            if 0 < line_num <= len(lines):
+                                msg += f":\n  {lines[line_num - 1].rstrip()}"
+                    except (OSError, UnicodeDecodeError):
+                        pass
+                msg += f"\n{error_msg}"
+                raise ValueError(msg) from e
 
         if not data or not isinstance(data, dict):
             return 0
