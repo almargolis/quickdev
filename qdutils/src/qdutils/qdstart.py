@@ -640,6 +640,57 @@ class QdStart:
                     if not self.quiet:
                         print(f"  {question.conf_key}: {expanded} (expanded)")
 
+    @staticmethod
+    def _format_pip_error(stderr):
+        """
+        Extract a concise, actionable message from pip stderr.
+
+        Pip failures often produce dozens of lines of internal traceback.
+        This method finds the actual error and adds a suggestion.
+
+        Returns:
+            A short multi-line string suitable for display.
+        """
+        if not stderr:
+            return "Unknown pip error (no output)."
+
+        # Find the last non-blank line — pip puts the real error there.
+        lines = stderr.strip().splitlines()
+        last_line = ""
+        for line in reversed(lines):
+            stripped = line.strip()
+            if stripped:
+                last_line = stripped
+                break
+
+        # Match known error patterns and add actionable advice.
+        if "BackendUnavailable" in last_line or "BackendUnavailable" in stderr:
+            return (
+                f"  {last_line}\n"
+                "  The build-backend specified in pyproject.toml is invalid or "
+                "unavailable.\n"
+                "  Fix: set build-backend = \"setuptools.build_meta\" in "
+                "[build-system]."
+            )
+
+        if "ModuleNotFoundError" in last_line or "ImportError" in last_line:
+            return (
+                f"  {last_line}\n"
+                "  A required build dependency is missing.\n"
+                "  Check install_requires / dependencies in setup.py or "
+                "pyproject.toml."
+            )
+
+        if "FileNotFoundError" in last_line:
+            return (
+                f"  {last_line}\n"
+                "  A required file (setup.py, pyproject.toml, or a referenced "
+                "path) is missing."
+            )
+
+        # Fallback: show only the last meaningful line, not the full trace.
+        return f"  {last_line}"
+
     def _pip_install_editable(self, pip_path, package_path):
         """Install a package in editable mode."""
         pkg_name = os.path.basename(package_path)
@@ -647,7 +698,8 @@ class QdStart:
         cmd = [pip_path, "install", "-e", package_path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
-            self.error(f"Failed to install {pkg_name}: {result.stderr}")
+            self.error(f"Failed to install {pkg_name}:\n"
+                       f"{self._format_pip_error(result.stderr)}")
             return False
         return True
 
@@ -658,7 +710,8 @@ class QdStart:
         cmd = [pip_path, "install", package_path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
-            self.error(f"Failed to install {pkg_name}: {result.stderr}")
+            self.error(f"Failed to install {pkg_name}:\n"
+                       f"{self._format_pip_error(result.stderr)}")
             return False
         return True
 
@@ -668,7 +721,8 @@ class QdStart:
         cmd = [pip_path, "install", "-r", requirements_path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
-            self.error(f"Failed to install requirements: {result.stderr}")
+            self.error(f"Failed to install requirements:\n"
+                       f"{self._format_pip_error(result.stderr)}")
             return False
         return True
 
