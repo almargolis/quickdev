@@ -15,7 +15,6 @@ from qdbase import qdconf
 from qdbase import qdos
 from qdcore import qdrepos
 
-from qdutils import hosting
 from qdutils import qdstart
 
 SITE_PREFIX = "test"
@@ -43,12 +42,6 @@ class MakeQdChroot:
         os.mkdir(var_dpath)
         os.mkdir(www_dpath)
         exenv.g.init(root_dpath)
-        try:
-            hosting.init_hosting(force=True)
-        except SystemExit as error_info:
-            # SystemExit is a pytest exception
-            if error_info.code != 0:
-                raise
 
     def make_os_directories(self, root_dpath):  # pylint: disable=no-self-use
         """
