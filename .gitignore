@@ -6,6 +6,7 @@ __pycache__
 *.pyc
 *.bak
 *.egg-info
+build/
 *.venv
 *.code-workspace
 examples/temp/*
