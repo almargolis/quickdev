@@ -27,11 +27,14 @@ Simplified SQLite database operations:
 - `cliargs` - Command-line argument parsing
 - `cliinput` - Interactive command-line input handling
 
-### simplelex - Lexical Analysis
-Simple lexical analysis utilities for parsing text and code.
+### qdconf - Configuration Management
+TOML-based configuration management with cache and validation.
 
-### xsource - Source Processing
-Source file processing classes used by the XSynth preprocessor.
+### qdcheck - Check/Validation Framework
+Pluggable check runners for validating service configuration and health.
+
+### qdos - OS Operations
+Safe filesystem operations with error handling (directory creation, file operations).
 
 ## Installation
 
@@ -39,10 +42,10 @@ Source file processing classes used by the XSynth preprocessor.
 pip install qdbase
 ```
 
-Or install in development mode:
+Or install in development mode from a local clone:
 
 ```bash
-pip install -e ./qdbase
+pip install -e /path/to/qdbase
 ```
 
 ## Usage
@@ -73,5 +76,5 @@ MIT License - Copyright (C) Albert B. Margolis
 
 ## Requirements
 
-- Python >= 3.7
+- Python >= 3.9
 - No external dependencies (stdlib only)

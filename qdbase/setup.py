@@ -3,8 +3,8 @@ Setup script for qdbase package.
 
 qdbase is the foundation layer of the QuickDev toolkit, providing utilities
 for execution environment detection, dictionary operations, SQLite helpers,
-CLI utilities, and lexical analysis. It has zero external dependencies
-beyond the Python standard library.
+and CLI utilities. It has zero external dependencies beyond the Python
+standard library.
 """
 
 from setuptools import setup
@@ -28,15 +28,15 @@ Key modules:
 - pdict: Enhanced dictionary utilities
 - qdsqlite: SQLite database helpers
 - cliargs, cliinput: Command-line interface utilities
-- simplelex: Simple lexical analysis
-- xsource: Source file processing
+- qdconf: Configuration management
+- qdcheck: Check/validation framework
 
 Zero external dependencies - uses only Python standard library.
 """
 
 setup(
     name="qdbase",
-    version="0.2.0",
+    version="0.3.0",
     author="Albert Margolis",
     author_email="almargolis@gmail.com",
     description="Foundation utilities for Python development with zero external dependencies",
@@ -54,21 +54,20 @@ setup(
     install_requires=[
         # Zero external dependencies - stdlib only
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    keywords="utilities development tools dictionary sqlite cli lexer",
+    keywords="utilities development tools dictionary sqlite cli",
 )
