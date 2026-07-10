@@ -114,44 +114,83 @@ class AttributeName:  # pylint: disable=too-few-public-methods
         self.name = name
 
 
-def dict_to_sql_expression(source_dict, seperator):
+def _dict_sql_clauses(source_dict, separator):
     """
-    Convert a dictionary to a string of comma separated
-    sql "fld = ?" statements plus a list of substituion
-    values.
+    Convert a dictionary to separator-joined SQL clauses
+    plus a list of substitution values.
 
-    The dictionary key is the first element of a
-    comparison clause and is always assumed to be a
-    field / attribute name. If the dictionay element
-    value is a tuple,
-    the first element is the comparison sql_operator and
-    the second element is the second element of the
-    comparison. If the second element is an instance
-    of AttributeName, it is treated as a
-    field / attribute name. Otherwise it is treated
-    as a literal value.
-
-    This can be used both for update asignments and
-    where clause comparisions.
+    Each dictionary key is a field / attribute name. If the
+    value is a tuple, the first element is the comparison
+    operator and the second is the operand. If the value is
+    not a tuple, equality (=) is assumed. If the operand is
+    an instance of AttributeName, it is treated as a field
+    name; otherwise it is treated as a literal value.
     """
-    sql = ""
+    sql_parts = []
     values = []
-    if source_dict is not None:
-        for ix, (key, value) in enumerate(source_dict.items()):
-            if ix > 0:
-                sql += seperator
-            if isinstance(value, tuple):
-                sql_operator = value[0]
-                sql_operand = value[1]
-            else:
-                sql_operator = "="
-                sql_operand = value
-            if isinstance(sql_operand, AttributeName):
-                sql += key + sql_operator + sql_operand.name
-            else:
-                sql += key + sql_operator + "?"
-                values.append(sql_operand)
-    return sql, values
+    for key, value in source_dict.items():
+        if isinstance(value, tuple):
+            sql_operator = value[0]
+            sql_operand = value[1]
+        else:
+            sql_operator = "="
+            sql_operand = value
+        if isinstance(sql_operand, AttributeName):
+            sql_parts.append(key + sql_operator + sql_operand.name)
+        else:
+            sql_parts.append(key + sql_operator + "?")
+            values.append(sql_operand)
+    return separator.join(sql_parts), values
+
+
+def _sql_expr_recursive(source):
+    """
+    Recursively convert dicts and lists to SQL expressions.
+
+    A dict produces AND-joined clauses wrapped in parentheses.
+    A list produces OR-joined elements wrapped in parentheses.
+    """
+    if isinstance(source, dict):
+        inner_sql, values = _dict_sql_clauses(source, " AND ")
+        return "(" + inner_sql + ")", values
+    if isinstance(source, list):
+        sql_parts = []
+        values = []
+        for element in source:
+            el_sql, el_values = _sql_expr_recursive(element)
+            sql_parts.append(el_sql)
+            values.extend(el_values)
+        return "(" + " OR ".join(sql_parts) + ")", values
+    raise TypeError(
+        f"Expected dict or list, got {type(source).__name__}"
+    )
+
+
+def dict_to_sql_expression(source, seperator):
+    """
+    Convert a dict or list to a SQL expression string plus
+    a list of substitution values.
+
+    A dict ANDs its elements using the provided separator.
+    A list ORs its elements. Dicts and lists can be nested
+    recursively to build complex expressions. Each nested
+    dict or list is enclosed in parentheses.
+
+    The most common case is a list of dicts, which produces
+    an OR of AND groups.
+
+    This can be used both for update assignments and
+    where clause comparisons.
+    """
+    if source is None:
+        return "", []
+    if isinstance(source, dict):
+        return _dict_sql_clauses(source, seperator)
+    if isinstance(source, list):
+        return _sql_expr_recursive(source)
+    raise TypeError(
+        f"Expected dict or list, got {type(source).__name__}"
+    )
 
 
 def dict_to_sql_flds(source_dict):
