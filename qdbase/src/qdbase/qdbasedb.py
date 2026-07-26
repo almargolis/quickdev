@@ -267,10 +267,46 @@ class QdBaseDb:
             raise KeyError(f'"{where}" not found in table {table}')
         return select[0]
 
+    def count(self, table, where=None):
+        """
+        Return the count of rows matching the where clause.
+
+        Args:
+            table: Table name
+            where: Optional where clause (dict or list)
+
+        Returns:
+            Integer count of matching rows
+        """
+        sql = f"SELECT COUNT(*) FROM {table}"
+        if where is None:
+            where_values = []
+        else:
+            where_sql, where_values = dict_to_sql_expression(where, " AND ")
+            sql += " WHERE " + where_sql
+        sql += ";"
+        if self.debug > 0:
+            print(f"SQL {sql} {where_values}")
+        self.db_cursor.execute(sql, tuple(where_values))
+        row = self.db_cursor.fetchone()
+        if isinstance(row, dict):
+            return list(row.values())[0]
+        return row[0]
+
     def select(
-        self, table, flds="*", where=None, limit=0, offset=0
+        self, table, flds="*", where=None, order_by=None, limit=0, offset=0
     ):  # pylint: disable=too-many-arguments
-        """Perform SQL select command."""
+        """Perform SQL select command.
+
+        Args:
+            table: Table name
+            flds: Fields to select (string or list)
+            where: Optional where clause (dict or list)
+            order_by: Optional ordering. A string (single column) or list
+                of strings. Each string can end with ' ASC' or ' DESC'.
+            limit: Maximum number of rows to return (0 = no limit)
+            offset: Number of rows to skip (0 = no offset)
+        """
         sql = "SELECT "
         if isinstance(flds, str):
             sql += flds
@@ -282,6 +318,11 @@ class QdBaseDb:
         else:
             where_sql, where_values = dict_to_sql_expression(where, " AND ")
             sql += " WHERE " + where_sql
+        if order_by is not None:
+            if isinstance(order_by, str):
+                sql += f" ORDER BY {order_by}"
+            else:
+                sql += " ORDER BY " + ", ".join(order_by)
         if limit > 0:
             sql += f" LIMIT {limit}"
         if offset > 0:

@@ -247,10 +247,15 @@ class Column:  # pylint: disable=too-few-public-methods
         "collate",
         "default_value",
         "foreign_key",
+        "is_create_required",
+        "is_filterable",
         "is_primary_key",
         "is_read_only",
+        "is_sortable",
         "is_unique",
+        "is_update_allowed",
         "name",
+        "rest_label",
         "table_dict",
     )
 
@@ -270,6 +275,12 @@ class Column:  # pylint: disable=too-few-public-methods
         self.is_read_only = argv.get("is_read_only", False)
         self.is_unique = argv.get("is_unique", False)
         self.table_dict = argv.get("table_dict", None)
+        # REST metadata — used by qdrestful, ignored by sql()
+        self.is_filterable = argv.get("is_filterable", True)
+        self.is_sortable = argv.get("is_sortable", True)
+        self.is_create_required = argv.get("is_create_required", False)
+        self.is_update_allowed = argv.get("is_update_allowed", True)
+        self.rest_label = argv.get("rest_label", None)
 
     def copy(self, table_copy):
         c = self.__class__(self.name)
