@@ -55,6 +55,15 @@ The codebase is organized into several package directories:
   - `xsynth.py`: XSynth preprocessor main entry point
   - `hosting.py`: Hosting environment utilities
 
+- **qdimage/**: Core image processing library (no Flask dependency)
+  - `editor.py`: Image editing (crop, resize, brightness, background removal)
+  - `fileops.py`: Image file I/O operations
+  - `hasher.py`: xxHash calculation for content addressing
+  - `infmeta.py`: .inf metadata sidecar read/write (TOML syntax)
+  - `storage.py`: Content-addressed storage with QdSqlite
+  - `llmproviders.py`: LLM provider base class + Anthropic/OpenAI
+  - `llmdescribe.py`: Single-image LLM description function
+
 - **qdconfig/**: Configuration and setup utilities
   - `configure.py`: Application configuration system
 
@@ -92,6 +101,7 @@ setup(
 
 **Current packages using this structure:**
 - `qdbase/src/qdbase/`
+- `qdimage/src/qdimage/`
 - `xsynth/src/xsynth/`
 - `qdflask/src/qdflask/`
 - `qdimages/src/qdimages/`

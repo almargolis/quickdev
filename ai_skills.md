@@ -226,6 +226,7 @@ Also supports raw `db.execute(sql, values)` and direct cursor/connection access 
 ## Repository Structure
 
 - `qdbase/src/qdbase/` - Foundation (pdict, qdsqlite, exenv, qdconf, qdcheck, qdos)
+- `qdimage/src/qdimage/` - Image processing (editor, storage, infmeta, LLM description)
 - `qdcore/src/qdcore/` - Core (qdrepos, qdsetup, flaskapp, wsgi)
 - `qdutils/src/qdutils/` - Entry point (qdstart)
 
