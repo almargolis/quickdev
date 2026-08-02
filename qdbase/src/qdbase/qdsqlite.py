@@ -84,7 +84,7 @@ def sql_to_pdict_table(sql, db_pdict=None, debug=False):
             this_field_obj.foreign_key = pdict.ForeignKey(foreign_field_obj)
             continue
         column_name = column_parts[0]
-        field_type = column_parts[1]
+        field_type = column_parts[1].rstrip(',')
         if "NOT NULL" in column_line:
             allow_nulls = False
         else:
@@ -116,6 +116,14 @@ def sql_to_pdict_table(sql, db_pdict=None, debug=False):
                 is_primary_key=is_primary_key,
                 is_read_only=False,
             )
+        elif field_type == "TIMESTAMP":
+            c = pdict.TimeStamp(
+                column_name,
+                allow_nulls=allow_nulls,
+                default_value=None,
+                is_primary_key=is_primary_key,
+                is_read_only=False,
+            )
         else:
             raise ValueError(f"Unknown field type {column_parts}")
         t.add_column(c)
@@ -140,6 +148,7 @@ class QdSqlite(QdBaseDb):
         sql_create=None,
         detailed_exceptions=True,
         update_schema=False,
+        foreign_keys=True,
         debug=0,
     ):  # pylint: disable=too-many-arguments
         """
@@ -147,6 +156,10 @@ class QdSqlite(QdBaseDb):
 
         If this is a new database, either db_dict or sql_create can be provided
         to define database structure.
+
+        foreign_keys: Enable SQLite foreign key enforcement (default: True).
+            Set to False for legacy databases with orphaned references or
+            for bulk imports where FK checking overhead is undesirable.
         """
         self.db_dict = db_dict
         self.sql_create = sql_create
@@ -154,6 +167,8 @@ class QdSqlite(QdBaseDb):
         self.debug = debug
         self.db_module = sqlite3
         self.db_conn = sqlite3.connect(fpath, detect_types=sqlite3.PARSE_DECLTYPES)
+        if foreign_keys:
+            self.db_conn.execute("PRAGMA foreign_keys=ON")
         if self.debug > 0:
             self.db_conn.set_trace_callback(print)
         self.db_conn.row_factory = sqlite3.Row
@@ -177,7 +192,7 @@ class QdSqlite(QdBaseDb):
 
     def db_update_columns(self, table_name):
         schema_sql = self.db_schema[table_name]
-        schema_t = sql_to_pdict_table(schema_sql)
+        schema_t = sql_to_pdict_table(schema_sql, db_pdict=self.db_dict)
         dict_t = self.db_dict.tables[table_name]
         for this_schema_column_name in schema_t.columns.keys():
             if this_schema_column_name not in dict_t.columns:

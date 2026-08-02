@@ -289,6 +289,10 @@ class QdStart:
             if self.venv_dpath is None and self.qdsite_info.venv_dpath:
                 self.venv_dpath = self.qdsite_info.venv_dpath
 
+        # --- (j2) Register site_dpath for <site_dpath> expansion ---
+        if self.repo_scanner:
+            self.repo_scanner.answer_cache['site_dpath'] = self.qdsite_dpath
+
         # --- (k) Remaining phases ---
         if not self.check_python_venv(python_version):
             return
@@ -466,6 +470,7 @@ class QdStart:
         # Get all installable packages and check enabled status
         packages = self.repo_scanner.get_installable_packages()
 
+        failed = []
         for pkg in packages:
             pkg_name = pkg['package']
             setup_path = pkg['setup_path']
@@ -479,14 +484,29 @@ class QdStart:
 
             # Install the package
             if pkg.get('editable', 0):
-                self._pip_install_editable(pip_path, setup_path)
+                ok = self._pip_install_editable(pip_path, setup_path)
             else:
-                self._pip_install_normal(pip_path, setup_path)
+                ok = self._pip_install_normal(pip_path, setup_path)
+
+            if not ok:
+                failed.append(pkg)
+                continue
 
             # Also check for requirements.txt
             requirements_txt = os.path.join(setup_path, 'requirements.txt')
             if os.path.exists(requirements_txt):
                 self._pip_install_requirements(pip_path, requirements_txt)
+
+        # Retry failed installs (dependency ordering)
+        for pkg in failed:
+            pkg_name = pkg['package']
+            setup_path = pkg['setup_path']
+            if not self.quiet:
+                print(f"Retrying: {pkg_name}")
+            if pkg.get('editable', 0):
+                self._pip_install_editable(pip_path, setup_path)
+            else:
+                self._pip_install_normal(pip_path, setup_path)
 
         return True
 
@@ -544,11 +564,17 @@ class QdStart:
         return answer
 
     def _ensure_directory(self, question, value):
-        """Create directory if question type is dpath and value is set."""
-        if not value or not question.is_directory:
+        """Create directory for dpath questions, or parent dir for fpath."""
+        if not value:
             return
-        qdos.make_directory(
-            question.conf_key, value, force=True, quiet=self.quiet)
+        if question.is_directory:
+            qdos.make_directory(
+                question.conf_key, value, force=True, quiet=self.quiet)
+        elif question.conf_type == 'fpath':
+            parent = os.path.dirname(value)
+            if parent:
+                qdos.make_directory(
+                    question.conf_key, parent, force=True, quiet=self.quiet)
 
     def process_questions(self):
         """
@@ -637,6 +663,8 @@ class QdStart:
                 )
                 if expanded != current:
                     self.conf[question.conf_key] = expanded
+                    self.repo_scanner.update_answer(
+                        question.conf_key, expanded)
                     if not self.quiet:
                         print(f"  {question.conf_key}: {expanded} (expanded)")
 
@@ -891,6 +919,9 @@ def plan_site(qdsite_dpath, quiet, repo_list=None, answer_file_list=None):
             return
 
     counts = repo_scanner.scan_directories(repo_list)
+
+    # Register site_dpath for <site_dpath> expansion
+    repo_scanner.answer_cache['site_dpath'] = qdsite_dpath
 
     # Load existing conf if available
     conf_dpath = os.path.join(qdsite_dpath, 'conf')

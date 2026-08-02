@@ -113,9 +113,15 @@ class DbDictTable:
     def defaults(self, all_columns=False):
         """
         Return a dictionary of a row initialized with default values.
+
+        ColumnName defaults (SQL expressions like CURRENT_TIMESTAMP) are
+        skipped because they are handled by the database engine, not by
+        application code.
         """
         result_dict = {}
         for this in self.columns.values():
+            if isinstance(this.default_value, ColumnName):
+                continue
             if all_columns or (this.default_value is not None):
                 result_dict[this.name] = this.default_value
         return result_dict
@@ -243,10 +249,12 @@ class Column:  # pylint: disable=too-few-public-methods
 
     __slots__ = (
         "allow_nulls",
+        "choices",
         "column_type",
         "collate",
         "default_value",
         "foreign_key",
+        "form_widget",
         "is_create_required",
         "is_filterable",
         "is_primary_key",
@@ -254,7 +262,13 @@ class Column:  # pylint: disable=too-few-public-methods
         "is_sortable",
         "is_unique",
         "is_update_allowed",
+        "max_length",
+        "max_value",
+        "min_length",
+        "min_value",
         "name",
+        "pattern",
+        "placeholder",
         "rest_label",
         "table_dict",
     )
@@ -281,6 +295,15 @@ class Column:  # pylint: disable=too-few-public-methods
         self.is_create_required = argv.get("is_create_required", False)
         self.is_update_allowed = argv.get("is_update_allowed", True)
         self.rest_label = argv.get("rest_label", None)
+        # Form/validation metadata — used by qdvalidate and qdforms, ignored by sql()
+        self.max_length = argv.get("max_length", None)
+        self.min_length = argv.get("min_length", None)
+        self.max_value = argv.get("max_value", None)
+        self.min_value = argv.get("min_value", None)
+        self.choices = argv.get("choices", None)
+        self.pattern = argv.get("pattern", None)
+        self.form_widget = argv.get("form_widget", None)
+        self.placeholder = argv.get("placeholder", None)
 
     def copy(self, table_copy):
         c = self.__class__(self.name)

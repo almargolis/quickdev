@@ -38,7 +38,7 @@ The codebase is organized into several package directories:
   - `xsource.py`: XSynth source file processing classes
   - `qdsqlite.py`: SQLite database utilities
   - `cliargs.py`, `cliinput.py`: Command-line interface utilities
-  - `pdict.py`: Dictionary utilities
+  - `pdict.py`: Database schema definition (generates SQL from Python objects)
   - `simplelex.py`: Simple lexical analysis
 
 - **qdcore/**: Core idioms and utilities
@@ -58,19 +58,9 @@ The codebase is organized into several package directories:
 - **qdconfig/**: Configuration and setup utilities
   - `configure.py`: Application configuration system
 
-- **qdflask/**: Flask authentication package (reusable)
-  - `auth.py`: Login, logout, and authentication routes
-  - `models.py`: User model with role-based access control
-  - `cli.py`: Command-line tools for user management
-  - `templates/qdflask/`: Login and user management UI templates
+### Flask Integration Packages
 
-- **qdimages/**: Flask image management package (reusable)
-  - `routes.py`: 16 API endpoints for image operations
-  - `storage.py`: Hierarchical xxHash-based content storage
-  - `editor.py`: Image processing (crop, resize, brightness, background removal)
-  - `models.py`: Image metadata database model
-  - `file_handler.py`: File I/O operations
-  - `templates/`: Web-based image editor interface
+The Flask packages (qdflask, qdflaskauth, qdflaskapi, qdrestful, qdforms, qdimages, qdcomments, qdflaskemail) live in a separate repository at `~/Projects/published/qdflask-repo/`. See that repo's `CLAUDE.md` and `ai_skills.md` for details.
 
 ### Package Structure for PyPI
 
@@ -106,28 +96,19 @@ setup(
 - `qdflask/src/qdflask/`
 - `qdimages/src/qdimages/`
 
-### Flask Integration Packages
+### Flask Integration (via qdflask-repo)
 
-QuickDev includes reusable Flask packages for common web application features:
+Flask integration packages live in `~/Projects/published/qdflask-repo/`. Each exports an `init_*()` function called in priority order by `qd_create_app.py`:
 
-**qdflask** - User authentication with Flask-Login integration
-- Initialize: `from qdflask import init_auth`
-- Role-based access control with customizable roles
-- User management interface and CLI commands
-- See `qdflask/README.md` for full documentation
-- Installable: `pip install -e ./qdflask` (recommended)
-- Dependencies: Flask, Flask-SQLAlchemy, Flask-Login, Werkzeug
+| Priority | Package | Init function | What it does |
+|----------|---------|---------------|--------------|
+| 10 | qdflask | `init_qdflask` | SQLAlchemy db + User model |
+| 15 | qdflaskauth | `init_qdflaskauth` | Login, roles, user management |
+| 25 | qdflaskapi | `init_qdflaskapi` | API key authentication |
+| 30 | qdrestful | `init_qdrestful` | REST API from pdict definitions |
+| 35 | qdforms | `init_qdforms` | Web forms from pdict definitions |
 
-**qdimages** - Image management with hierarchical storage
-- Initialize: `from qdimages import init_image_manager`
-- xxHash-based content-addressed storage with automatic deduplication
-- Web-based image editor (crop, resize, brightness, background removal)
-- Metadata tracking with keywords and EXIF data
-- See `qdimages/README.md` for full documentation
-- Installable: `pip install -e ./qdimages`
-- Dependencies: Flask, Pillow, xxhash, PyYAML, rembg
-
-Both packages follow the QuickDev pattern of simple integration via init functions and work seamlessly together.
+Application packages (like `todo`) can declare their own init functions with lower priorities (e.g., 5) to run before the framework packages.
 
 ### Bootstrapping Architecture
 

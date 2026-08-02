@@ -242,7 +242,7 @@ class QdSite:
         if self.qdconf is None:
             self.qdconf = qdconf.QdConf(conf_dir=self.conf_dpath)
 
-        self.qdconf[CONF_SITE_DPATH] = self.qdsite_dname
+        self.qdconf[CONF_SITE_DPATH] = self.qdsite_dpath
         self.qdconf[CONF_SITE_PREFIX] = self.qdsite_prefix
         self.qdconf.write_conf_file('site')
 

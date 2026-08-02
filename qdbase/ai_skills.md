@@ -22,16 +22,31 @@ Foundation utilities for Python development with zero external dependencies.
 from qdbase import pdict
 
 db_dict = pdict.DbDictDb()
-table = pdict.DbDictTable("projects", is_rowid_table=True)
-table.add_column(pdict.Text("name", nullable=False))
-table.add_column(pdict.Number("priority", default_value=0))
-table.add_column(pdict.TimeStamp("created_at"))
-table.add_index("idx_name", column_names="name", is_unique=True)
-db_dict.add_table(table)
+
+# DbDictTable with is_rowid_table=True (default) adds auto-increment id column
+projects = db_dict.add_table(pdict.DbDictTable("projects"))
+projects.add_column(pdict.Text("name", is_create_required=True, max_length=100))
+projects.add_column(pdict.Number("priority", default_value=0))
+projects.add_column(pdict.TimeStamp("created_at",
+    default_value=pdict.ColumnName("CURRENT_TIMESTAMP"),
+    is_read_only=True))
+projects.add_index("idx_name", column_names="name", is_unique=True)
 ```
 
 **Column types**: `Text` (NOCASE collation), `Number` (INTEGER), `TimeStamp`
-**Column options**: `nullable`, `unique`, `default_value`, `is_primary_key`, `collate`
+
+**Column options** (constructor kwargs):
+- `allow_nulls` — Allow NULL values (default: `False`)
+- `is_unique` — Add UNIQUE constraint (default: `False`)
+- `default_value` — Default value. Use `pdict.ColumnName("EXPR")` for SQL expression defaults (e.g., `CURRENT_TIMESTAMP`).
+- `is_primary_key`, `is_read_only`, `collate`
+
+**REST/form metadata** (used by qdrestful and qdforms, ignored by sql()):
+- `is_create_required`, `is_update_allowed`, `is_filterable`, `is_sortable`
+- `rest_label`, `choices`, `max_length`, `min_length`, `max_value`, `min_value`
+- `pattern`, `form_widget`, `placeholder`
+
+**Foreign keys**: `pdict.Number("fk_col", foreign_key=pdict.ForeignKey(other_table.columns["id"]))`
 
 ## qdsqlite - Database Operations
 
@@ -39,6 +54,7 @@ db_dict.add_table(table)
 from qdbase import qdsqlite
 
 db = qdsqlite.QdSqlite("myapp.db", db_dict=db_dict)
+# foreign_keys=True by default (PRAGMA foreign_keys=ON)
 
 db.insert("projects", {"name": "Alpha", "priority": 1})
 rows = db.select("projects", where={"priority": (">", 0)})

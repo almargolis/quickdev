@@ -20,17 +20,51 @@ qdstart runs a five-phase process:
 ### Key options
 - `-s /path` - Specify site directory (defaults to cwd)
 - `-plan` - Show installation plan without executing
+- `-a /path/to/answers.toml` - Load pre-supplied answers (can be repeated)
+- `-r [e::]/path/to/repo` - Add a repository to scan (`e::` prefix = editable install)
 - `-c` - Run service configuration checks
 - `-c --fix` - Auto-fix configuration issues
 - `-c --test` - Validate and run functional tests
-- Answer files (TOML) can pre-supply configuration so qdstart runs non-interactively
+
+### bootstrap.toml workflow
+
+For reproducible installations, create a `bootstrap.toml` that captures all answers:
+
+```toml
+[site]
+site_dpath = "/var/www/myapp"
+qdsite_prefix = "myapp"
+
+[repos]
+paths = [
+    "e::/path/to/quickdev",
+    "e::/path/to/qdflask-repo",
+    "e::/path/to/myapp",
+]
+
+[answers.qdrestful]
+enabled = true
+db_type = "sqlite"
+sqlite_fpath = "<site_dpath>/conf/db/app_data.db"
+url_prefix = "/api"
+```
+
+Generate boot files and install:
+
+```bash
+python qdbootstrap.py --generate -t /path/to/myapp
+sh qdboot.sh plan   # preview
+sh qdboot.sh make   # install
+```
+
+The `<site_dpath>` placeholder resolves to the actual install directory at install time.
 
 ### What qdstart creates
 - `conf/` - Configuration directory (site.toml, plugin configs, db/)
 - `conf/repos.db` - SQLite database tracking installed packages
 - `.venv/` - Site-specific virtual environment
 - `qd_create_app.py` - Auto-generated Flask app factory (if Flask packages enabled)
-- `.wsgi` - Apache deployment file (if Flask packages enabled)
+- `wsgi.py` - WSGI deployment file (if Flask packages enabled)
 
 ## Creating New Packages: Use qdsetup
 
@@ -106,20 +140,49 @@ from qdbase import pdict
 
 db_dict = pdict.DbDictDb()
 
-# Define a table (is_rowid_table=True adds auto-increment id)
-table = pdict.DbDictTable("projects", is_rowid_table=True)
-table.add_column(pdict.Text("name", nullable=False))
-table.add_column(pdict.Text("description"))
-table.add_column(pdict.Number("priority", default_value=0))
-table.add_column(pdict.TimeStamp("created_at"))
-table.add_index("idx_name", column_names="name", is_unique=True)
-
-db_dict.add_table(table)
+# Define a table (is_rowid_table=True adds auto-increment id column)
+projects = db_dict.add_table(pdict.DbDictTable("projects"))
+projects.add_column(pdict.Text("name", is_create_required=True, max_length=100))
+projects.add_column(pdict.Text("description", allow_nulls=True))
+projects.add_column(pdict.Number("priority", default_value=0))
+projects.add_column(pdict.TimeStamp("created_at",
+    default_value=pdict.ColumnName("CURRENT_TIMESTAMP"),
+    is_read_only=True))
+projects.add_index("idx_name", column_names="name", is_unique=True)
 ```
 
 **Column types**: `Text` (NOCASE collation), `Number` (INTEGER), `TimeStamp`
-**Column options**: `nullable`, `unique`, `default_value`, `is_primary_key`, `collate`
-**Supports**: indexes, foreign keys, deep copy
+
+**Column options** (constructor kwargs):
+- `allow_nulls` — Allow NULL values (default: `False`)
+- `is_unique` — Add UNIQUE constraint (default: `False`)
+- `default_value` — Default value. Use `pdict.ColumnName("CURRENT_TIMESTAMP")` for SQL expression defaults (rendered unquoted in DDL).
+- `is_primary_key` — Mark as primary key (default: `False`; auto-set on the `id` column of rowid tables)
+- `is_read_only` — Cannot be set via API (default: `False`)
+- `collate` — Collation (default: `"NOCASE"` for Text, `None` for others)
+
+**REST/form metadata** (also constructor kwargs, used by qdrestful and qdforms):
+- `is_create_required` — Must be provided on create (default: `False`)
+- `is_update_allowed` — Can be modified on update (default: `True`)
+- `is_filterable` — Can filter API results by this column (default: `True`)
+- `is_sortable` — Can sort API results by this column (default: `True`)
+- `rest_label` — Human-readable label for forms and MCP tool descriptions
+- `choices` — List of valid values; renders as `<select>` in forms
+- `max_length`, `min_length` — Text length constraints
+- `max_value`, `min_value` — Numeric range constraints
+- `pattern` — Regex validation pattern
+- `form_widget` — Override widget: `"text"`, `"textarea"`, `"select"`, `"number"`, `"date"`, `"datetime"`, `"checkbox"`, `"password"`, `"email"`, `"url"`, `"hidden"`
+- `placeholder` — HTML placeholder text
+
+**Foreign keys**:
+```python
+# Column in one table referencing another table's column
+tasks.add_column(pdict.Number("project_id",
+    foreign_key=pdict.ForeignKey(projects.columns["id"]),
+    allow_nulls=True))
+```
+
+**Supports**: indexes, foreign keys, deep copy, SQL generation via `db_dict.sql_create_list()`
 
 ### qdsqlite - Database Operations
 
@@ -129,6 +192,8 @@ Pythonic SQLite wrapper that auto-generates SQL from Python dicts.
 from qdbase import qdsqlite
 
 db = qdsqlite.QdSqlite("myapp.db", db_dict=db_dict)
+# foreign_keys=True by default (enforces FK constraints)
+# Pass foreign_keys=False for legacy databases or bulk imports
 
 # Insert
 db.insert("projects", {"name": "Alpha", "priority": 1})
@@ -168,5 +233,5 @@ Also supports raw `db.execute(sql, values)` and direct cursor/connection access 
 
 - `~/Projects/published/qdbase/` - Standalone qdbase foundation package
 - `~/Projects/published/xsource/` - XSynth preprocessor
-- `~/Projects/published/qdflask-repo/` - Flask packages (qdflask, qdimages, qdcomments)
+- `~/Projects/published/qdflask-repo/` - Flask packages (qdflask, qdflaskauth, qdflaskapi, qdrestful, qdforms, qdimages, qdcomments, qdflaskemail)
 - `~/Projects/published/qdextra/` - Archived utility modules

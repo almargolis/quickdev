@@ -325,6 +325,22 @@ class FlaskAppGenerator:
                 return self._format_value(raw_value, declared_type)
             return default
 
+        if source == 'answers':
+            # Multi-key: build a dict from multiple answer keys
+            keys = spec.get('keys', [])
+            if not keys:
+                return default
+            config_dict = {}
+            for full_key in keys:
+                raw_value = answers.get(full_key)
+                if raw_value is not None:
+                    # Strip package prefix: "qdrestful.enabled" -> "enabled"
+                    short_key = full_key.rsplit('.', 1)[-1]
+                    config_dict[short_key] = raw_value
+            if not config_dict:
+                return default
+            return repr(config_dict)
+
         if source == 'runtime':
             return spec.get('expression', 'None')
 
