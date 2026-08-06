@@ -51,6 +51,50 @@ maker.create()        # Returns list of created paths
 
 If any generated file (setup.py, .gitignore, etc.) already exists, it is left untouched. This makes `qd_make_repo` safe to re-run on an existing repository.
 
+### Verify/repair mode (existing repositories)
+
+When `qd_make_repo` is run on a directory that already contains a `setup.py`, it automatically switches to **verify mode** instead of creating a new repo. This inspects the repository and fixes common issues:
+
+```bash
+# Verify and repair an existing repo
+cd /path/to/existing-repo
+qd_make_repo
+
+# Verify with site path to fix pytest.ini pythonpath
+qd_make_repo -d /path/to/existing-repo -s /path/to/site
+```
+
+#### What it checks
+
+| Check | Action |
+|-------|--------|
+| `setup.py` | Report only (never overwritten) |
+| `src/<name>/` | Report layout (src/ vs flat); informational |
+| `__init__.py` | Report if missing from package directory |
+| `.gitignore` | Create if missing |
+| Test directory | Create if missing |
+| `pytest.ini` | Create if missing; add `pythonpath` if missing and site path available; warn if `pythonpath` points to nonexistent directory |
+
+#### pytest.ini repair
+
+The most common issue is a missing or incomplete `pytest.ini`. Verify mode handles this:
+1. If `--site-path` is given → resolves venv site-packages and writes `pythonpath`
+2. If `pytest.ini` already has `pythonpath` → verifies the directory exists, warns if not
+3. If no site path provided → prompts interactively (or skips in quiet mode)
+4. Existing `pytest.ini` content (e.g., `addopts`) is preserved when adding `pythonpath`
+
+#### Programmatic usage
+
+```python
+from qdutils.qd_make_repo import MakeRepo
+
+maker = MakeRepo(directory="/path/to/existing-repo", name="myapp",
+                 site_path="/path/to/site", quiet=True)
+results = maker.verify()  # Returns list of CheckResult objects
+for r in results:
+    print(f"{r.symbol} {r.name}: {r.message}")
+```
+
 ## Creating/Managing Sites: Use qdstart
 
 All new sites should be initialized and configured through the **qdstart** process. Do not manually create configuration files or install packages by hand.

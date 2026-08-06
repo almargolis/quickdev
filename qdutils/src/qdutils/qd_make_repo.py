@@ -35,8 +35,10 @@ except ModuleNotFoundError:
     sys.path.insert(0, QDCORE_SRC_PATH)
     from qdbase import cliargs
 
+from qdbase import cliinput
 from qdbase import exenv
 from qdbase import qdos
+from qdbase.qdcheck import CheckResult, CheckStatus
 
 
 SETUP_PY_TEMPLATE = '''\
@@ -305,6 +307,276 @@ class MakeRepo:
 
         return created
 
+    def verify(self):
+        """
+        Verify an existing repository and repair missing/incomplete files.
+
+        Returns:
+            List of CheckResult objects
+        """
+        if not self.success:
+            return []
+
+        results = []
+        results.append(self._check_setup_py())
+        results.append(self._check_src_layout())
+        results.append(self._check_init_py())
+        results.append(self._check_gitignore())
+        results.append(self._check_test_dir())
+        results.append(self._check_pytest_ini())
+        return results
+
+    def _check_setup_py(self):
+        path = os.path.join(self.directory, "setup.py")
+        if os.path.isfile(path):
+            return CheckResult(
+                name="setup.py",
+                status=CheckStatus.PASS,
+                message="exists",
+            )
+        return CheckResult(
+            name="setup.py",
+            status=CheckStatus.FAIL,
+            message="missing",
+            remediation="Run qd_make_repo on a new directory to generate setup.py",
+        )
+
+    def _check_src_layout(self):
+        src_pkg_dir = os.path.join(self.directory, "src", self.name)
+        if os.path.isdir(src_pkg_dir):
+            return CheckResult(
+                name=f"src/{self.name}/",
+                status=CheckStatus.PASS,
+                message="exists",
+            )
+        # Check for flat layout (package dir at repo root)
+        flat_pkg_dir = os.path.join(self.directory, self.name)
+        if os.path.isdir(flat_pkg_dir):
+            return CheckResult(
+                name=f"src/{self.name}/",
+                status=CheckStatus.WARNING,
+                message=f"flat layout detected ({self.name}/ instead of src/{self.name}/)",
+            )
+        return CheckResult(
+            name=f"src/{self.name}/",
+            status=CheckStatus.WARNING,
+            message="no package directory found",
+        )
+
+    def _check_init_py(self):
+        # Check src layout first, then flat layout
+        src_init = os.path.join(self.directory, "src", self.name, "__init__.py")
+        flat_init = os.path.join(self.directory, self.name, "__init__.py")
+        if os.path.isfile(src_init):
+            return CheckResult(
+                name="__init__.py",
+                status=CheckStatus.PASS,
+                message=f"exists (src/{self.name}/__init__.py)",
+            )
+        if os.path.isfile(flat_init):
+            return CheckResult(
+                name="__init__.py",
+                status=CheckStatus.PASS,
+                message=f"exists ({self.name}/__init__.py)",
+            )
+        return CheckResult(
+            name="__init__.py",
+            status=CheckStatus.WARNING,
+            message="not found in package directory",
+        )
+
+    def _check_gitignore(self):
+        path = os.path.join(self.directory, ".gitignore")
+        if os.path.isfile(path):
+            return CheckResult(
+                name=".gitignore",
+                status=CheckStatus.PASS,
+                message="exists",
+            )
+        # Create it
+        with open(path, "w") as f:
+            f.write(GITIGNORE_TEMPLATE)
+        if not self.quiet:
+            print(f"  Created {path}")
+        return CheckResult(
+            name=".gitignore",
+            status=CheckStatus.CORRECTED,
+            message="created",
+        )
+
+    def _check_test_dir(self):
+        test_dir_path = os.path.join(self.directory, self.test_dir)
+        if os.path.isdir(test_dir_path):
+            return CheckResult(
+                name=self.test_dir,
+                status=CheckStatus.PASS,
+                message="exists",
+            )
+        os.makedirs(test_dir_path, exist_ok=True)
+        if not self.quiet:
+            print(f"  Created {test_dir_path}")
+        return CheckResult(
+            name=self.test_dir,
+            status=CheckStatus.CORRECTED,
+            message="created",
+        )
+
+    def _check_pytest_ini(self):
+        path = os.path.join(self.directory, "pytest.ini")
+
+        if os.path.isfile(path):
+            content = open(path).read()
+            has_testpaths = "testpaths" in content
+            has_pythonpath = "pythonpath" in content
+
+            if has_pythonpath:
+                # Verify the pythonpath directory exists
+                for line in content.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith("pythonpath"):
+                        parts = stripped.split("=", 1)
+                        if len(parts) == 2:
+                            pp_path = parts[1].strip()
+                            if os.path.isdir(pp_path):
+                                return CheckResult(
+                                    name="pytest.ini",
+                                    status=CheckStatus.PASS,
+                                    message=f"exists with pythonpath → {pp_path}",
+                                )
+                            return CheckResult(
+                                name="pytest.ini",
+                                status=CheckStatus.WARNING,
+                                message=f"pythonpath directory does not exist: {pp_path}",
+                                remediation="Update pythonpath in pytest.ini or re-run with --site-path",
+                            )
+
+            # pytest.ini exists but missing pythonpath — try to add it
+            if not has_pythonpath:
+                site_packages = self._resolve_pythonpath()
+                if site_packages:
+                    new_content = self._update_pytest_ini(content, site_packages)
+                    with open(path, "w") as f:
+                        f.write(new_content)
+                    if not self.quiet:
+                        print(f"  Updated {path} with pythonpath")
+                    return CheckResult(
+                        name="pytest.ini",
+                        status=CheckStatus.CORRECTED,
+                        message=f"added pythonpath → {site_packages}",
+                    )
+                # No site path available, but pytest.ini exists with testpaths
+                if has_testpaths:
+                    return CheckResult(
+                        name="pytest.ini",
+                        status=CheckStatus.WARNING,
+                        message="exists but no pythonpath configured",
+                        remediation="Re-run with --site-path to add venv resolution",
+                    )
+
+            return CheckResult(
+                name="pytest.ini",
+                status=CheckStatus.PASS,
+                message="exists",
+            )
+
+        # pytest.ini doesn't exist — create it
+        site_packages = self._resolve_pythonpath()
+        if site_packages:
+            content = PYTEST_INI_WITH_SITE_TEMPLATE.format(
+                test_dir=self.test_dir,
+                site_packages_path=site_packages)
+        else:
+            content = PYTEST_INI_TEMPLATE.format(test_dir=self.test_dir)
+        with open(path, "w") as f:
+            f.write(content)
+        if not self.quiet:
+            print(f"  Created {path}")
+        msg = "created"
+        if site_packages:
+            msg += f" with pythonpath → {site_packages}"
+        return CheckResult(
+            name="pytest.ini",
+            status=CheckStatus.CORRECTED,
+            message=msg,
+        )
+
+    def _resolve_pythonpath(self):
+        """
+        Resolve a site-packages path for pytest.ini pythonpath.
+
+        Uses self.site_packages_path if already resolved (from --site-path),
+        otherwise prompts the user.
+
+        Returns:
+            Absolute path to site-packages, or None
+        """
+        if self.site_packages_path:
+            return self.site_packages_path
+
+        if self.quiet:
+            return None
+
+        site_path = self._prompt_site_path()
+        if not site_path:
+            return None
+
+        sp = _resolve_site_venv(site_path, quiet=self.quiet)
+        if sp:
+            self.site_packages_path = sp
+        return sp
+
+    def _prompt_site_path(self):
+        """
+        Prompt the user for a site path.
+
+        Returns:
+            Site path string, or None if skipped
+        """
+        resp = cliinput.cli_input(
+            "Site path for venv resolution (or Enter to skip): ")
+        if resp.strip():
+            return resp.strip()
+        return None
+
+    def _update_pytest_ini(self, content, site_packages_path):
+        """
+        Update existing pytest.ini content to add or replace pythonpath.
+
+        Preserves all other content. If pythonpath exists, replaces it.
+        If missing, inserts after testpaths line.
+
+        Args:
+            content: Existing pytest.ini content
+            site_packages_path: Path to add as pythonpath value
+
+        Returns:
+            Updated content string
+        """
+        lines = content.splitlines(keepends=True)
+        new_lines = []
+        replaced = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("pythonpath"):
+                new_lines.append(f"pythonpath = {site_packages_path}\n")
+                replaced = True
+            else:
+                new_lines.append(line)
+                if not replaced and stripped.startswith("testpaths"):
+                    new_lines.append(f"pythonpath = {site_packages_path}\n")
+                    replaced = True
+
+        if not replaced:
+            # No testpaths line found either, append to end
+            result = "".join(new_lines)
+            if not result.endswith("\n"):
+                result += "\n"
+            result += f"pythonpath = {site_packages_path}\n"
+            return result
+
+        return "".join(new_lines)
+
 
 def main():
     """Main entry point for qd_make_repo CLI."""
@@ -363,6 +635,15 @@ def main():
 def _run_make_repo(directory=None, name=None, test_dir=None,
                    site_path=None, quiet=False, **kwargs):
     """Action handler for the CLI."""
+    # Determine actual directory to check for existing repo
+    if directory is None:
+        check_dir = os.getcwd()
+    else:
+        check_dir = os.path.abspath(directory)
+
+    setup_py = os.path.join(check_dir, "setup.py")
+    is_existing_repo = os.path.isfile(setup_py)
+
     maker = MakeRepo(
         directory=directory,
         name=name,
@@ -375,4 +656,19 @@ def _run_make_repo(directory=None, name=None, test_dir=None,
             print(f"Error: {err}", file=sys.stderr)
         sys.exit(1)
 
-    maker.create()
+    if is_existing_repo:
+        if not quiet:
+            print(f"Verifying existing repository '{maker.name}' "
+                  f"at {maker.directory} ...")
+        results = maker.verify()
+        if not quiet:
+            print()
+            for r in results:
+                print(f"  {r.symbol} {r.name}: {r.message}")
+                if r.remediation and r.status == CheckStatus.FAIL:
+                    print(f"    \u2192 {r.remediation}")
+            passed = sum(1 for r in results if r.is_success)
+            total = len(results)
+            print(f"\n  {passed}/{total} checks passed")
+    else:
+        maker.create()
