@@ -2,9 +2,60 @@
 
 Use this reference when building a new project that uses the QuickDev toolkit.
 
-## Installation: Use qdstart
+## Starting a New Repository: Use qd_make_repo
 
-All new projects should be initialized and configured through the **qdstart** process. Do not manually create configuration files or install packages by hand.
+All new QuickDev repositories should be created using `qd_make_repo`. Do not manually create setup.py, `src/` layout, or boilerplate files by hand.
+
+```bash
+qd_make_repo -n myapp -d /path/to/myapp -s /path/to/site
+```
+
+### What it creates
+
+```
+myapp/
+├── setup.py              # pip-installable, src/ layout
+├── src/myapp/__init__.py # __version__ = '0.1.0'
+├── .gitignore            # Python/QuickDev standard
+├── pytest.ini            # testpaths + pythonpath to site venv
+└── myapp_tests/          # test directory
+```
+
+### Key options
+- `-d /path` — Repository root directory (default: cwd)
+- `-n name` — Package name (default: directory basename; must be a valid Python identifier)
+- `-t test_dir` — Test directory name (default: `<name>_tests`)
+- `-s /path/to/site` — QuickDev site for venv resolution (if site doesn't exist, calls qdstart to initialize it)
+- `-q` — Quiet mode
+
+### How site resolution works
+
+When `-s` is provided, `qd_make_repo` locates the site's venv `site-packages` directory and writes it into `pytest.ini` as `pythonpath`. This ensures pytest finds packages installed in the site's venv without requiring the developer to activate it first.
+
+If the site path doesn't exist, `qd_make_repo` automatically calls `QdStart` to create the site (venv, `conf/`, etc.) before resolving the path.
+
+If `-s` is omitted, `pytest.ini` is generated without a `pythonpath` entry.
+
+### Programmatic usage
+
+```python
+from qdutils.qd_make_repo import MakeRepo
+
+maker = MakeRepo(directory="/path/to/myapp", name="myapp",
+                 site_path="/path/to/site")
+assert maker.success  # False if name is invalid or site resolution failed
+maker.create()        # Returns list of created paths
+```
+
+### Existing files are never overwritten
+
+If any generated file (setup.py, .gitignore, etc.) already exists, it is left untouched. This makes `qd_make_repo` safe to re-run on an existing repository.
+
+## Creating/Managing Sites: Use qdstart
+
+All new sites should be initialized and configured through the **qdstart** process. Do not manually create configuration files or install packages by hand.
+
+A **site** is a directory tree where applications execute — this can be a test directory, a development environment, or a production directory like `/var/www/app`.
 
 ```bash
 python qdutils/qdstart.py -s /path/to/new/site
@@ -228,7 +279,7 @@ Also supports raw `db.execute(sql, values)` and direct cursor/connection access 
 - `qdbase/src/qdbase/` - Foundation (pdict, qdsqlite, exenv, qdconf, qdcheck, qdos)
 - `qdimage/src/qdimage/` - Image processing (editor, storage, infmeta, LLM description)
 - `qdcore/src/qdcore/` - Core (qdrepos, qdsetup, flaskapp, wsgi)
-- `qdutils/src/qdutils/` - Entry point (qdstart)
+- `qdutils/src/qdutils/` - Entry points (qd_make_repo, qdstart)
 
 ## Related Repositories
 

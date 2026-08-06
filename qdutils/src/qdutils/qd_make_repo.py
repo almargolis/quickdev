@@ -1,0 +1,378 @@
+"""
+Create a new QuickDev repository with a standard pip-installable structure.
+
+Generates a minimal repository skeleton with:
+  - setup.py (src/ layout, pip/PyPI compatible)
+  - src/<name>/__init__.py
+  - .gitignore (Python/QuickDev standard)
+  - pytest.ini (testpaths, optional pythonpath to site venv)
+  - <name>_tests/ directory
+
+If --site-path is provided and the site doesn't exist, QdStart is called
+to initialize it (creating conf/, venv, etc.).
+
+Usage:
+    qd_make_repo --name myapp --site-path /path/to/site
+    qd_make_repo -n myapp -s /path/to/site -d /path/to/repo
+"""
+
+import keyword
+import os
+import sys
+
+THIS_MODULE_PATH = os.path.abspath(__file__)
+QDUTILS_PKG_PATH = os.path.dirname(THIS_MODULE_PATH)
+QDUTILS_SRC_PATH = os.path.dirname(QDUTILS_PKG_PATH)
+QDUTILS_PATH = os.path.dirname(QDUTILS_SRC_PATH)
+QDDEV_PATH = os.path.dirname(QDUTILS_PATH)
+QDBASE_SRC_PATH = os.path.join(QDDEV_PATH, "qdbase", "src")
+QDCORE_SRC_PATH = os.path.join(QDDEV_PATH, "qdcore", "src")
+
+try:
+    from qdbase import cliargs
+except ModuleNotFoundError:
+    sys.path.insert(0, QDBASE_SRC_PATH)
+    sys.path.insert(0, QDCORE_SRC_PATH)
+    from qdbase import cliargs
+
+from qdbase import exenv
+from qdbase import qdos
+
+
+SETUP_PY_TEMPLATE = '''\
+from setuptools import setup
+
+setup(
+    name="{name}",
+    version="0.1.0",
+    package_dir={{"": "src"}},
+    packages=["{name}"],
+    install_requires=["qdbase>=0.3.0"],
+    python_requires=">=3.11",
+)
+'''
+
+INIT_PY_TEMPLATE = '''\
+__version__ = '0.1.0'
+'''
+
+GITIGNORE_TEMPLATE = '''\
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual Environments
+venv/
+*.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# QuickDev
+conf/db/*.db
+conf/db/*.sqlite
+*.log
+*.tmp
+'''
+
+PYTEST_INI_TEMPLATE = '''\
+[pytest]
+testpaths = {test_dir}
+'''
+
+PYTEST_INI_WITH_SITE_TEMPLATE = '''\
+[pytest]
+testpaths = {test_dir}
+pythonpath = {site_packages_path}
+'''
+
+
+def _find_site_packages(venv_dpath):
+    """
+    Find the site-packages directory inside a venv.
+
+    Args:
+        venv_dpath: Path to the virtual environment directory
+
+    Returns:
+        Absolute path to site-packages, or None if not found
+    """
+    lib_dpath = os.path.join(venv_dpath, "lib")
+    if not os.path.isdir(lib_dpath):
+        return None
+    for entry in os.listdir(lib_dpath):
+        if entry.startswith("python"):
+            sp = os.path.join(lib_dpath, entry, "site-packages")
+            if os.path.isdir(sp):
+                return sp
+    return None
+
+
+def _resolve_site_venv(site_path, quiet=False):
+    """
+    Resolve the venv site-packages path for a QuickDev site.
+
+    If the site doesn't exist, calls QdStart to initialize it.
+
+    Args:
+        site_path: Path to the QuickDev site directory
+        quiet: Suppress output
+
+    Returns:
+        Absolute path to site-packages, or None on failure
+    """
+    site_path = os.path.abspath(site_path)
+
+    # Check if site already has a venv
+    if os.path.isdir(site_path):
+        # Look for an existing *.venv directory
+        for entry in os.listdir(site_path):
+            candidate = os.path.join(site_path, entry)
+            if entry.endswith(".venv") and os.path.isdir(candidate):
+                sp = _find_site_packages(candidate)
+                if sp:
+                    return sp
+
+        # Check conf/site.toml for the prefix
+        site_toml = os.path.join(site_path, "conf", "site.toml")
+        if os.path.isfile(site_toml):
+            import tomllib
+            with open(site_toml, "rb") as f:
+                data = tomllib.load(f)
+            prefix = data.get("qdsite_prefix")
+            if prefix:
+                venv_dpath = os.path.join(site_path, f"{prefix}.venv")
+                sp = _find_site_packages(venv_dpath)
+                if sp:
+                    return sp
+
+    # Site doesn't exist or has no venv — initialize via QdStart
+    if not quiet:
+        print(f"Initializing site at {site_path} ...")
+
+    from qdutils.qdstart import QdStart
+    site_name = os.path.basename(site_path)
+    qs = QdStart(
+        qdsite_dpath=site_path,
+        qdsite_prefix=site_name,
+        quiet=quiet,
+    )
+
+    if qs.venv_dpath:
+        sp = _find_site_packages(qs.venv_dpath)
+        if sp:
+            return sp
+
+    return None
+
+
+class MakeRepo:
+    """Create a new QuickDev repository with standard structure."""
+
+    def __init__(self, directory=None, name=None, test_dir=None,
+                 site_path=None, quiet=False):
+        """
+        Initialize MakeRepo.
+
+        Args:
+            directory: Repository root directory (default: cwd)
+            name: Package name (default: directory basename)
+            test_dir: Test directory name (default: <name>_tests)
+            site_path: Path to QuickDev site for venv resolution
+            quiet: Suppress output
+        """
+        self.quiet = quiet
+        self.errors = []
+
+        # Resolve directory
+        if directory is None:
+            self.directory = os.getcwd()
+        else:
+            self.directory = os.path.abspath(directory)
+
+        # Resolve name
+        if name is None:
+            self.name = os.path.basename(self.directory)
+        else:
+            self.name = name
+
+        # Validate name
+        if not self.name.isidentifier() or keyword.iskeyword(self.name):
+            self.errors.append(
+                f"'{self.name}' is not a valid Python package name")
+            return
+
+        # Resolve test directory
+        if test_dir is None:
+            self.test_dir = f"{self.name}_tests"
+        else:
+            self.test_dir = test_dir
+
+        # Resolve site packages path
+        self.site_packages_path = None
+        if site_path:
+            self.site_packages_path = _resolve_site_venv(
+                site_path, quiet=quiet)
+            if self.site_packages_path is None:
+                self.errors.append(
+                    f"Could not resolve site-packages for site: {site_path}")
+
+    @property
+    def success(self):
+        return len(self.errors) == 0
+
+    def create(self):
+        """
+        Create the repository structure.
+
+        Returns:
+            List of created file/directory paths
+        """
+        if not self.success:
+            return []
+
+        created = []
+
+        # Create directories
+        src_pkg_dir = os.path.join(self.directory, "src", self.name)
+        test_dir_path = os.path.join(self.directory, self.test_dir)
+
+        for d in [self.directory, src_pkg_dir, test_dir_path]:
+            os.makedirs(d, exist_ok=True)
+            created.append(d)
+
+        # Write setup.py
+        setup_path = os.path.join(self.directory, "setup.py")
+        if not os.path.exists(setup_path):
+            with open(setup_path, "w") as f:
+                f.write(SETUP_PY_TEMPLATE.format(name=self.name))
+            created.append(setup_path)
+            if not self.quiet:
+                print(f"  Created {setup_path}")
+
+        # Write __init__.py
+        init_path = os.path.join(src_pkg_dir, "__init__.py")
+        if not os.path.exists(init_path):
+            with open(init_path, "w") as f:
+                f.write(INIT_PY_TEMPLATE)
+            created.append(init_path)
+            if not self.quiet:
+                print(f"  Created {init_path}")
+
+        # Write .gitignore
+        gitignore_path = os.path.join(self.directory, ".gitignore")
+        if not os.path.exists(gitignore_path):
+            with open(gitignore_path, "w") as f:
+                f.write(GITIGNORE_TEMPLATE)
+            created.append(gitignore_path)
+            if not self.quiet:
+                print(f"  Created {gitignore_path}")
+
+        # Write pytest.ini
+        pytest_ini_path = os.path.join(self.directory, "pytest.ini")
+        if not os.path.exists(pytest_ini_path):
+            if self.site_packages_path:
+                content = PYTEST_INI_WITH_SITE_TEMPLATE.format(
+                    test_dir=self.test_dir,
+                    site_packages_path=self.site_packages_path)
+            else:
+                content = PYTEST_INI_TEMPLATE.format(
+                    test_dir=self.test_dir)
+            with open(pytest_ini_path, "w") as f:
+                f.write(content)
+            created.append(pytest_ini_path)
+            if not self.quiet:
+                print(f"  Created {pytest_ini_path}")
+
+        if not self.quiet:
+            print(f"\nRepository '{self.name}' created at {self.directory}")
+
+        return created
+
+
+def main():
+    """Main entry point for qd_make_repo CLI."""
+    menu = cliargs.CliCommandLine()
+
+    # Register parameters on the menu first (cliargs requires this)
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "d",
+        help_description="Repository root directory (default: cwd).",
+        default_none=True,
+        value_type=cliargs.PARAMETER_STRING,
+    ))
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "n",
+        help_description="Package name (default: directory name).",
+        default_none=True,
+        value_type=cliargs.PARAMETER_STRING,
+    ))
+    menu.add_item(cliargs.CliCommandLineParameterItem(
+        "t",
+        help_description="Test directory name (default: <name>_tests).",
+        default_none=True,
+        value_type=cliargs.PARAMETER_STRING,
+    ))
+    exenv.command_line_site(menu)     # -s for site path
+    exenv.command_line_quiet(menu)    # -q for quiet
+
+    # Register the default action and bind parameters to it
+    m = menu.add_item(
+        cliargs.CliCommandLineActionItem(
+            cliargs.DEFAULT_ACTION_CODE,
+            _run_make_repo,
+            help_description="Create a new QuickDev repository.",
+        )
+    )
+    m.add_parameter(cliargs.CliCommandLineParameterItem(
+        "d", parameter_name="directory", is_positional=False,
+    ))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(
+        "n", parameter_name="name", is_positional=False,
+    ))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(
+        "t", parameter_name="test_dir", is_positional=False,
+    ))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(
+        exenv.ARG_S_SITE_DPATH, parameter_name="site_path",
+        is_positional=False,
+    ))
+    m.add_parameter(cliargs.CliCommandLineParameterItem(
+        exenv.ARG_Q_QUIET, parameter_name="quiet", is_positional=False,
+    ))
+
+    menu.cli_run()
+
+
+def _run_make_repo(directory=None, name=None, test_dir=None,
+                   site_path=None, quiet=False, **kwargs):
+    """Action handler for the CLI."""
+    maker = MakeRepo(
+        directory=directory,
+        name=name,
+        test_dir=test_dir,
+        site_path=site_path,
+        quiet=quiet,
+    )
+    if not maker.success:
+        for err in maker.errors:
+            print(f"Error: {err}", file=sys.stderr)
+        sys.exit(1)
+
+    maker.create()

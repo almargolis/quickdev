@@ -13,6 +13,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
+            'qd_make_repo=qdutils.qd_make_repo:main',
             'qdo=qdutils.qdo:main',
             'qdstart=qdutils.qdstart:main',
             'xsynth=qdutils.xsynth:main',

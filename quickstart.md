@@ -4,15 +4,54 @@ This guide walks you through building a multi-user todo application using QuickD
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Familiarity with Python and basic SQL concepts
 - No Flask experience required (QuickDev generates the Flask code for you)
 
-## Step 1: Define Your Data
+## Key Concepts: Repositories and Sites
+
+A QuickDev developer works with two types of directory trees:
+
+- **Repositories** contain source code. All code must reside in standard pip-installable repositories using the `src/` layout. Applications are compositions of QuickDev repositories, application-specific repositories, and any other repositories the developer chooses.
+
+- **Sites** are directory trees where applications execute. A site can be a limited test directory, a full development environment, or a production directory like `/var/www/app`. Sites contain a virtual environment, configuration files, and databases.
+
+QuickDev provides utilities for creating and managing both:
+- `qd_make_repo` creates new repositories
+- `qdstart` and `qdboot` create and manage sites
+
+## Step 1: Create Your Repository
+
+Start by creating a pip-installable repository with the correct structure. The `qd_make_repo` utility generates the standard skeleton:
+
+```bash
+qd_make_repo -n todo -d /path/to/todo
+```
+
+This creates:
+
+```
+todo/
+├── setup.py              # pip-installable, src/ layout
+├── src/todo/__init__.py   # __version__ = '0.1.0'
+├── .gitignore             # Python/QuickDev standard
+├── pytest.ini             # testpaths = todo_tests
+└── todo_tests/            # ready for tests
+```
+
+If you already have a QuickDev site set up, you can link the repository to it so that pytest finds packages installed in the site's venv:
+
+```bash
+qd_make_repo -n todo -d /path/to/todo -s /path/to/site
+```
+
+This adds a `pythonpath` entry to `pytest.ini` pointing to the site's venv `site-packages`. If the site doesn't exist yet, `qd_make_repo` calls `qdstart` to initialize it automatically.
+
+## Step 2: Define Your Data
 
 The foundation of every QuickDev application is a **pdict data specification**. This is a Python module that describes your database tables using `pdict` objects from `qdbase`. Everything else — the database schema, REST API endpoints, web forms, and MCP tools — is generated from this single definition.
 
-Create a file called `data_spec.py`:
+Create a file called `src/todo/data_spec.py`:
 
 ```python
 from qdbase import pdict
@@ -109,7 +148,7 @@ You can verify that your definitions produce valid SQL:
 
 ```python
 python3 -c "
-from data_spec import db_dict
+from todo.data_spec import db_dict
 for sql in db_dict.sql_create_list():
     print(sql)
 "
@@ -117,7 +156,7 @@ for sql in db_dict.sql_create_list():
 
 This should output `CREATE TABLE` statements for both tables, a `CREATE INDEX` for the email index, and a `FOREIGN KEY` clause on the tasks table.
 
-## Step 2: Create Your API
+## Step 3: Create Your API
 
 With your data spec defined, you can stand up a full REST API by writing a small Flask app factory. The `qdrestful` package reads your pdict definitions and auto-generates CRUD endpoints for every table.
 
@@ -144,7 +183,7 @@ from qdflaskauth import init_qdflaskauth
 from qdflaskapi import init_qdflaskapi
 from qdrestful import init_qdrestful
 
-from data_spec import db_dict
+from todo.data_spec import db_dict
 
 
 def create_app(config=None):
@@ -181,7 +220,7 @@ if __name__ == '__main__':
 
 ### What this gives you
 
-The key line is `app.config['QDRESTFUL_DB_DICT'] = db_dict`. When `init_qdrestful()` runs, it reads your pdict definitions and generates these endpoints for **each table**:
+The key line is `app.config['QDRESTFUL_DB_DICT'] = db_dict`. When `init_qdrestful()` runs, it reads your pdict definitions and generates these endpoints for each table:
 
 | Method | URL | Description |
 |--------|-----|-------------|
@@ -247,7 +286,7 @@ curl -b cookies.txt -X PATCH http://localhost:5555/api/tasks/1 \
 
 ### What pdict metadata controls
 
-Your column metadata from Step 1 is enforced automatically:
+Your column metadata from Step 2 is enforced automatically:
 
 - **`is_create_required`** — POST returns 400 if the field is missing
 - **`choices`** — POST/PUT/PATCH return 400 for values not in the list
@@ -267,9 +306,9 @@ Notice the app has two database configurations:
 
 This separation is intentional: the auth system uses SQLAlchemy, while your business data uses qdsqlite (driven by pdict). They don't interfere with each other.
 
-## Step 3: Add Web Forms
+## Step 4: Add Web Forms
 
-The `qdforms` package reads the same pdict definitions and generates web-based list views and CRUD forms for every table. It uses JavaScript to call the REST API you set up in Step 2 — no additional backend code needed.
+The `qdforms` package reads the same pdict definitions and generates web-based list views and CRUD forms for every table. It uses JavaScript to call the REST API you set up in Step 3 — no additional backend code needed.
 
 ### Add qdforms to your app
 
@@ -305,7 +344,7 @@ Browse to `http://localhost:5555/forms/` after starting the app. You'll see:
 
 ### How pdict drives the forms
 
-Your column metadata from Step 1 controls which HTML widget each field uses:
+Your column metadata from Step 2 controls which HTML widget each field uses:
 
 | pdict definition | Form widget |
 |-----------------|-------------|
@@ -356,9 +395,9 @@ Browser → qdforms HTML/JS → fetch('/api/tasks') → qdrestful → qdsqlite �
 
 This means validation happens in two places: client-side in the browser (from the HTML attributes) and server-side in qdrestful (from the pdict metadata). Both are driven by the same pdict definitions.
 
-## Step 4: Add Authentication
+## Step 5: Add Authentication
 
-If you followed Step 2, authentication is already wired in. The `app.py` you created calls `init_qdflaskauth()` and `init_qdflaskapi()`, which set up session-based login and API key authentication. All REST endpoints and web forms require authentication — no additional code needed.
+If you followed Step 3, authentication is already wired in. The `app.py` you created calls `init_qdflaskauth()` and `init_qdflaskapi()`, which set up session-based login and API key authentication. All REST endpoints and web forms require authentication — no additional code needed.
 
 This step explains what those packages do and how to use them.
 
@@ -498,7 +537,7 @@ init_qdflaskapi(app, config={
 
 ### How it fits together
 
-The full `app.py` from Step 2 already includes all the auth wiring. Here's the initialization order and what each layer adds:
+The full `app.py` from Step 3 already includes all the auth wiring. Here's the initialization order and what each layer adds:
 
 ```python
 init_qdflask(app)                              # 1. SQLAlchemy + User model
@@ -510,11 +549,11 @@ init_qdforms(app, config={...})                  # 5. Web forms (login-protected
 
 Each layer builds on the previous one. The order matters — qdrestful needs qdflaskauth and qdflaskapi to be initialized first so its endpoints can check for valid sessions and API keys.
 
-## Step 5: Enable MCP for AI Agents
+## Step 6: Enable MCP for AI Agents
 
 The `qdrestful` package includes a built-in MCP (Model Context Protocol) server that exposes your pdict tables as tools. AI agents — such as Claude in Claude Desktop or any MCP-compatible client — can use these tools to read and write your application data.
 
-The MCP server generates tools directly from the same pdict definitions you created in Step 1. No additional configuration or tool definitions needed.
+The MCP server generates tools directly from the same pdict definitions you created in Step 2. No additional configuration or tool definitions needed.
 
 ### What tools are generated
 
@@ -533,7 +572,7 @@ For the todo app, that's 12 tools: `describe_people`, `list_people`, `get_people
 
 ### How pdict drives the tool schemas
 
-Your column metadata controls the generated tool parameter schemas:
+Your column metadata from Step 2 controls the generated tool parameter schemas:
 
 - **`is_create_required`** → parameter is marked `required` in the create tool
 - **`is_filterable`** → column appears as a filter parameter in the list tool
@@ -550,7 +589,7 @@ The MCP server runs as a standalone stdio process. It connects directly to the s
 python -m qdrestful.mcp_server \
     --db-type sqlite \
     --db-path todo_data.db \
-    --pdict-module data_spec \
+    --pdict-module todo.data_spec \
     --pdict-attr db_dict
 ```
 
@@ -560,7 +599,7 @@ Arguments:
 |----------|-------------|
 | `--db-type` | `sqlite` or `mariadb` (default: `sqlite`) |
 | `--db-path` | Path to the SQLite database file |
-| `--pdict-module` | Python module containing the pdict definition (dotted path) |
+| `--pdict-module` | Python module containing the pdict definition (e.g., `todo.data_spec`) |
 | `--pdict-attr` | Attribute name for the `DbDictDb` object (default: `db_dict`) |
 
 The server reads JSON-RPC messages from stdin and writes responses to stdout, following the MCP protocol (version `2024-11-05`).
@@ -582,7 +621,7 @@ To connect the todo app's MCP server to Claude Desktop, add it to your `claude_d
       ],
       "cwd": "/path/to/todo",
       "env": {
-        "PYTHONPATH": "/path/to/quickdev/qdbase/src:/path/to/qdflask-repo/qdrestful/src:/path/to/todo"
+        "PYTHONPATH": "/path/to/quickdev/qdbase/src:/path/to/qdflask-repo/qdrestful/src:/path/to/todo/src"
       }
     }
   }
@@ -608,7 +647,7 @@ For Claude Code, add the MCP server to your project's `.mcp.json`:
       ],
       "cwd": "/path/to/todo",
       "env": {
-        "PYTHONPATH": "/path/to/quickdev/qdbase/src:/path/to/qdflask-repo/qdrestful/src:/path/to/todo"
+        "PYTHONPATH": "/path/to/quickdev/qdbase/src:/path/to/qdflask-repo/qdrestful/src:/path/to/todo/src"
       }
     }
   }
@@ -662,9 +701,9 @@ init_qdrestful(app, config={
 
 This stores `QDRESTFUL_MCP_ENABLED = True` in the Flask config but does not launch the MCP server — the server runs as a separate process.
 
-## Step 6: Package and Deploy
+## Step 7: Package and Deploy
 
-In Steps 1-5 you built the todo app by hand-writing an `app.py` that calls each `init_*` function in the right order. This works for development, but for deployment you want a reproducible installation that:
+In Steps 2-6 you built the todo app by hand-writing an `app.py` that calls each `init_*` function in the right order. This works for development, but for deployment you want a reproducible installation that:
 
 - Creates a virtual environment automatically
 - Installs all packages in the correct order
@@ -675,18 +714,18 @@ In Steps 1-5 you built the todo app by hand-writing an `app.py` that calls each 
 
 QuickDev's `qdboot` system does all of this from a single `bootstrap.toml` file.
 
-### Step 6a: Structure your app as an installable package
+### Step 7a: Structure your app as an installable package
 
-First, restructure your project so `qdstart` can discover and install it:
+Your repository already has the correct `src/` layout from Step 1. Now add the Flask integration files so `qdstart` can discover and install it:
 
 ```
 todo/
-├── setup.py
+├── setup.py                   # (already created by qd_make_repo)
 ├── bootstrap.toml
 ├── app.py                     # (development server, kept for convenience)
-└── todo/
+└── src/todo/
     ├── __init__.py            # init function for qdstart
-    ├── data_spec.py           # pdict definitions (moved here)
+    ├── data_spec.py           # pdict definitions (from Step 2)
     └── qd_conf.toml           # package configuration
 ```
 
@@ -735,20 +774,22 @@ Key points:
 - The `[answers.*]` sections pre-supply configuration so the installer doesn't prompt for them
 - `<site_dpath>` is a placeholder that resolves to the actual installation directory at install time
 
-**`setup.py`** — Makes the package pip-installable:
+**`setup.py`** — Update the setup.py generated by `qd_make_repo` to include package data:
 
 ```python
-from setuptools import setup, find_packages
+from setuptools import setup
 setup(
     name='todo',
     version='0.1.0',
-    packages=find_packages(),
-    install_requires=['qdbase'],
+    package_dir={'': 'src'},
+    packages=['todo'],
+    install_requires=['qdbase>=0.3.0'],
     package_data={'todo': ['qd_conf.toml']},
+    python_requires='>=3.11',
 )
 ```
 
-### Step 6b: Create bootstrap.toml
+### Step 7b: Create bootstrap.toml
 
 `bootstrap.toml` is the single source of truth for reproducing the installation. It specifies the site directory, repository locations, and all configuration answers:
 
@@ -813,7 +854,7 @@ enabled = false
 
 The `e::` prefix on repo paths means editable install (`pip install -e`). Remove it for production deployments where you want packages copied into the venv.
 
-### Step 6c: Generate the boot files
+### Step 7c: Generate the boot files
 
 Run `qdbootstrap.py` to generate the boot script and flattened answer file:
 
@@ -826,7 +867,7 @@ This creates two files in your project directory:
 - **`qdboot.sh`** — Shell script with `plan` and `make` commands
 - **`qdboot_answers.toml`** — Flattened answers from bootstrap.toml (consumed by qdstart)
 
-### Step 6d: Preview the installation
+### Step 7d: Preview the installation
 
 Run the plan command to see what qdstart will do without actually doing it:
 
@@ -841,7 +882,7 @@ The plan shows:
 
 If any questions show as "Will be prompted", add their answers to `bootstrap.toml` and regenerate the boot files.
 
-### Step 6e: Install
+### Step 7e: Install
 
 ```bash
 sh qdboot.sh make
@@ -904,7 +945,7 @@ def qd_init_app(app):
 
 Notice that `<site_dpath>` has been resolved to the actual installation path.
 
-### Step 6f: Run the generated app
+### Step 7f: Run the generated app
 
 For development:
 

@@ -51,6 +51,7 @@ The codebase is organized into several package directories:
   - `rdbms.py`: Relational database utilities
 
 - **qdutils/**: Development utilities
+  - `qd_make_repo.py`: Create new repository with standard pip-installable structure
   - `qdstart.py`: Site initialization and configuration tool
   - `xsynth.py`: XSynth preprocessor main entry point
   - `hosting.py`: Hosting environment utilities
