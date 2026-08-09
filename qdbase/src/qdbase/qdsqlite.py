@@ -192,7 +192,13 @@ class QdSqlite(QdBaseDb):
 
     def db_update_columns(self, table_name):
         schema_sql = self.db_schema[table_name]
-        schema_t = sql_to_pdict_table(schema_sql, db_pdict=self.db_dict)
+        # Use a temporary DbDictDb so sql_to_pdict_table can add_table
+        # without conflicting with existing entries in self.db_dict
+        tmp_dict = pdict.DbDictDb()
+        for tname, tobj in self.db_dict.tables.items():
+            if tname != table_name:
+                tmp_dict.tables[tname] = tobj
+        schema_t = sql_to_pdict_table(schema_sql, db_pdict=tmp_dict)
         dict_t = self.db_dict.tables[table_name]
         for this_schema_column_name in schema_t.columns.keys():
             if this_schema_column_name not in dict_t.columns:
@@ -232,6 +238,38 @@ class QdSqlite(QdBaseDb):
                 self.db_cursor.execute(sql)
                 self.db_conn.commit()
                 self.db_schema[this_dict_table_name] = sql
+
+    def ensure_table(self, table_name):
+        """Create table if missing, or add new columns. Never drops columns/tables."""
+        if table_name not in self.db_dict.tables:
+            raise KeyError(f"Table '{table_name}' not in db_dict")
+        if table_name not in self.db_schema:
+            sql = self.db_dict.tables[table_name].sql()
+            self.db_cursor.execute(sql)
+            self.db_conn.commit()
+            self.db_schema[table_name] = sql
+            for idx in self.db_dict.tables[table_name].indexes.values():
+                try:
+                    self.db_cursor.execute(idx.sql())
+                    self.db_conn.commit()
+                except self.db_module.OperationalError:
+                    pass  # index already exists
+        else:
+            # Add-only column update (no drops)
+            # Use a temporary DbDictDb so sql_to_pdict_table can add_table
+            # without conflicting with existing entries in self.db_dict
+            tmp_dict = pdict.DbDictDb()
+            # Copy existing tables so FK references can resolve
+            for tname, tobj in self.db_dict.tables.items():
+                if tname != table_name:
+                    tmp_dict.tables[tname] = tobj
+            schema_t = sql_to_pdict_table(self.db_schema[table_name], db_pdict=tmp_dict)
+            dict_t = self.db_dict.tables[table_name]
+            for col_name in dict_t.columns:
+                if col_name not in schema_t.columns:
+                    col_sql = dict_t.columns[col_name].sql()
+                    self.db_cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_sql};")
+                    self.db_conn.commit()
 
     def executescript(self, sql_script):
         self.db_conn.executescript(sql_script)
