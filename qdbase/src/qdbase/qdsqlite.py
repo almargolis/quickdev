@@ -74,12 +74,16 @@ def sql_to_pdict_table(sql, db_pdict=None, debug=False):
         if column_parts[0] == 'FOREIGN':
             # FOREIGN KEY (col_2b) REFERENCES table_1 (id)
             this_field_name = column_parts[2]
-            this_field_name = this_field_name[1:-1]
+            this_field_name = this_field_name.strip(',')[1:-1]
             this_field_obj = t.columns[this_field_name]
             foreign_table_name = column_parts[4]
-            foreign_table_obj = db_pdict.tables[foreign_table_name]
+            # Self-referential FK: use the table being built
+            if foreign_table_name == table_name:
+                foreign_table_obj = t
+            else:
+                foreign_table_obj = db_pdict.tables[foreign_table_name]
             foreign_field_name = column_parts[5]
-            foreign_field_name = foreign_field_name[1:-1]
+            foreign_field_name = foreign_field_name.strip(',')[1:-1]
             foreign_field_obj = foreign_table_obj.columns[foreign_field_name]
             this_field_obj.foreign_key = pdict.ForeignKey(foreign_field_obj)
             continue
